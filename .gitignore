@@ -1,0 +1,19 @@
+# OS / editor
+Thumbs.db
+Desktop.ini
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Node (plugin packages under plugins/)
+node_modules/
+dist/
+lib/
+*.tsbuildinfo
+
+# Secrets and local harness state — never commit
+.env
+.env.*
+!.env.example
+.dsh-home/
