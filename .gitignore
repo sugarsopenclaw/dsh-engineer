@@ -36,3 +36,7 @@ dev-test/**/out/
 dev-test/**/*.user
 dev-test/**/*.suo
 dev-test/**/scripts/*.scr
+
+# Cloud-dev scratch — keep source, drop runtime leftovers
+cloud-dev/**/out/
+cloud-dev/**/tmp/

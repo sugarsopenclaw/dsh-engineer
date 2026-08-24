@@ -18,8 +18,9 @@
 | `docs/` | 本仓库文档（调研、开发笔记等）；规格仍写 `specs/` |
 | `other-projects/` | 对本工程有帮助的参考项目（自己的或别人的），只参考 |
 | `dev-test/` | 本机实验 / PoC（如 AutoCAD 抽取器）。不是产品层，不进 `plugins/` / `data/pipelines/` |
+| `cloud-dev/` | 云开发工作区（Cloud Agent / 远程环境）。不是产品层，不进 `plugins/` / `data/pipelines/` |
 
-分层边界见 `specs/001-platform-layers/`。不要在 `client-data/` 写派生文件（含 CAD `.bak`、抽取 JSON）；不要把数据集或对象实例放进 `plugins/`。`dev-test/` 的编译产物和抽取输出不进 git。
+分层边界见 `specs/001-platform-layers/`。不要在 `client-data/` 写派生文件（含 CAD `.bak`、抽取 JSON）；不要把数据集或对象实例放进 `plugins/`。`dev-test/` 和 `cloud-dev/` 的编译产物和抽取输出不进 git。
 
 ## 硬性约定
 
