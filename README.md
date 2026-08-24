@@ -14,7 +14,7 @@
 | `ontology/` | Ontology：对象 / 链接 / 动作的类型定义 |
 | `specs/` | SDD 规格 |
 | `docs/` | 本仓库文档（调研、开发笔记）；规格仍写 `specs/` |
-| `other-projects/` | 参考项目，只参考 |
+| `other-projects/` | 参考项目，只参考，不进 git。晓量冻结点：[LuarAssassin/xiaoliang@94720be](https://github.com/LuarAssassin/xiaoliang/tree/94720bedb4575deb388dfd0500432a4777cf08dd) |
 | `dev-test/` | 本机实验 / PoC，不是产品层 |
 | `cloud-dev/` | 云开发工作区（Cloud Agent / 远程环境），不是产品层 |
 
