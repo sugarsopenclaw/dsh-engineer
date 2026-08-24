@@ -17,3 +17,22 @@ lib/
 .env.*
 !.env.example
 .dsh-home/
+
+# Customer source drops — local only
+client-data/**
+!client-data/README.md
+
+# Reference clones (xiaoliang etc.) — local only
+other-projects/
+
+# Data Layer products — regenerate from pipelines
+data/datasets/
+
+# Local CAD extractor build/output
+dev-test/**/bin/
+dev-test/**/obj/
+dev-test/**/.vs/
+dev-test/**/out/
+dev-test/**/*.user
+dev-test/**/*.suo
+dev-test/**/scripts/*.scr

@@ -9,6 +9,15 @@
 | `harness/` | 上游源码，git submodule，只跟踪、不改 |
 | `plugins/` | 我们的插件包（`dsh.bundle`） |
 | `patches/` | 本地 `--patch` 叠加层，开发时挂载插件 |
+| `client-data/` | 客户原始资料（Source），不进 git |
+| `data/` | Data Layer：管线、登记、派生数据集 |
+| `ontology/` | Ontology：对象 / 链接 / 动作的类型定义 |
+| `specs/` | SDD 规格 |
+| `docs/` | 本仓库文档（调研、开发笔记）；规格仍写 `specs/` |
+| `other-projects/` | 参考项目，只参考 |
+| `dev-test/` | 本机实验 / PoC，不是产品层 |
+
+客户原文 → `data/` 数据集 → `ontology/` 映射 → `plugins/` 给 agent 用。不要在 `client-data/` 里加工文件。细节见 [`specs/001-platform-layers/spec.md`](specs/001-platform-layers/spec.md)。
 
 上游目前不接受外部 PR；插件应作为独立包开发，发布时给 GitHub 仓库打上 `dsh-plugin` topic。
 

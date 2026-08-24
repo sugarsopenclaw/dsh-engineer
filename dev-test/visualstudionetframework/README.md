@@ -1,0 +1,34 @@
+# AutoCAD 2024 DWG extractor (dev-test)
+
+本机 PoC：AutoCAD 2024 进程内 C# 插件，遍历整库（BlockTable / 符号表 / XData / Dictionary / Proxy），写出 JSON/JSONL。
+
+- 目标框架：**.NET Framework 4.8** / **x64**
+- 宿主：`D:\autocad2024\AutoCAD 2024`
+- 引用：`accoremgd.dll`、`acdbmgd.dll`，**Copy Local = False**（不引用 `acmgd.dll`，才能给 `accoreconsole` 用）
+- 命令：`SHBEXTRACT`
+- 产出：`dev-test/visualstudionetframework/out/<图纸名>/`（不写 `client-data/`）
+
+## 编译
+
+Visual Studio 打开 `ClassLibrary1.slnx`，平台选 x64 后生成。或：
+
+```powershell
+cd D:\dev\dsh-engineer\dev-test\visualstudionetframework
+.\run-extract.ps1 -Drawing "D:\dev\dsh-engineer\client-data\transformer-design-drawings\5TBC.384.A110050.2_1.DWG"
+```
+
+不带 `-Drawing` 会跑 drop 里全部 DWG。
+
+## 在 AutoCAD 里手动加载
+
+1. 打开图纸（只读，不要另存）
+2. `NETLOAD` → `ClassLibrary1\ClassLibrary1\bin\x64\Debug\Shb.AutoCAD.Extractor.dll`
+3. 命令行输入 `SHBEXTRACT`
+
+输出目录默认 `dev-test/visualstudionetframework/out`。可设环境变量 `SHB_EXTRACT_OUT`，或在 DLL 同目录放 `output-root.txt`。
+
+`accoreconsole` 批跑需要先把 `SECURELOAD` 设为 0（脚本已做），否则会“加载成功”但命令不注册。退出时用 `QUIT` + `N`，避免把 DWG 写回去。
+
+## 这不是「全部数据」
+
+这是文档里的第三层：标准 DWG 数据库。天河标题栏/明细表/算单要等 THCAD/PCCAD。Proxy 会记在 `proxies.jsonl`，`decode_status` 为 `proxy`。
