@@ -16,6 +16,7 @@
 | `docs/` | 本仓库文档（调研、开发笔记）；规格仍写 `specs/` |
 | `other-projects/` | 参考项目，只参考 |
 | `dev-test/` | 本机实验 / PoC，不是产品层 |
+| `cloud-dev/` | 云开发工作区（Cloud Agent / 远程环境），不是产品层 |
 
 客户原文 → `data/` 数据集 → `ontology/` 映射 → `plugins/` 给 agent 用。不要在 `client-data/` 里加工文件。细节见 [`specs/001-platform-layers/spec.md`](specs/001-platform-layers/spec.md)。
 
