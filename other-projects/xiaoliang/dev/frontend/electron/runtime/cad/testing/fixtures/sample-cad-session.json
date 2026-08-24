@@ -1,0 +1,34 @@
+{
+  "activeDocument": {
+    "name": "sample-foundation.dwg",
+    "space": "model",
+    "activeLayoutName": "Model"
+  },
+  "selectionHandles": ["1A2B", "1A2C"],
+  "recentEntityRefs": [
+    {
+      "handle": "1A2B",
+      "objectName": "AcDbPolyline",
+      "layer": "基础轮廓",
+      "summary": "AcDbPolyline @基础轮廓 1A2B"
+    },
+    {
+      "handle": "1A2C",
+      "objectName": "AcDbText",
+      "layer": "基础标注",
+      "summary": "AcDbText @基础标注 1A2C"
+    }
+  ],
+  "viewSummary": "窗口缩放到 [0, 0] - [1200, 800]",
+  "captureHint": {
+    "source": "autocad-window",
+    "preferredWindowTitle": "sample-foundation.dwg - AutoCAD",
+    "windowTitleCandidates": [
+      "sample-foundation.dwg - AutoCAD",
+      "sample-foundation.dwg",
+      "AutoCAD"
+    ],
+    "docName": "sample-foundation.dwg"
+  },
+  "updatedAt": "2026-04-17T10:00:00.000Z"
+}

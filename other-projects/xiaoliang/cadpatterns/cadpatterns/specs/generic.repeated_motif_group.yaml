@@ -1,0 +1,13 @@
+schema_version: 1
+pattern_type: generic.repeated_motif_group
+spec_version: 1.0.0
+feature_set_version: 1.0.0
+feature_precision: 8
+detectors: []
+required_features: [repeat.geometry_signature]
+style_features: []
+resolver: nested
+resolver_version: 1.0.0
+tolerance_fields: [motif_min_instances]
+hard_constraints: [geometry_signature_confirmed]
+composed_by: motif.repeat_group

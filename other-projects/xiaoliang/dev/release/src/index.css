@@ -1,0 +1,134 @@
+:root {
+  color-scheme: light;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Brand blue, matching the marketing site's Ant Design palette. */
+  --brand: #1677ff;
+  --brand-hover: #0e5fd4;
+  --brand-deep: #0a4ba8;
+  --brand-tint: rgba(22, 119, 255, 0.08);
+  --brand-tint-strong: rgba(22, 119, 255, 0.14);
+
+  --ink: #0f172a;
+  --text: #475569;
+  --text-muted: #64748b;
+  --text-soft: #94a3b8;
+
+  --surface: #ffffff;
+  --surface-alt: #f6f8fa;
+  --surface-sunken: #f8fafc;
+  --line: #e2e8f0;
+  --line-soft: #f1f5f9;
+
+  /* Hero and the closing banner are the only dark surfaces. */
+  --night: #07101f;
+  --night-mid: #0c1e3f;
+  --night-far: #122e62;
+  --night-text: #94a3b8;
+
+  --success: #10b981;
+
+  --shadow-card: 0 4px 24px rgba(15, 23, 42, 0.06);
+  --shadow-lift: 0 12px 32px rgba(22, 119, 255, 0.1);
+  --shadow-deep: 0 20px 48px rgba(15, 23, 42, 0.16);
+
+  --radius-xl: 32px;
+  --radius-lg: 24px;
+  --radius-md: 16px;
+  --radius-sm: 12px;
+
+  --font-sans:
+    "PingFang SC", "HarmonyOS Sans SC", "Hiragino Sans GB", "Microsoft YaHei",
+    system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+
+  --content-width: 1200px;
+  --content-narrow: 780px;
+  --section-pad: clamp(56px, 7vw, 88px);
+  --nav-height: 64px;
+
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--surface);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--surface);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

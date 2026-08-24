@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src blob: data:; font-src data: http://127.0.0.1:*; connect-src http://127.0.0.1:*; worker-src 'self' blob:"
+    />
+    <title>晓量 MLightCAD 抽取运行时</title>
+  </head>
+  <body>
+    <div id="mlight-runtime-root" aria-hidden="true"></div>
+    <script type="module" src="/src/mlight-runtime/entry.ts"></script>
+  </body>
+</html>

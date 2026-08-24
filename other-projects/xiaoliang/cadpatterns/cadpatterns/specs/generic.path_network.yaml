@@ -1,0 +1,14 @@
+schema_version: 1
+pattern_type: generic.path_network
+spec_version: 1.0.0
+feature_set_version: 1.0.0
+feature_precision: 8
+detectors:
+  - id: network.path
+    version: 1.0.0
+required_features: [topology.degree, topology.component, topology.crossing]
+style_features: []
+resolver: nested
+resolver_version: 1.0.0
+tolerance_fields: [junction_min_degree, crossing_boundary_ratio]
+hard_constraints: [connected_component]

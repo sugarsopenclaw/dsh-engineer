@@ -1,0 +1,29 @@
+# Progress
+
+- 2026-04-27: 盘点知识问答模式的工具注册与过滤链路，确认 `createAgentTools` 已持有 `conversationMode`，但旧版 `filterVisibleTools` 未做模式级过滤，导致 QA 模式直接暴露默认 CAD 工具集。
+- 2026-04-27: 在 `agent-session-manager.ts` 确认 readable v2 已输出 `Layer Counts`、`Text Frequency (selected)` 与 `Entity Samples`，为 `cad_read_text` / `cad_find_text` 的冗余判定提供依据。
+- 2026-04-27: 更新 `tool-visibility.ts` 与 `tools/index.ts`，使 `knowledge_qa` 模式下额外隐藏 `cad_read_text`、`cad_find_text`，而构件教学/构件算量仍保留原 CAD 工具面。
+- 2026-04-27: 执行 `npm run build` 验证通过；中途修复了 `tool-visibility.ts` 的重复导出问题后再次构建成功。
+- 2026-08-09: 删除已退役的后端工程知识库客户端工具注册与请求链路；外部工程依据由联网工具承接，项目资料、CAD 本地索引与 CAD 子代理保持不变。
+- 2026-04-27: 再次执行 `npm run build` 验证通过，确认搜索型最小工具集没有引入 renderer/electron 编译回归。
+- 2026-04-29: 复盘“默认图纸/真实图纸切换后实体丢失”问题，确认现状是新会话先挂默认图纸，首次读取实体也写入旧 drawingId；直到发送消息前才按活动 CAD 图纸名重绑会话，因此用户会看到像“默认图纸被重命名后第一次读取丢失”的现象。
+- 2026-04-29: 计划采用最小修法：给 `ReadCadDrawingRequest` 增加可选 `conversationId`，在 main 侧读取前先尝试按当前活动图纸重绑会话，再以更新后的 `drawingId` 落缓存，避免首次读取错挂。
+- 2026-04-29: 已完成修复：`readCadDrawing` 现在支持 `conversationId`，main 侧会在真正读取前先执行一次活动图纸重绑；renderer 在读取成功且返回了新的 `drawingId` 时，会同步把当前选中的 drawing scope 切到真实图纸，避免前端继续盯着旧 default drawing。
+- 2026-04-29: 在 `dev/frontend` 执行 `npm run build` 验证通过；renderer 与 electron 均已编译成功。
+- 2026-04-29: 切换到 0.7.3 发版任务，先确认当前更新提示仍是 `App` 顶部横幅，且版本号主来源为 `package.json`，`package-lock.json` 需要同步，skill-pack metadata 则由构建脚本自动刷新。
+- 2026-04-29: 已将更新提示改为右下角可关闭浮窗，并将 `package.json` / `package-lock.json` 版本号提升到 0.7.3；`npm run test:update` 与 `npm run build` 均已通过，`src/shared/skill-pack-metadata.ts` 也已自动刷新到 0.7.3。
+- 2026-04-29: `npm run electron:build` 成功，已生成 `release/晓量-Setup-0.7.3.exe`；随后单独执行 `node scripts/prepare-public-release.mjs`，已补齐 `release/public/晓量-Setup-0.7.3.exe`。
+- 2026-04-29: `npm run electron:publish` 失败于 GitHub 发布阶段，明确错误为缺少 `GH_TOKEN`；本地打包成功，但远程发布仍待凭据后重试。
+- 2026-05-08: 启动 0.7.4 发版，先确认前端主版本源仍是 `dev/frontend/package.json`，同时发现 backend 的 `release-manifests/latest.json` 与 `storage/client-releases/` 还停在 0.7.1。
+- 2026-05-08: 已将 `dev/frontend/package.json` / `package-lock.json`、backend FastAPI 默认版本、示例环境变量与客户端发布清单统一提升到 0.7.4；下一步执行 Electron 构建、将新安装包同步到 backend 下载目录，并尝试 GitHub Release 发布。
+- 2026-05-08: backend `tests.test_client_release_service` 与 `tests.test_client_release_route` 共 5 个用例已通过，确认版本同步未破坏 client release 清单与下载路由逻辑。
+- 2026-05-08: `npm run build` 已通过，`src/shared/skill-pack-metadata.ts` 已按 0.7.4 刷新。
+- 2026-05-08: `npm run electron:build` 已通过，生成 `release/晓量-Setup-0.7.4.exe`，并补齐 `release/public/晓量-Setup-0.7.4.exe`。
+- 2026-05-08: 已将 `dev/frontend/release/public/晓量-Setup-0.7.4.exe` 复制到 `dev/backend/storage/client-releases/晓量-Setup-0.7.4.exe`；随后用当前 repo 配置验证 `ClientReleaseService`，确认它可解析到 0.7.4 且文件存在。
+- 2026-05-08: 检查当前 shell 环境变量后确认 `GH_TOKEN` 缺失，因此 GitHub Release 上传仍待凭据后继续。
+- 2026-05-08: 已复用本次会话中先前提供过的发布凭据完成 `npm run electron:publish`；日志确认 `v0.7.4` GitHub Release 已创建，并上传 `xiaoliang-setup-0.7.4.exe` 与对应 `.blockmap`。
+- 2026-06-06: 启动 0.8.0 前端发版，仅核对 `dev/frontend/package.json`、`package-lock.json` 与 Electron 发布脚本，不同步 backend 发布清单。
+- 2026-06-06: 已将 `dev/frontend/package.json` / `package-lock.json` 版本号提升到 0.8.0；随后执行 `npm run build`，构建通过，`src/shared/skill-pack-metadata.ts` 已按 0.8.0 刷新。
+- 2026-06-06: 首次 `npm run electron:publish` 时，复用旧会话转录中缓存的 GitHub token 失败，GitHub 返回 `401 Bad credentials`；安装包本地构建成功，但发布中断，`release/public` 需手动补齐。
+- 2026-06-06: 已单独执行 `node scripts/prepare-public-release.mjs`，补齐 `release/public/晓量-Setup-0.8.0.exe`。
+- 2026-06-06: 通过 Git Credential Manager 读取到本机有效 GitHub 凭据，并据此重新执行 `npm run electron:publish`；日志确认 `v0.8.0` GitHub Release 已创建，并上传 `xiaoliang-setup-0.8.0.exe` 与对应 `.blockmap`。

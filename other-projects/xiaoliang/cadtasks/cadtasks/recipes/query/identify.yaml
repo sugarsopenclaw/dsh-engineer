@@ -1,0 +1,16 @@
+recipe_id: generic.identify_in_region
+version: "1.0.0"
+summary: Identify supported semantic representations inside a resolved region.
+task_type: IDENTIFY
+target_parameterized: true
+supported_mutation_policies: [READ_ONLY]
+quantity_bases: []
+required_capabilities: [semantic.query]
+required_rules: []
+nodes:
+  - {node_id: resolve_scope, block_id: scope.resolve, depends_on: []}
+  - {node_id: identify, block_id: query.identify_in_region, depends_on: [resolve_scope]}
+  - {node_id: decide, block_id: result.decide, depends_on: [identify]}
+  - {node_id: act, block_id: artifact.read_only, depends_on: [decide]}
+  - {node_id: validate, block_id: result.validate, depends_on: [act]}
+

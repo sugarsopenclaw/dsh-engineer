@@ -1,0 +1,16 @@
+schema_version: 1
+pattern_type: generic.symbol_like_cluster
+spec_version: 1.0.0
+feature_set_version: 1.0.0
+feature_precision: 8
+detectors:
+  - id: motif.block_instance
+    version: 1.0.0
+  - id: motif.geometry_signature
+    version: 1.0.0
+required_features: [geometry.kind, geometry.length_ratio, geometry.turn, topology.port]
+style_features: []
+resolver: greedy_nms
+resolver_version: 1.0.0
+tolerance_fields: []
+hard_constraints: [nonempty_signature]

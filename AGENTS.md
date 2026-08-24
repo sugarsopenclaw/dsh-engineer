@@ -16,7 +16,7 @@
 | `harness/` | 上游 submodule，只读 |
 | `specs/` | SDD：先规格后实现 |
 | `docs/` | 本仓库文档（调研、开发笔记等）；规格仍写 `specs/` |
-| `other-projects/` | 对本工程有帮助的参考项目（自己的或别人的），只参考，不进 git。晓量冻结点：https://github.com/LuarAssassin/xiaoliang @ `94720be` |
+| `other-projects/` | 对本工程有帮助的参考项目，只参考。晓量冻结快照进本仓 `other-projects/xiaoliang/`（钉 `94720be`），不要 `git pull` 原仓、不要当 submodule；`pi` / `grok-build` 等仍只留本机 |
 | `dev-test/` | 本机实验 / PoC（如 AutoCAD 抽取器）。不是产品层，不进 `plugins/` / `data/pipelines/` |
 | `cloud-dev/` | 云开发工作区（Cloud Agent / 远程环境）。不是产品层，不进 `plugins/` / `data/pipelines/` |
 

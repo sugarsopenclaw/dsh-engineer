@@ -1,0 +1,42 @@
+pack_id: generic_engineering
+version: 1.0.0
+namespace: generic
+family: generic_engineering
+overlay_layer: core
+supported_contexts:
+  disciplines: [generic_engineering, documentation, unknown]
+  drawing_types:
+    - annotated_drawing
+    - general_drawing
+    - network_diagram
+    - spatial_layout
+    - symbolic_diagram
+    - tabular_document
+requires_patterns:
+  - generic.enclosure_candidate
+  - generic.network_junction
+  - generic.network_terminal
+  - generic.path_network
+  - generic.repeated_motif_group
+  - generic.symbol_like_cluster
+  - generic.table_grid
+  - generic.text_block
+provides_classes:
+  - generic.EnclosedSpace
+  - generic.SymbolicComponent
+  - generic.DistributionNetwork
+  - generic.NetworkPort
+  - generic.NetworkJunction
+  - generic.ScheduleRecord
+  - generic.TagLabel
+  - generic.GenericAssembly
+provides_properties: [core.label_text, core.row_count, core.column_count, core.measured_value]
+provides_relations:
+  - core.CONNECTED_TO
+  - core.CONTAINED_IN
+  - core.LOCATED_IN
+  - core.PRIMARY_CONTAINMENT
+  - core.REFERENCED_IN
+provides_roles: [core.connection, core.junction, core.terminal, core.label]
+mapping_resources: [mappings.yaml]
+lexicons: {}

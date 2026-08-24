@@ -1,0 +1,14 @@
+schema_version: 1
+pattern_type: generic.table_grid
+spec_version: 1.0.0
+feature_set_version: 1.0.0
+feature_precision: 8
+detectors:
+  - id: table.strict_grid
+    version: 1.0.0
+required_features: [geometry.direction, topology.face_adjacency, text.anchor]
+style_features: []
+resolver: greedy_nms
+resolver_version: 1.0.0
+tolerance_fields: [orthogonal_ratio, grid_coordinate_merge_ratio, cell_bounds_ratio]
+hard_constraints: [rows>=2, columns>=2, cell_adjacency_consistent]

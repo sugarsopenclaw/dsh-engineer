@@ -1,0 +1,485 @@
+{
+  "annotation": {
+    "annotation_derived_geometry_count": 0,
+    "annotation_record_count": 0,
+    "dimension_diagnostic_count": 0,
+    "dimension_fact_coverage": 0,
+    "dimension_measured_count": 0,
+    "dimension_record_count": 0,
+    "source_dimension_count": 0,
+    "target_ref_count": 0,
+    "text_override_count": 0
+  },
+  "coordinate_frame_id": "b71d65f53259d43f24503eedb9ff675f038eec86bcdfa4aed98598b9ec300d8f",
+  "coverage": {
+    "approximation_count": 2,
+    "diagnostics": [
+      {
+        "code": "GEOS_INTERSECTION_GRID_ROUNDED",
+        "count": null,
+        "entity_type": null,
+        "message": "One or more rational GEOS intersection coordinates were snapped to the int64 grid.",
+        "required_action": null,
+        "severity": "info"
+      }
+    ],
+    "execution_status": "complete",
+    "geometry_supported": 113,
+    "geometry_supported_ratio": 0.9741379310344828,
+    "indexed": 26,
+    "indexed_ratio": 0.22413793103448276,
+    "parsed": 116,
+    "parsed_ratio": 1.0,
+    "topology_eligible": 26,
+    "topology_eligible_ratio": 0.22413793103448276,
+    "total_source_entities": 116,
+    "transform_failures": [],
+    "unit_status": "inch",
+    "unsupported_by_type": []
+  },
+  "duplicates": {
+    "details_truncated": false,
+    "geometry_candidate_group_count": 4,
+    "geometry_candidate_groups": [
+      {
+        "geometry_signature": "1509ad137ffb6c7cc6b476e2feb26735891747538a829edcabd6faed3b65b18f",
+        "occurrence_ids": [
+          "43135ebcf69eb642b2eba2b56aa82a13",
+          "49419316fca04f2b9604183dea588da8",
+          "8df1bff586336939222e0610b37a9dee",
+          "9852911a4aff062f7c9d22cfc5efb0a5",
+          "c25c8676a6f898df7d186861fe26d773",
+          "fa965196f1dfd286120b06a1f53957b6"
+        ]
+      },
+      {
+        "geometry_signature": "629c5b84d9a25e4245f63f28c5aeb9423157c95f924405224e8348f000218e78",
+        "occurrence_ids": [
+          "e99cd61bbf39693373b8deb527520ce8",
+          "eaca007184688d30d027031f3db385df"
+        ]
+      },
+      {
+        "geometry_signature": "66bb89d3904029e75187b6775280b13c70b1e5a7c69a517749dc0feb209a772f",
+        "occurrence_ids": [
+          "12bdb6648923dacb524fdc4bdc4b06d1",
+          "30b3108f066588a5faba58e82b85ef59",
+          "bcba491161f295746ee6a03126e96d9a"
+        ]
+      },
+      {
+        "geometry_signature": "d2500c6041c163702b6d913b53c79e03571c407794056b79da8ffa5617f0ff8c",
+        "occurrence_ids": [
+          "179ac7350f5f540277f0473420afc60c",
+          "599d1e7755205cbe85445a83db060f92",
+          "ed13e175da1eec0887f0b0c5991a5630",
+          "f195f184db9a0596f28b7e8dc2850407"
+        ]
+      }
+    ],
+    "repeated_definition_count": 0,
+    "repeated_definitions": []
+  },
+  "faces": {
+    "area_distribution": {
+      "count": 13,
+      "maximum": 662.9502219999999,
+      "median": 54.0,
+      "minimum": 0.025012,
+      "total": 1793.9248999999998,
+      "unit": "inch^2"
+    },
+    "closed_face_count": 13,
+    "compilation_decision": "computed",
+    "compilation_diagnostics": [
+      {
+        "code": "GEOS_INTERSECTION_GRID_ROUNDED",
+        "details": [],
+        "message": "One or more rational GEOS intersection coordinates were snapped to the int64 grid.",
+        "severity": "info"
+      }
+    ],
+    "containment_max_depth": 0,
+    "dcel_valid": true,
+    "euler_left": 4,
+    "euler_right": 4,
+    "faces_with_holes": 0,
+    "hole_count": 0,
+    "validation_diagnostics": []
+  },
+  "mlight_conformance": null,
+  "precision_model_id": "3a98cd8bd4a136d7aff06ed471a2c41ac81f9bfb499503817e7a588562515654",
+  "scale": {
+    "arrangement_edge_count": 79,
+    "arrangement_support_fragment_count": 80,
+    "arrangement_unsupported_edge_count": 0,
+    "arrangement_vertex_count": 69,
+    "coordinate_count": 84,
+    "definition_count": 116,
+    "geometry_count": 26,
+    "occurrence_count": 29,
+    "peak_memory_bytes": 178761728,
+    "snapshot_size_bytes": 543243
+  },
+  "schema_version": 3,
+  "snapshot_id": "04f25d2843a91ad5fcf852cd0b15039a65dc2a7e2acd97ad4a78fbc6d7638c29",
+  "source_path": "E:\\062026\\xiaoliang\\cadkernel\\.corpus-work\\autodesk\\House - Deck.dwg",
+  "text": {
+    "block_attribute_coverage": 0.0,
+    "block_attribute_record_count": 0,
+    "fts_term_count": 0,
+    "nearest_geometry_distance_buckets": [
+      [
+        "coincident",
+        0
+      ],
+      [
+        "far",
+        0
+      ],
+      [
+        "local",
+        0
+      ],
+      [
+        "near",
+        0
+      ],
+      [
+        "no_geometry",
+        0
+      ]
+    ],
+    "text_record_count": 0
+  },
+  "timings": [
+    {
+      "seconds": 0.04318910001893528,
+      "stage": "adapter"
+    },
+    {
+      "seconds": 0.0007924000092316419,
+      "stage": "snap_plan"
+    },
+    {
+      "seconds": 0.002332500007469207,
+      "stage": "incidence_graph"
+    },
+    {
+      "seconds": 0.0019249999895691872,
+      "stage": "arrangement"
+    },
+    {
+      "seconds": 0.0031746999884489924,
+      "stage": "dcel"
+    },
+    {
+      "seconds": 0.5395778000238352,
+      "stage": "snapshot_indexes"
+    },
+    {
+      "seconds": 0.0014608999772462994,
+      "stage": "report_facts"
+    }
+  ],
+  "tolerance_profile_id": "1ff63dad8e1b886882377d336c4cb9cab5097ab687fb279b752a68870bc7ea88",
+  "topology": {
+    "articulation_point_count": 9,
+    "articulation_points": [
+      "02b1066ac2f52b784ad5a334a7ecd474:0",
+      "02b1066ac2f52b784ad5a334a7ecd474:1",
+      "177b746e95a4e274afb313b7169e6669:0",
+      "177b746e95a4e274afb313b7169e6669:1",
+      "179ac7350f5f540277f0473420afc60c:0",
+      "5689abb0e127ac867333a5fad65c23a4:1",
+      "a6cba05f10bbb2d116028e8294e224b6:0",
+      "a6d46420defa96feeef5ca9a97574d43:0",
+      "c62c39620cdbba5ff8eba0a3ea436eb7:0"
+    ],
+    "bridge_count": 19,
+    "bridge_occurrence_ids": [
+      "12bdb6648923dacb524fdc4bdc4b06d1",
+      "177b746e95a4e274afb313b7169e6669",
+      "179ac7350f5f540277f0473420afc60c",
+      "30b3108f066588a5faba58e82b85ef59",
+      "43135ebcf69eb642b2eba2b56aa82a13",
+      "49419316fca04f2b9604183dea588da8",
+      "5689abb0e127ac867333a5fad65c23a4",
+      "599d1e7755205cbe85445a83db060f92",
+      "8df1bff586336939222e0610b37a9dee",
+      "9852911a4aff062f7c9d22cfc5efb0a5",
+      "a6d46420defa96feeef5ca9a97574d43",
+      "b8fdf7bed95486b9d261cd0ba8bb458e",
+      "bcba491161f295746ee6a03126e96d9a",
+      "c62c39620cdbba5ff8eba0a3ea436eb7",
+      "d53d0d44bc259a5191af50fc91bfdce4",
+      "e99cd61bbf39693373b8deb527520ce8",
+      "eaca007184688d30d027031f3db385df",
+      "ed13e175da1eec0887f0b0c5991a5630",
+      "f195f184db9a0596f28b7e8dc2850407"
+    ],
+    "connected_component_count": 11,
+    "connected_components": [
+      [
+        "02b1066ac2f52b784ad5a334a7ecd474:0",
+        "02b1066ac2f52b784ad5a334a7ecd474:1",
+        "177b746e95a4e274afb313b7169e6669:0",
+        "177b746e95a4e274afb313b7169e6669:1",
+        "5689abb0e127ac867333a5fad65c23a4:1",
+        "599d1e7755205cbe85445a83db060f92:1",
+        "a6cba05f10bbb2d116028e8294e224b6:0",
+        "e99cd61bbf39693373b8deb527520ce8:1",
+        "eaca007184688d30d027031f3db385df:0",
+        "f195f184db9a0596f28b7e8dc2850407:1"
+      ],
+      [
+        "12bdb6648923dacb524fdc4bdc4b06d1:0",
+        "12bdb6648923dacb524fdc4bdc4b06d1:1"
+      ],
+      [
+        "179ac7350f5f540277f0473420afc60c:0",
+        "179ac7350f5f540277f0473420afc60c:1",
+        "b8fdf7bed95486b9d261cd0ba8bb458e:0"
+      ],
+      [
+        "30b3108f066588a5faba58e82b85ef59:0",
+        "30b3108f066588a5faba58e82b85ef59:1"
+      ],
+      [
+        "43135ebcf69eb642b2eba2b56aa82a13:0",
+        "43135ebcf69eb642b2eba2b56aa82a13:1"
+      ],
+      [
+        "49419316fca04f2b9604183dea588da8:0",
+        "49419316fca04f2b9604183dea588da8:1"
+      ],
+      [
+        "8df1bff586336939222e0610b37a9dee:0",
+        "8df1bff586336939222e0610b37a9dee:1"
+      ],
+      [
+        "9852911a4aff062f7c9d22cfc5efb0a5:0",
+        "9852911a4aff062f7c9d22cfc5efb0a5:1"
+      ],
+      [
+        "a6d46420defa96feeef5ca9a97574d43:0",
+        "a6d46420defa96feeef5ca9a97574d43:1",
+        "ed13e175da1eec0887f0b0c5991a5630:1"
+      ],
+      [
+        "bcba491161f295746ee6a03126e96d9a:0",
+        "bcba491161f295746ee6a03126e96d9a:1"
+      ],
+      [
+        "c62c39620cdbba5ff8eba0a3ea436eb7:0",
+        "c62c39620cdbba5ff8eba0a3ea436eb7:1",
+        "d53d0d44bc259a5191af50fc91bfdce4:0"
+      ]
+    ],
+    "cycle_count": 4,
+    "cycles": [
+      [
+        "02b1066ac2f52b784ad5a334a7ecd474:0",
+        "02b1066ac2f52b784ad5a334a7ecd474:1"
+      ],
+      [
+        "02b1066ac2f52b784ad5a334a7ecd474:0",
+        "02b1066ac2f52b784ad5a334a7ecd474:1",
+        "177b746e95a4e274afb313b7169e6669:1",
+        "a6cba05f10bbb2d116028e8294e224b6:0"
+      ],
+      [
+        "02b1066ac2f52b784ad5a334a7ecd474:1"
+      ],
+      [
+        "177b746e95a4e274afb313b7169e6669:1"
+      ]
+    ],
+    "dangling_node_count": 24,
+    "dangling_nodes": [
+      "12bdb6648923dacb524fdc4bdc4b06d1:0",
+      "12bdb6648923dacb524fdc4bdc4b06d1:1",
+      "179ac7350f5f540277f0473420afc60c:1",
+      "30b3108f066588a5faba58e82b85ef59:0",
+      "30b3108f066588a5faba58e82b85ef59:1",
+      "43135ebcf69eb642b2eba2b56aa82a13:0",
+      "43135ebcf69eb642b2eba2b56aa82a13:1",
+      "49419316fca04f2b9604183dea588da8:0",
+      "49419316fca04f2b9604183dea588da8:1",
+      "599d1e7755205cbe85445a83db060f92:1",
+      "8df1bff586336939222e0610b37a9dee:0",
+      "8df1bff586336939222e0610b37a9dee:1",
+      "9852911a4aff062f7c9d22cfc5efb0a5:0",
+      "9852911a4aff062f7c9d22cfc5efb0a5:1",
+      "a6d46420defa96feeef5ca9a97574d43:1",
+      "b8fdf7bed95486b9d261cd0ba8bb458e:0",
+      "bcba491161f295746ee6a03126e96d9a:0",
+      "bcba491161f295746ee6a03126e96d9a:1",
+      "c62c39620cdbba5ff8eba0a3ea436eb7:1",
+      "d53d0d44bc259a5191af50fc91bfdce4:0",
+      "e99cd61bbf39693373b8deb527520ce8:1",
+      "eaca007184688d30d027031f3db385df:0",
+      "ed13e175da1eec0887f0b0c5991a5630:1",
+      "f195f184db9a0596f28b7e8dc2850407:1"
+    ],
+    "degrees": [
+      [
+        "02b1066ac2f52b784ad5a334a7ecd474:0",
+        4
+      ],
+      [
+        "02b1066ac2f52b784ad5a334a7ecd474:1",
+        6
+      ],
+      [
+        "12bdb6648923dacb524fdc4bdc4b06d1:0",
+        1
+      ],
+      [
+        "12bdb6648923dacb524fdc4bdc4b06d1:1",
+        1
+      ],
+      [
+        "177b746e95a4e274afb313b7169e6669:0",
+        2
+      ],
+      [
+        "177b746e95a4e274afb313b7169e6669:1",
+        5
+      ],
+      [
+        "179ac7350f5f540277f0473420afc60c:0",
+        2
+      ],
+      [
+        "179ac7350f5f540277f0473420afc60c:1",
+        1
+      ],
+      [
+        "30b3108f066588a5faba58e82b85ef59:0",
+        1
+      ],
+      [
+        "30b3108f066588a5faba58e82b85ef59:1",
+        1
+      ],
+      [
+        "43135ebcf69eb642b2eba2b56aa82a13:0",
+        1
+      ],
+      [
+        "43135ebcf69eb642b2eba2b56aa82a13:1",
+        1
+      ],
+      [
+        "49419316fca04f2b9604183dea588da8:0",
+        1
+      ],
+      [
+        "49419316fca04f2b9604183dea588da8:1",
+        1
+      ],
+      [
+        "5689abb0e127ac867333a5fad65c23a4:1",
+        2
+      ],
+      [
+        "599d1e7755205cbe85445a83db060f92:1",
+        1
+      ],
+      [
+        "8df1bff586336939222e0610b37a9dee:0",
+        1
+      ],
+      [
+        "8df1bff586336939222e0610b37a9dee:1",
+        1
+      ],
+      [
+        "9852911a4aff062f7c9d22cfc5efb0a5:0",
+        1
+      ],
+      [
+        "9852911a4aff062f7c9d22cfc5efb0a5:1",
+        1
+      ],
+      [
+        "a6cba05f10bbb2d116028e8294e224b6:0",
+        3
+      ],
+      [
+        "a6d46420defa96feeef5ca9a97574d43:0",
+        2
+      ],
+      [
+        "a6d46420defa96feeef5ca9a97574d43:1",
+        1
+      ],
+      [
+        "b8fdf7bed95486b9d261cd0ba8bb458e:0",
+        1
+      ],
+      [
+        "bcba491161f295746ee6a03126e96d9a:0",
+        1
+      ],
+      [
+        "bcba491161f295746ee6a03126e96d9a:1",
+        1
+      ],
+      [
+        "c62c39620cdbba5ff8eba0a3ea436eb7:0",
+        2
+      ],
+      [
+        "c62c39620cdbba5ff8eba0a3ea436eb7:1",
+        1
+      ],
+      [
+        "d53d0d44bc259a5191af50fc91bfdce4:0",
+        1
+      ],
+      [
+        "e99cd61bbf39693373b8deb527520ce8:1",
+        1
+      ],
+      [
+        "eaca007184688d30d027031f3db385df:0",
+        1
+      ],
+      [
+        "ed13e175da1eec0887f0b0c5991a5630:1",
+        1
+      ],
+      [
+        "f195f184db9a0596f28b7e8dc2850407:1",
+        1
+      ]
+    ],
+    "details_truncated": false,
+    "edge_count": 26,
+    "graph_id": "6ed2f96aa3b3d7fee73f77649621b315d1f06c7272bf306830b70e53b780a433",
+    "isolated_node_count": 0,
+    "isolated_nodes": [],
+    "minimum_cycle_basis": [
+      [
+        "02b1066ac2f52b784ad5a334a7ecd474:0",
+        "02b1066ac2f52b784ad5a334a7ecd474:1"
+      ],
+      [
+        "02b1066ac2f52b784ad5a334a7ecd474:0",
+        "02b1066ac2f52b784ad5a334a7ecd474:1",
+        "177b746e95a4e274afb313b7169e6669:1",
+        "a6cba05f10bbb2d116028e8294e224b6:0"
+      ],
+      [
+        "02b1066ac2f52b784ad5a334a7ecd474:1"
+      ],
+      [
+        "177b746e95a4e274afb313b7169e6669:1"
+      ]
+    ],
+    "minimum_cycle_basis_count": 4,
+    "node_count": 33
+  }
+}

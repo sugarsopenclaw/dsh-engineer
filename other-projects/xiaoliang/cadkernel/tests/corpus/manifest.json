@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "official_archive": {
+    "publisher": "Autodesk",
+    "source_page": "https://help.autodesk.com/cloudhelp/2026/ENU/AutoCAD-OnBoarding/files/acd_foundations_main2/ACD_FOUNDATIONS_MAIN2A.html",
+    "url": "https://damassets.autodesk.net/content/dam/autodesk/files/acd/samples_datasets/acd_learn_step_by_step.zip",
+    "sha256": "2be37cad4ff160b5fce523c73a036898de656e089069b4472da446029e0e8ad2"
+  },
+  "conversion": {
+    "converter": "autocad-com-saveas",
+    "converter_version": "AutoCAD 2024 24.3s (LMS Tech)",
+    "save_as_type": 61,
+    "coordinate_decimal_places": null
+  },
+  "sources": [
+    {
+      "id": "autodesk-office-plan",
+      "discipline": "architecture",
+      "origin": "autodesk_archive",
+      "archive_member": "Office Plan.dwg",
+      "source_sha256": "e18bc38d6b3a2a1dc90afe0e00345149293b8d5aa112d2810b4eed371627b1bc",
+      "dxf_name": "autodesk-office-plan.dxf",
+      "reference_dxf_sha256": "f512fbacf0aae86c1c2e0112c955886ea52ad26ece8e36a4cf4516493aa93414"
+    },
+    {
+      "id": "autodesk-house-deck",
+      "discipline": "architecture",
+      "origin": "autodesk_archive",
+      "archive_member": "House - Deck.dwg",
+      "source_sha256": "ee6dd76b3c9defc84c36b28afbf583b66dd8b85b4f276aa43bd590ab85d5f786",
+      "dxf_name": "autodesk-house-deck.dxf",
+      "reference_dxf_sha256": "b49640090fcfe97d63d49933271e02df01a51aaaaa95def4d91bd9dc01050af6"
+    },
+    {
+      "id": "autodesk-plan",
+      "discipline": "architecture",
+      "origin": "autodesk_archive",
+      "archive_member": "Plan.dwg",
+      "source_sha256": "a1cc4808def28aef3181a0bc51d2076b30a1582459a4d4953dd55fef18486058",
+      "dxf_name": "autodesk-plan.dxf",
+      "reference_dxf_sha256": "bcf5ee05d45f215e975ac58bf8a86d321190f2a20ff7056c5869a367e5445a0c"
+    },
+    {
+      "id": "transformer-5tbc-384-1",
+      "discipline": "electrical_transformer",
+      "origin": "workspace",
+      "workspace_path": "analysis/20260820-wangzhaochang08-transformer/project_files/二维使用cad设计图纸-上海窜PLM会自送生产PDF/5TBC.384.A110050.1_1 (1).DWG",
+      "source_sha256": "1e32faed1c06bd1369d90249080e462d90963b77003e76802e8587dc7e766f0d",
+      "dxf_name": "transformer-5tbc-384-1.dxf",
+      "reference_dxf_sha256": "66fec3f8283672d52af5d58c425fc201f432b01a6bf899ea60dd8d027d8dc25c",
+      "mlight_index": "analysis/20260820-wangzhaochang08-transformer/ad87e487-34-pad-count/07_project_files/.xiaoliang/cad/drawings/5tbc.384.a110050.1_1-1--543bf4518cae/entities/entities.raw.jsonl",
+      "mlight_sha256": "f3e5483ad9555e9c03bcf0894d899f8a2cb10aac5a9f775e533b8d939958b6ed"
+    },
+    {
+      "id": "transformer-5tbc-426",
+      "discipline": "electrical_transformer",
+      "origin": "workspace",
+      "workspace_path": "analysis/20260820-wangzhaochang08-transformer/project_files/二维使用cad设计图纸-上海窜PLM会自送生产PDF/5TBC.426.A110050.1_1.DWG",
+      "source_sha256": "3b5cde53876eeb4e7e866d5ec2cbb65b443615afde0d7cd103e2d16687db3fe8",
+      "dxf_name": "transformer-5tbc-426.dxf",
+      "reference_dxf_sha256": "521375ee10e3bee8e501aa30c088c28e06afb2d44a3f05e1a6d30c5df18154da"
+    },
+    {
+      "id": "transformer-5tbc-709",
+      "discipline": "electrical_transformer",
+      "origin": "workspace",
+      "workspace_path": "analysis/20260820-wangzhaochang08-transformer/project_files/二维使用cad设计图纸-上海窜PLM会自送生产PDF/5TBC.709.A110050.1_1.DWG",
+      "source_sha256": "69dd933ef1f64a6d68d983a56b98279a0b6cd29e26db9ab2f5a7d9f91c106f1e",
+      "dxf_name": "transformer-5tbc-709.dxf",
+      "reference_dxf_sha256": "bfd11ed477e86bc35aa35a4cf7bf2ec72683ec9805de5f1a828a0a61d8811373"
+    }
+  ]
+}

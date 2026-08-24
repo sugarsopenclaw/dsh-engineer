@@ -1,0 +1,72 @@
+mappings:
+  - mapping_id: generic.enclosed_space.from_enclosure
+    version: 1.0.0
+    target_class: generic.EnclosedSpace
+    source_patterns: [generic.enclosure_candidate]
+    representation_mode: instance_view
+    must:
+      - predicate: pattern_type_is
+        value: generic.enclosure_candidate
+    must_not:
+      - predicate: shares_feature_with_pattern_type
+        pattern_type: generic.sheet_boundary_candidate
+        feature: face_id
+  - mapping_id: generic.symbolic_component.from_symbol
+    version: 1.0.0
+    target_class: generic.SymbolicComponent
+    source_patterns: [generic.symbol_like_cluster]
+    representation_mode: schematic_instance
+    must:
+      - predicate: pattern_type_is
+        value: generic.symbol_like_cluster
+  - mapping_id: generic.distribution_network.from_path
+    version: 1.0.0
+    target_class: generic.DistributionNetwork
+    source_patterns: [generic.path_network]
+    representation_mode: schematic_instance
+    must:
+      - predicate: pattern_type_is
+        value: generic.path_network
+  - mapping_id: generic.network_port.from_terminal
+    version: 1.0.0
+    target_class: generic.NetworkPort
+    source_patterns: [generic.network_terminal]
+    representation_mode: schematic_instance
+    functional_roles: [core.terminal]
+    must:
+      - predicate: pattern_type_is
+        value: generic.network_terminal
+  - mapping_id: generic.network_junction.from_junction
+    version: 1.0.0
+    target_class: generic.NetworkJunction
+    source_patterns: [generic.network_junction]
+    representation_mode: schematic_instance
+    functional_roles: [core.junction]
+    must:
+      - predicate: pattern_type_is
+        value: generic.network_junction
+  - mapping_id: generic.schedule_record.from_grid
+    version: 1.0.0
+    target_class: generic.ScheduleRecord
+    source_patterns: [generic.table_grid]
+    representation_mode: schedule_record
+    must:
+      - predicate: pattern_type_is
+        value: generic.table_grid
+  - mapping_id: generic.tag_label.from_text
+    version: 1.0.0
+    target_class: generic.TagLabel
+    source_patterns: [generic.text_block]
+    representation_mode: reference_only
+    functional_roles: [core.label]
+    must:
+      - predicate: member_count_at_least
+        value: 1
+  - mapping_id: generic.assembly.from_repeat
+    version: 1.0.0
+    target_class: generic.GenericAssembly
+    source_patterns: [generic.repeated_motif_group]
+    representation_mode: aggregated_representation
+    must:
+      - predicate: pattern_type_is
+        value: generic.repeated_motif_group

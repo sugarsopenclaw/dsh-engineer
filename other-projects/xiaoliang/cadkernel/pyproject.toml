@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xiaoliang-cadkernel"
+version = "0.1.0"
+description = "Deterministic, cross-discipline CAD atomic-operator kernel."
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = { text = "Proprietary" }
+dependencies = [
+  "ezdxf==1.4.4",
+  "networkx==3.5",
+  "numpy==2.3.3",
+  "shapely==2.1.2",
+]
+
+[project.scripts]
+cadkernel = "cadkernel.cli.main:main"
+
+[dependency-groups]
+dev = [
+  "hypothesis==6.138.15",
+  "import-linter==2.3",
+  "pytest==8.4.2",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cadkernel*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+  "bench: performance baseline that is excluded from the default fast suite",
+  "corpus: requires an external real-drawing corpus",
+]
+
+[tool.importlinter]
+root_packages = ["cadkernel"]
+
+[[tool.importlinter.contracts]]
+name = "Cross-discipline kernel dependency direction"
+type = "layers"
+layers = [
+  "cadkernel.cli",
+  "cadkernel.coverage",
+  "cadkernel.topology",
+  "cadkernel.repair | cadkernel.adapters",
+  "cadkernel.indexes | cadkernel.kernel",
+  "cadkernel.ir",
+  "cadkernel.contracts",
+]
+
+[[tool.importlinter.contracts]]
+name = "Kernel never imports adapters"
+type = "forbidden"
+source_modules = ["cadkernel.kernel"]
+forbidden_modules = ["cadkernel.adapters"]

@@ -1,0 +1,16 @@
+.venv/
+.pytest_cache/
+.hypothesis/
+.import_linter_cache/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+
+# External copyrighted corpus inputs, AutoCAD conversions, and immutable snapshots.
+.corpus-work/
+
+# Local profiling/inspection workspaces.
+.bench-*/
+benchmarks/corpus-single/
+benchmarks/baseline-*.json
+!benchmarks/baseline-final.json

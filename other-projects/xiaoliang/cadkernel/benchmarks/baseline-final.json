@@ -1,0 +1,189 @@
+{
+  "python_version": "3.11.14",
+  "schema_version": 2,
+  "tiers": [
+    {
+      "arrangement_edge_count": 1998,
+      "build_budget_seconds": null,
+      "build_seconds": 0.5897982999995293,
+      "dcel_face_count": 0,
+      "meets_budget": true,
+      "memory_budget_bytes": 4294967296,
+      "parsed_source_entities": 2000,
+      "process_peak_working_set_bytes": 95342592,
+      "python_peak_memory_bytes": null,
+      "queries": [
+        {
+          "budget_ms": 50.0,
+          "maximum_ms": 1.6995999994833255,
+          "meets_budget": true,
+          "operation": "region",
+          "p50_ms": 0.9868499996628088,
+          "p95_ms": 1.3214350003636348,
+          "samples": 40
+        },
+        {
+          "budget_ms": 50.0,
+          "maximum_ms": 1.7508000000816537,
+          "meets_budget": true,
+          "operation": "text",
+          "p50_ms": 1.0398999997960345,
+          "p95_ms": 1.6933349995269964,
+          "samples": 40
+        },
+        {
+          "budget_ms": 50.0,
+          "maximum_ms": 2.417599999716913,
+          "meets_budget": true,
+          "operation": "face",
+          "p50_ms": 1.4952000001358101,
+          "p95_ms": 2.3063449994879193,
+          "samples": 40
+        }
+      ],
+      "requested_entity_count": 2000,
+      "snapshot_budget_bytes": 524288000,
+      "snapshot_size_bytes": 2695272,
+      "stage_seconds": [
+        [
+          "adapter",
+          0.1394758999995247
+        ],
+        [
+          "topology",
+          0.043566599999394384
+        ],
+        [
+          "payload",
+          0.024095499999930325
+        ],
+        [
+          "snapshot_store",
+          0.38265580000006594
+        ]
+      ]
+    },
+    {
+      "arrangement_edge_count": 19980,
+      "build_budget_seconds": null,
+      "build_seconds": 2.5287638999998308,
+      "dcel_face_count": 0,
+      "meets_budget": true,
+      "memory_budget_bytes": 4294967296,
+      "parsed_source_entities": 20000,
+      "process_peak_working_set_bytes": 179052544,
+      "python_peak_memory_bytes": null,
+      "queries": [
+        {
+          "budget_ms": 50.0,
+          "maximum_ms": 1.931299999341718,
+          "meets_budget": true,
+          "operation": "region",
+          "p50_ms": 0.8525499997631414,
+          "p95_ms": 1.6256499995506597,
+          "samples": 40
+        },
+        {
+          "budget_ms": 50.0,
+          "maximum_ms": 2.421400000457652,
+          "meets_budget": true,
+          "operation": "text",
+          "p50_ms": 0.9144999994532554,
+          "p95_ms": 1.7299550000643646,
+          "samples": 40
+        },
+        {
+          "budget_ms": 50.0,
+          "maximum_ms": 3.6404000002221437,
+          "meets_budget": true,
+          "operation": "face",
+          "p50_ms": 1.3481999999385152,
+          "p95_ms": 3.0073449997416897,
+          "samples": 40
+        }
+      ],
+      "requested_entity_count": 20000,
+      "snapshot_budget_bytes": 524288000,
+      "snapshot_size_bytes": 17216818,
+      "stage_seconds": [
+        [
+          "adapter",
+          1.248748699999851
+        ],
+        [
+          "topology",
+          0.4106555999996999
+        ],
+        [
+          "payload",
+          0.08150759999989532
+        ],
+        [
+          "snapshot_store",
+          0.7878454000001511
+        ]
+      ]
+    },
+    {
+      "arrangement_edge_count": 299700,
+      "build_budget_seconds": 60.0,
+      "build_seconds": 36.705729399999655,
+      "dcel_face_count": 0,
+      "meets_budget": true,
+      "memory_budget_bytes": 4294967296,
+      "parsed_source_entities": 300000,
+      "process_peak_working_set_bytes": 1507622912,
+      "python_peak_memory_bytes": null,
+      "queries": [
+        {
+          "budget_ms": 50.0,
+          "maximum_ms": 2.376399999775458,
+          "meets_budget": true,
+          "operation": "region",
+          "p50_ms": 0.8554500004720467,
+          "p95_ms": 1.5552449998722286,
+          "samples": 40
+        },
+        {
+          "budget_ms": 50.0,
+          "maximum_ms": 2.853099999811093,
+          "meets_budget": true,
+          "operation": "text",
+          "p50_ms": 1.144699999713339,
+          "p95_ms": 2.565369999911126,
+          "samples": 40
+        },
+        {
+          "budget_ms": 50.0,
+          "maximum_ms": 3.545300000041607,
+          "meets_budget": true,
+          "operation": "face",
+          "p50_ms": 1.5875500002948684,
+          "p95_ms": 2.9317049997189306,
+          "samples": 40
+        }
+      ],
+      "requested_entity_count": 300000,
+      "snapshot_budget_bytes": 524288000,
+      "snapshot_size_bytes": 234551803,
+      "stage_seconds": [
+        [
+          "adapter",
+          22.036264299999857
+        ],
+        [
+          "topology",
+          7.359426199999689
+        ],
+        [
+          "payload",
+          0.6011432999994213
+        ],
+        [
+          "snapshot_store",
+          6.708885900000496
+        ]
+      ]
+    }
+  ]
+}

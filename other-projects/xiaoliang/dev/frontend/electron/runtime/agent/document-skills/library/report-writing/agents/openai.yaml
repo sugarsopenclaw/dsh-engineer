@@ -1,0 +1,4 @@
+interface:
+  display_name: "报告与文本写作"
+  short_description: "在晓量中按规范完成报告与文本写作相关任务、交付与质量检查"
+  default_prompt: "使用 $report-writing 完成相关任务。"

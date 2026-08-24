@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xiaoliang-cadstack"
+version = "0.1.0"
+description = "Stable project-facing interface over the four deterministic CAD layers."
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = "LicenseRef-Proprietary"
+dependencies = [
+  "xiaoliang-cadtasks==0.1.0",
+  "xiaoliang-cadkernel==0.1.0",
+]
+
+[project.scripts]
+cadstack = "cadstack.cli.main:main"
+
+[dependency-groups]
+dev = [
+  "import-linter==2.3",
+  "pytest==8.4.2",
+]
+
+[tool.uv.sources]
+xiaoliang-cadtasks = { path = "../cadtasks", editable = true }
+xiaoliang-cadkernel = { path = "../cadkernel", editable = true }
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cadstack*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+  "e2e: exercises all four layers over a real drawing",
+]
+
+[tool.importlinter]
+root_packages = ["cadstack", "cadtasks", "cadsemantics", "cadpatterns", "cadkernel"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "The project interface is the only layer above the four CAD layers"
+type = "layers"
+layers = [
+  "cadstack",
+  "cadtasks",
+  "cadsemantics",
+  "cadpatterns",
+  "cadkernel",
+]
+
+[[tool.importlinter.contracts]]
+name = "The deterministic project interface never imports model SDKs"
+type = "forbidden"
+source_modules = ["cadstack"]
+allow_indirect_imports = true
+forbidden_modules = ["openai", "anthropic"]
+

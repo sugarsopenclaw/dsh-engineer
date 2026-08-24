@@ -1,0 +1,86 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xiaoliang-cadtasks"
+version = "0.1.0"
+description = "Deterministic evidence-grounded engineering task compilation and execution over xiaoliang-cadsemantics."
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = "LicenseRef-Proprietary"
+dependencies = [
+  "xiaoliang-cadsemantics==0.1.0",
+  "PyYAML==6.0.2",
+]
+
+[project.scripts]
+cadtasks = "cadtasks.cli.main:main"
+
+[dependency-groups]
+dev = [
+  "import-linter==2.3",
+  "pytest==8.4.2",
+]
+
+[tool.uv.sources]
+xiaoliang-cadsemantics = { path = "../cadsemantics", editable = true }
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cadtasks*"]
+
+[tool.setuptools.package-data]
+"cadtasks.recipes" = ["query/*.yaml", "count/*.yaml", "audit/*.yaml"]
+"cadtasks.rules" = ["*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+  "bench: task-layer performance baseline",
+  "corpus: requires an external immutable task corpus",
+]
+
+[tool.importlinter]
+root_packages = ["cadtasks", "cadsemantics", "cadpatterns", "cadkernel"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Task-layer dependency direction"
+type = "layers"
+layers = [
+  "cadtasks.cli",
+  "cadtasks.agentview | cadtasks.evaluation",
+  "cadtasks.runtime",
+  "cadtasks.storage",
+  "cadtasks.coverage",
+  "cadtasks.validation",
+  "cadtasks.artifacts | cadtasks.ports",
+  "cadtasks.readiness",
+  "cadtasks.planning",
+  "cadtasks.recipes",
+  "cadtasks.rules",
+  "cadtasks.blocks",
+  "cadtasks.evidence",
+  "cadtasks.capabilities",
+  "cadtasks.scope",
+  "cadtasks.binding",
+  "cadtasks.taxonomy",
+  "cadtasks.contracts",
+]
+
+[[tool.importlinter.contracts]]
+name = "Task layer never reaches ingestion product surfaces alternate geometry engines or LLM SDKs"
+type = "forbidden"
+source_modules = ["cadtasks"]
+allow_indirect_imports = true
+forbidden_modules = [
+  "cadkernel.adapters",
+  "cadkernel.cli",
+  "cadkernel.coverage",
+  "shapely",
+  "openai",
+  "anthropic",
+]
+

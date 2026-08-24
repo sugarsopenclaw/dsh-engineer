@@ -1,0 +1,65 @@
+rules:
+  - rule_id: generic.numeric_threshold_gte
+    version: "1.0.0"
+    description: Check that a persisted numeric measurement is at least a request parameter.
+    left: {kind: measurement, ref: area}
+    op: gte
+    right_parameter: threshold
+    requires: {measurements: [area]}
+    outcomes: {pass: PASS, fail: FAIL, missing_input: INSUFFICIENT_INFORMATION}
+    severity: MAJOR
+  - rule_id: generic.numeric_threshold_lte
+    version: "1.0.0"
+    description: Check that a persisted numeric measurement is at most a request parameter.
+    left: {kind: measurement, ref: area}
+    op: lte
+    right_parameter: threshold
+    requires: {measurements: [area]}
+    outcomes: {pass: PASS, fail: FAIL, missing_input: INSUFFICIENT_INFORMATION}
+    severity: MAJOR
+  - rule_id: generic.numeric_threshold_eq
+    version: "1.0.0"
+    description: Check that a persisted value equals a request parameter.
+    left: {kind: measurement, ref: area}
+    op: eq
+    right_parameter: threshold
+    requires: {measurements: [area]}
+    outcomes: {pass: PASS, fail: FAIL, missing_input: INSUFFICIENT_INFORMATION}
+    severity: MAJOR
+  - rule_id: generic.numeric_threshold_ne
+    version: "1.0.0"
+    description: Check that a persisted value differs from a request parameter.
+    left: {kind: measurement, ref: area}
+    op: ne
+    right_parameter: threshold
+    requires: {measurements: [area]}
+    outcomes: {pass: PASS, fail: FAIL, missing_input: INSUFFICIENT_INFORMATION}
+    severity: MAJOR
+  - rule_id: generic.numeric_threshold_between
+    version: "1.0.0"
+    description: Check that a persisted numeric measurement is inside request bounds.
+    left: {kind: measurement, ref: area}
+    op: between
+    right_parameter: threshold
+    requires: {measurements: [area]}
+    outcomes: {pass: PASS, fail: FAIL, missing_input: INSUFFICIENT_INFORMATION}
+    severity: MAJOR
+  - rule_id: generic.distinct_labels
+    version: "1.0.0"
+    description: Check that normalized attached labels are distinct.
+    left: {kind: values, ref: labels}
+    op: distinct
+    right_parameter:
+    requires: {}
+    outcomes: {pass: PASS, fail: FAIL, missing_input: INSUFFICIENT_INFORMATION}
+    severity: MAJOR
+  - rule_id: generic.count_reconciliation
+    version: "1.0.0"
+    description: Preserve observable differences between independently defined quantity bases.
+    left: {kind: values, ref: quantities}
+    op: distinct
+    right_parameter:
+    requires: {}
+    outcomes: {pass: OBSERVATION, fail: PASS, missing_input: INSUFFICIENT_INFORMATION}
+    severity: INFO
+

@@ -1,0 +1,18 @@
+schema_version: 1
+pattern_type: generic.enclosure_candidate
+spec_version: 1.0.0
+feature_set_version: 1.0.0
+feature_precision: 8
+detectors:
+  - id: enclosure.dcel_face
+    version: 1.0.0
+  - id: enclosure.merged_face
+    version: 1.0.0
+  - id: enclosure.gap_bridged
+    version: 1.0.0
+required_features: [topology.face, geometry.bounds]
+style_features: []
+resolver: nested
+resolver_version: 1.0.0
+tolerance_fields: [gap_bridge_ratio, nested_overlap_ratio]
+hard_constraints: [valid_polygon]

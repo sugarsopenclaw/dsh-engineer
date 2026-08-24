@@ -1,0 +1,14 @@
+schema_version: 1
+pattern_type: generic.text_block
+spec_version: 1.0.0
+feature_set_version: 1.0.0
+feature_precision: 8
+detectors:
+  - id: text.block
+    version: 1.0.0
+required_features: [text.anchor, text.height, text.rotation]
+style_features: []
+resolver: greedy_nms
+resolver_version: 1.0.0
+tolerance_fields: [text_inline_gap_ratio, text_line_spacing_ratio, text_rotation_ratio]
+hard_constraints: [nonempty_text]

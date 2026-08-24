@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; font-src data: http://127.0.0.1:*; connect-src http://127.0.0.1:*; worker-src 'self' blob:; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <meta name="referrer" content="no-referrer" />
+    <title>晓量 CAD 预览</title>
+  </head>
+  <body>
+    <main id="cad-preview-root" aria-label="CAD 图纸预览"></main>
+    <script type="module" src="/src/cad-preview-runtime/entry.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,10 @@
+services:
+  release:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: xiaoliang-release:${DEPLOY_IMAGE_TAG:-local}
+    container_name: xiaoliang-release
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:18093:80"

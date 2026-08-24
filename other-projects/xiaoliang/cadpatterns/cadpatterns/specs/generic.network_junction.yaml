@@ -1,0 +1,13 @@
+schema_version: 1
+pattern_type: generic.network_junction
+spec_version: 1.0.0
+feature_set_version: 1.0.0
+feature_precision: 8
+detectors: []
+required_features: [topology.degree]
+style_features: []
+resolver: nested
+resolver_version: 1.0.0
+tolerance_fields: [junction_min_degree]
+hard_constraints: [degree>=junction_min_degree]
+composed_by: network.path

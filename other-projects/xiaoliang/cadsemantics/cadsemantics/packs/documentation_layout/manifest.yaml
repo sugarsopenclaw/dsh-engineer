@@ -1,0 +1,43 @@
+pack_id: documentation_layout
+version: 1.0.0
+namespace: documentation
+family: documentation_layout
+overlay_layer: core
+supported_contexts:
+  disciplines: [documentation, generic_engineering, unknown]
+  drawing_types:
+    - annotated_drawing
+    - detail_document
+    - general_drawing
+    - legend_document
+    - network_diagram
+    - section_document
+    - sheet_document
+    - spatial_layout
+    - symbolic_diagram
+    - tabular_document
+requires_patterns:
+  - generic.enclosure_candidate
+  - generic.sheet_boundary_candidate
+  - generic.table_grid
+  - generic.text_block
+provides_classes:
+  - documentation.Sheet
+  - documentation.SheetBoundary
+  - documentation.TitleBlock
+  - documentation.DrawingView
+  - documentation.Legend
+  - documentation.Schedule
+  - documentation.NoteBlock
+  - documentation.DetailReference
+  - documentation.SectionReference
+provides_properties: [core.label_text, core.row_count, core.column_count]
+provides_relations: [core.CONTAINED_IN, core.LOCATED_IN, core.REFERENCED_IN]
+provides_roles: [core.boundary, core.label]
+mapping_resources: [mappings.yaml]
+lexicons:
+  title_block: [title block, drawing title, drawing no, 图签, 图名, 图号]
+  legend: [legend, symbol key, 图例]
+  schedule: [schedule, list, table, 明细, 表]
+  detail: [detail, typical detail, 详图, 节点]
+  section: [section, sectional, 剖面, 剖视]

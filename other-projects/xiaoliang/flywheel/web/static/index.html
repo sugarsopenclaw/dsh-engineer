@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>飞轮评审</title>
+    <link rel="stylesheet" href="/styles.css?v=3" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <span class="mark">飞轮</span>
+        <h1>内测评审</h1>
+      </div>
+      <p class="lede" id="summary-line">正在读取本地意见…</p>
+      <div class="controls">
+        <input id="search" type="search" placeholder="按问题、项目、对话过滤" autocomplete="off" />
+        <div class="chips" id="verdict-chips"></div>
+        <div class="chips" id="followup-chips"></div>
+      </div>
+    </header>
+    <main class="layout">
+      <section class="tree-pane" aria-label="用户与项目">
+        <div id="tree" class="tree"></div>
+      </section>
+      <section class="detail-pane" aria-label="评审详情">
+        <div id="detail" class="detail empty">从左侧展开用户和项目，点开一条评审。</div>
+      </section>
+    </main>
+    <script src="/app.js?v=3"></script>
+  </body>
+</html>

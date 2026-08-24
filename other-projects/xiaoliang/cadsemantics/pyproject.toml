@@ -1,0 +1,91 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xiaoliang-cadsemantics"
+version = "0.1.0"
+description = "Deterministic evidence-grounded semantic object layer over xiaoliang-cadpatterns."
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = "LicenseRef-Proprietary"
+dependencies = [
+  "xiaoliang-cadpatterns==0.1.0",
+  "PyYAML==6.0.2",
+]
+
+[project.scripts]
+cadsemantics = "cadsemantics.cli.main:main"
+
+[dependency-groups]
+dev = [
+  "import-linter==2.3",
+  "pytest==8.4.2",
+]
+
+[tool.uv.sources]
+xiaoliang-cadpatterns = { path = "../cadpatterns", editable = true }
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cadsemantics*"]
+
+[tool.setuptools.package-data]
+"cadsemantics.packs.documentation_layout" = ["*.yaml"]
+"cadsemantics.packs.generic_engineering" = ["*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+  "bench: semantic-layer performance baseline",
+  "corpus: requires an external immutable pattern corpus",
+]
+
+[tool.importlinter]
+root_packages = ["cadsemantics", "cadpatterns", "cadkernel"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Semantic-layer dependency direction"
+type = "layers"
+layers = [
+  "cadsemantics.cli",
+  "cadsemantics.agentview | cadsemantics.evaluation",
+  "cadsemantics.runtime",
+  "cadsemantics.storage",
+  "cadsemantics.coverage",
+  "cadsemantics.graph",
+  "cadsemantics.ports | cadsemantics.systems",
+  "cadsemantics.identity | cadsemantics.relations",
+  "cadsemantics.attributes",
+  "cadsemantics.inference",
+  "cadsemantics.mapping",
+  "cadsemantics.evidence",
+  "cadsemantics.packs",
+  "cadsemantics.context",
+  "cadsemantics.ontology",
+  "cadsemantics.contracts",
+]
+
+[[tool.importlinter.contracts]]
+name = "Semantic layer never reaches ingestion product surfaces geometry engines or LLM SDKs"
+type = "forbidden"
+source_modules = ["cadsemantics"]
+allow_indirect_imports = true
+forbidden_modules = [
+  "cadkernel.adapters",
+  "cadkernel.cli",
+  "cadkernel.coverage",
+  "shapely",
+  "openai",
+  "anthropic",
+]
+
+[[tool.importlinter.contracts]]
+name = "Domain packs are independent"
+type = "independence"
+modules = [
+  "cadsemantics.packs.documentation_layout",
+  "cadsemantics.packs.generic_engineering",
+]

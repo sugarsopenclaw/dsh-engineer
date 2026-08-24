@@ -1,0 +1,18 @@
+schema_version: 1
+pattern_type: generic.sheet_boundary_candidate
+spec_version: 1.0.0
+feature_set_version: 1.0.0
+feature_precision: 8
+detectors:
+  - id: sheet_boundary.peripheral_face
+    version: 1.0.0
+required_features: [topology.face, geometry.bounds]
+style_features: []
+resolver: greedy_nms
+resolver_version: 1.0.0
+tolerance_fields:
+  - sheet_min_rectangularity
+  - sheet_min_peripherality
+  - sheet_min_internal_coverage
+  - sheet_min_whitespace_stability
+hard_constraints: [valid_polygon, rectangular, peripheral, contains_drawing_content]

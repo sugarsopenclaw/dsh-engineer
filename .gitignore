@@ -22,8 +22,13 @@ lib/
 client-data/**
 !client-data/README.md
 
-# Reference clones (xiaoliang etc.) — local only
-other-projects/
+# Reference clones — local only, except the frozen xiaoliang snapshot
+other-projects/*
+!other-projects/README.md
+!other-projects/xiaoliang/
+!other-projects/xiaoliang/**
+other-projects/xiaoliang/.git/
+other-projects/xiaoliang/.git.dsh-hidden/
 
 # Data Layer products — regenerate from pipelines
 data/datasets/

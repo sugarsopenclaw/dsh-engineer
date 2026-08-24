@@ -1,0 +1,254 @@
+{
+  "name": "xiaoliang",
+  "version": "0.8.20",
+  "private": true,
+  "description": "晓量 — AI 工程造价算量桌面端",
+  "type": "commonjs",
+  "main": "dist-electron/main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LuarAssassin/xl.git"
+  },
+  "scripts": {
+    "postinstall": "npm run rebuild:native",
+    "test": "node --test tests/*.test.cjs",
+    "generate:skill-pack-meta": "node scripts/generate-skill-pack-metadata.mjs",
+    "prepare:electron-dev": "node scripts/prepare-electron-dev.mjs",
+    "dev": "npm run generate:skill-pack-meta && npm run prepare:electron-dev && cross-env NODE_ENV=development concurrently -k \"node build-electron.mjs --watch\" \"vite\" \"wait-on dist-electron/.dev-build-ready http://localhost:5173 && electron .\"",
+    "build:cad-worker": "node scripts/build-cad-worker.mjs",
+    "build:cad-http-bridge": "node scripts/build-cad-http-bridge.mjs",
+    "sync:cad-data": "node scripts/sync-cad-data.mjs",
+    "probe:mlight": "node scripts/mlight-feasibility-probe.mjs",
+    "extract:mlight-dual": "node scripts/mlight-dual-channel-extract.mjs",
+    "probe:mlight-write": "node scripts/mlight-write-probe.mjs",
+    "probe:cad-preview": "node scripts/cad-preview-probe.mjs",
+    "probe:cad-panel": "node scripts/cad-panel-probe.mjs",
+    "build:artifact-worker": "node scripts/build-artifact-worker.mjs",
+    "verify:cad-subagent-package": "node scripts/verify-cad-subagent-package.mjs",
+    "verify:release-artifacts": "node scripts/verify-release-artifacts.mjs",
+    "build:renderer": "npm run generate:skill-pack-meta && tsc -p tsconfig.app.json --noEmit && vite build",
+    "build:electron": "npm run generate:skill-pack-meta && tsc -p tsconfig.electron.json --noEmit && node build-electron.mjs",
+    "build": "npm run build:renderer && npm run build:electron",
+    "clean:release": "node scripts/clean-release.mjs",
+    "prepare:uv-runtime": "node scripts/prepare-uv-runtime.mjs",
+    "test:update": "node --test tests/update-state.test.cjs",
+    "test:auth": "node --test tests/auth-session-protection.test.cjs",
+    "test:billing": "node --test tests/credits-billing-ui.test.cjs",
+    "test:cad-precision": "node --test tests/cad-precision-tools.test.cjs",
+    "test:cad-preview": "node --test tests/cad-preview-grant.test.cjs",
+    "test:subagents": "node --test tests/subagent-core.test.cjs tests/subagent-runtime.test.cjs",
+    "test:project-archive": "node --test tests/project-archive-integrity.test.cjs",
+    "test:skills": "node --test tests/skills-architecture.test.cjs",
+    "test:project-tools": "node --test tests/project-tools.test.cjs",
+    "test:feishu": "node --test tests/feishu-channel.test.cjs",
+    "test:pi-runtime": "node --test tests/pi-runtime-baseline.test.cjs tests/pi-agent-host.test.cjs tests/pi-stage2-runtime.test.cjs tests/pi-stage3-session.test.cjs tests/pi-stage4-resilience.test.cjs tests/pi-stage5-branching.test.cjs tests/pi-stage6-resources.test.cjs tests/pi-capability-controls-ui.test.cjs",
+    "test:interactions": "node --test tests/agent-interactions.test.cjs tests/agent-activity-ui.test.cjs tests/agent-feedback-ui.test.cjs tests/message-images-ui.test.cjs tests/window-layout-ui.test.cjs",
+    "test:cad-bridge": "node --test tests/cad-http-bridge.test.cjs && python -m pytest -q electron/runtime/cad/drivers/autocad-http/python",
+    "preview": "vite preview",
+    "electron": "cross-env NODE_ENV=development node build-electron.mjs && electron .",
+    "electron:prod": "cross-env-shell NODE_ENV=production XIAOLIANG_INTERNAL_PACK=1 \"npm run build:electron && electron .\"",
+    "prepare:pi-tools": "node scripts/prepare-pi-tools.mjs",
+    "electron:build": "cross-env-shell NODE_ENV=production \"npm run clean:release && npm run build && npm run build:cad-worker && npm run build:cad-http-bridge && npm run build:artifact-worker && npm run prepare:uv-runtime && npm run prepare:pi-tools && npm run sync:cad-data && npm run verify:cad-subagent-package && electron-builder --win nsis && npm run verify:release-artifacts\"",
+    "electron:build:legacy-unsigned": "cross-env-shell NODE_ENV=production XIAOLIANG_LEGACY_UNSIGNED_RELEASE=1 \"npm run clean:release && npm run build && npm run build:cad-worker && npm run build:cad-http-bridge && npm run build:artifact-worker && npm run prepare:uv-runtime && npm run prepare:pi-tools && npm run sync:cad-data && npm run verify:cad-subagent-package && electron-builder --win nsis && npm run verify:release-artifacts\"",
+    "electron:publish": "cross-env-shell NODE_ENV=production \"npm run electron:build\"",
+    "publish:desktop-release": "python ../backend/scripts/publish_desktop_release.py",
+    "electron:pack": "cross-env-shell NODE_ENV=production XIAOLIANG_INTERNAL_PACK=1 \"npm run clean:release && npm run build && npm run build:cad-worker && npm run build:cad-http-bridge && npm run build:artifact-worker && npm run prepare:uv-runtime && npm run prepare:pi-tools && npm run sync:cad-data && npm run verify:cad-subagent-package && electron-builder --win --dir && npm run verify:release-artifacts\"",
+    "rebuild:native": "electron-rebuild -f -w better-sqlite3,keytar",
+    "verify:electron-runtime": "cross-env ELECTRON_RUN_AS_NODE=1 electron scripts/verify-electron-runtime.cjs",
+    "verify:electron-preloads": "electron scripts/verify-electron-preloads.cjs"
+  },
+  "build": {
+    "appId": "com.xiaoliang.desktop",
+    "productName": "晓量",
+    "artifactName": "晓量-Setup-${version}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "public/xiaoliang.ico",
+      "public/xiaoliang.png",
+      "!**/*.map"
+    ],
+    "extraResources": [
+      {
+        "from": "public",
+        "to": "public",
+        "filter": [
+          "xiaoliang.ico",
+          "xiaoliang.png"
+        ]
+      },
+      {
+        "from": "electron/runtime/cad/drivers/autocad-com/python",
+        "to": "cad/autocad-com/python",
+        "filter": [
+          "**/*",
+          "!_diag/**",
+          "!tests/**",
+          "!**/__pycache__/**",
+          "!**/.pytest_cache/**",
+          "!**/*.py",
+          "!**/*.pyc",
+          "!**/.gitkeep"
+        ]
+      },
+      {
+        "from": "electron/runtime/cad/drivers/autocad-http/python",
+        "to": "cad/autocad-http/python",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/.pytest_cache/**",
+          "!**/*.py",
+          "!**/*.pyc",
+          "!**/tests/**"
+        ]
+      },
+      {
+        "from": "electron/runtime/project-files/python",
+        "to": "project-files/python",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/*.pyc",
+          "!**/.gitkeep",
+          "!document_worker.py",
+          "!packaged-bin/document_worker.exe"
+        ]
+      },
+      {
+        "from": "build/.uv-runtime",
+        "to": "uv",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "build/.pi-tools",
+        "to": "pi-tools",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "build/.cad-data",
+        "to": "cad-data",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeCliInspectArguments": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "onlyLoadAppFromAsar": true,
+      "enableEmbeddedAsarIntegrityValidation": true
+    },
+    "win": {
+      "icon": "public/xiaoliang.ico",
+      "verifyUpdateCodeSignature": true,
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "public/xiaoliang.ico",
+      "uninstallerIcon": "public/xiaoliang.ico",
+      "installerHeaderIcon": "public/xiaoliang.ico",
+      "installerHeader": "installer-assets/installer-header.bmp",
+      "installerSidebar": "installer-assets/installer-sidebar.bmp",
+      "uninstallerSidebar": "installer-assets/installer-sidebar.bmp",
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "晓量"
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://xl.x3yun.com/api/desktop-updates/windows/x64"
+      }
+    ]
+  },
+  "dependencies": {
+    "@copilotkit/a2ui-renderer": "^1.66.4",
+    "@earendil-works/pi-agent-core": "0.84.1",
+    "@earendil-works/pi-ai": "0.84.1",
+    "@earendil-works/pi-coding-agent": "0.84.1",
+    "@larksuiteoapi/node-sdk": "^1.66.1",
+    "@mlightcad/cad-html-plugin": "1.5.11",
+    "@mlightcad/cad-pdf-plugin": "1.5.11",
+    "@mlightcad/cad-simple-ui-plugin": "1.5.11",
+    "@mlightcad/cad-simple-viewer": "1.5.11",
+    "@mlightcad/cad-svg-plugin": "1.5.11",
+    "@mlightcad/data-model": "1.12.5",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@radix-ui/react-slot": "^1.1.0",
+    "@radix-ui/react-tooltip": "^1.1.0",
+    "@types/qrcode": "^1.5.6",
+    "better-sqlite3": "13.0.3",
+    "border-beam": "^1.3.0",
+    "cheerio": "^1.2.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.0",
+    "docx-preview": "^0.4.0",
+    "electron-updater": "^6.8.3",
+    "highlight.js": "^11.11.1",
+    "keytar": "^7.9.0",
+    "lodash-es": "4.17.21",
+    "lucide-react": "^0.460.0",
+    "markstream-react": "^0.0.52",
+    "pdfjs-dist": "^6.2.108",
+    "qrcode": "^1.5.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "^10.1.0",
+    "rehype-highlight": "^7.0.2",
+    "rehype-katex": "^7.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
+    "tailwind-merge": "^2.6.0",
+    "thinking-orbs": "^0.2.0",
+    "three": "0.172.0",
+    "turndown": "^7.2.4",
+    "typebox": "1.3.7",
+    "xlsx": "^0.18.5",
+    "yauzl": "^3.4.0",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "4.2.0",
+    "@tailwindcss/typography": "^0.5.19",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "22.19.19",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/turndown": "^5.0.6",
+    "@types/yauzl": "^3.4.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "autoprefixer": "^10.4.0",
+    "concurrently": "^9.0.0",
+    "cross-env": "^7.0.3",
+    "electron": "43.2.0",
+    "electron-builder": "^26.0.0",
+    "esbuild": "^0.28.0",
+    "node-abi": "4.33.0",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "5.9.3",
+    "vite": "^6.0.0",
+    "wait-on": "^8.0.0"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  }
+}

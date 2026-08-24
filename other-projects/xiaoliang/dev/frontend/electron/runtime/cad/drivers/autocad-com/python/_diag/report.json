@@ -1,0 +1,210 @@
+{
+  "doc_name": "门卫建筑施工图.dwg",
+  "window": {
+    "min": [
+      804194.4281674246,
+      177238.79528621002
+    ],
+    "max": [
+      836043.4544687727,
+      278419.8548583251
+    ]
+  },
+  "dpi": 150,
+  "view_before_zoom": {
+    "view_center": [
+      820126.686,
+      227836.422
+    ],
+    "view_size": 101163.9218
+  },
+  "methods": [
+    {
+      "method": "gdi-bitblt",
+      "saved_png": "E:\\062026\\xiaoliang\\dev\\frontend\\electron\\runtime\\cad\\drivers\\autocad-com\\python\\_diag\\gdi-bitblt.png",
+      "image_hash": "0e1e2ec4c9b7d67ba5c161ef0bd963585697ff043c47a9fbd63cbe690bfdb4fe",
+      "width": 1600,
+      "height": 1050,
+      "metrics": {
+        "width": 1600,
+        "height": 1050,
+        "mean_brightness": 44.3745,
+        "brightness_variance": 421.5051,
+        "black_ratio": 0.009862,
+        "white_ratio": 0.00018,
+        "near_black_ratio": 0.012012,
+        "near_white_ratio": 0.001058,
+        "ink_ratio": 0.027311,
+        "byte_length": 163277
+      },
+      "warning": null
+    },
+    {
+      "method": "printwindow",
+      "saved_png": "E:\\062026\\xiaoliang\\dev\\frontend\\electron\\runtime\\cad\\drivers\\autocad-com\\python\\_diag\\printwindow.png",
+      "image_hash": "0d041054058c75f77b5910331d9c2cfcdb6265d1194067d53eea6b7b55f29620",
+      "width": 1600,
+      "height": 1050,
+      "metrics": {
+        "width": 1600,
+        "height": 1050,
+        "mean_brightness": 47.8458,
+        "brightness_variance": 809.917,
+        "black_ratio": 0.009865,
+        "white_ratio": 0.000267,
+        "near_black_ratio": 0.012336,
+        "near_white_ratio": 0.001414,
+        "ink_ratio": 0.054247,
+        "byte_length": 324208
+      },
+      "warning": null
+    },
+    {
+      "method": "screen-crop",
+      "saved_png": "E:\\062026\\xiaoliang\\dev\\frontend\\electron\\runtime\\cad\\drivers\\autocad-com\\python\\_diag\\screen-crop.png",
+      "image_hash": "676b750eb44e90e8383a4fa0aea75c4efc63978d729f2f8399413fdb98bc80fb",
+      "width": 1600,
+      "height": 1050,
+      "metrics": {
+        "width": 1600,
+        "height": 1050,
+        "mean_brightness": 47.9151,
+        "brightness_variance": 1428.0442,
+        "black_ratio": 0.009451,
+        "white_ratio": 0.000422,
+        "near_black_ratio": 0.124995,
+        "near_white_ratio": 0.002777,
+        "ink_ratio": 0.070777,
+        "byte_length": 456712
+      },
+      "warning": null
+    },
+    {
+      "method": "plot-pdf",
+      "saved_png": "E:\\062026\\xiaoliang\\dev\\frontend\\electron\\runtime\\cad\\drivers\\autocad-com\\python\\_diag\\plot-pdf.png",
+      "image_hash": "5e151f75e592e02bb55ec0ac53d23ef704f46575e2e848859742f607210eaac5",
+      "width": 1600,
+      "height": 1050,
+      "metrics": {
+        "width": 1600,
+        "height": 1050,
+        "mean_brightness": 255.0,
+        "brightness_variance": 0.0,
+        "black_ratio": 0.0,
+        "white_ratio": 1.0,
+        "near_black_ratio": 0.0,
+        "near_white_ratio": 1.0,
+        "ink_ratio": 0.0,
+        "byte_length": 7437
+      },
+      "warning": null
+    }
+  ],
+  "view_after_zoom": {
+    "view_center": [
+      820118.941,
+      227829.325
+    ],
+    "view_size": 101181.0596
+  },
+  "distinct_hashes": 4,
+  "hash_by_method": {
+    "gdi-bitblt": "0e1e2ec4c9b7d67ba5c161ef0bd963585697ff043c47a9fbd63cbe690bfdb4fe",
+    "printwindow": "0d041054058c75f77b5910331d9c2cfcdb6265d1194067d53eea6b7b55f29620",
+    "screen-crop": "676b750eb44e90e8383a4fa0aea75c4efc63978d729f2f8399413fdb98bc80fb",
+    "plot-pdf": "5e151f75e592e02bb55ec0ac53d23ef704f46575e2e848859742f607210eaac5"
+  },
+  "plot_debug": {
+    "acWindow": {
+      "plot_type": 4,
+      "pdf_path": "E:\\062026\\xiaoliang\\dev\\frontend\\electron\\runtime\\cad\\drivers\\autocad-com\\python\\_diag\\plot_window.pdf",
+      "ensure_model_space": [],
+      "tilemode": 1,
+      "active_layout": "Model",
+      "window_readback": {
+        "lower_left": [
+          804194.4281674246,
+          177238.79528621002
+        ],
+        "upper_right": [
+          836043.4544687727,
+          278419.8548583251
+        ]
+      },
+      "readback": {
+        "PlotType": 4,
+        "UseStandardScale": true,
+        "StandardScale": 0,
+        "CenterPlot": true,
+        "ConfigName": "DWG To PDF.pc3",
+        "CanonicalMediaName": "ANSI_A_(11.00_x_8.50_Inches)",
+        "PlotRotation": 0,
+        "PlotWithLineweights": true,
+        "StyleSheet": "165-A0.ctb"
+      },
+      "plot_to_file_return": true,
+      "pdf_bytes": 1502,
+      "raster_metrics": {
+        "mean_brightness": 255.0,
+        "ink_ratio": 0.0,
+        "near_white_ratio": 1.0,
+        "byte_length": 7437
+      },
+      "raster_png": "E:\\062026\\xiaoliang\\dev\\frontend\\electron\\runtime\\cad\\drivers\\autocad-com\\python\\_diag\\plot_window.png"
+    },
+    "acExtents": {
+      "plot_type": 1,
+      "pdf_path": "E:\\062026\\xiaoliang\\dev\\frontend\\electron\\runtime\\cad\\drivers\\autocad-com\\python\\_diag\\plot_extents.pdf",
+      "ensure_model_space": [],
+      "tilemode": 1,
+      "active_layout": "Model",
+      "readback": {
+        "PlotType": 1,
+        "UseStandardScale": true,
+        "StandardScale": 0,
+        "CenterPlot": true,
+        "ConfigName": "DWG To PDF.pc3",
+        "CanonicalMediaName": "ANSI_A_(11.00_x_8.50_Inches)",
+        "PlotRotation": 0,
+        "PlotWithLineweights": true,
+        "StyleSheet": "165-A0.ctb"
+      },
+      "plot_to_file_return": true,
+      "pdf_bytes": 452264,
+      "raster_metrics": {
+        "mean_brightness": 241.3089,
+        "ink_ratio": 0.098849,
+        "near_white_ratio": 0.8387,
+        "byte_length": 363335
+      },
+      "raster_png": "E:\\062026\\xiaoliang\\dev\\frontend\\electron\\runtime\\cad\\drivers\\autocad-com\\python\\_diag\\plot_extents.png"
+    },
+    "acDisplay": {
+      "plot_type": 0,
+      "pdf_path": "E:\\062026\\xiaoliang\\dev\\frontend\\electron\\runtime\\cad\\drivers\\autocad-com\\python\\_diag\\plot_display.pdf",
+      "ensure_model_space": [],
+      "tilemode": 1,
+      "active_layout": "Model",
+      "readback": {
+        "PlotType": 0,
+        "UseStandardScale": true,
+        "StandardScale": 0,
+        "CenterPlot": true,
+        "ConfigName": "DWG To PDF.pc3",
+        "CanonicalMediaName": "ANSI_A_(11.00_x_8.50_Inches)",
+        "PlotRotation": 0,
+        "PlotWithLineweights": true,
+        "StyleSheet": "165-A0.ctb"
+      },
+      "plot_to_file_return": true,
+      "pdf_bytes": 316817,
+      "raster_metrics": {
+        "mean_brightness": 237.7567,
+        "ink_ratio": 0.077545,
+        "near_white_ratio": 0.765805,
+        "byte_length": 417267
+      },
+      "raster_png": "E:\\062026\\xiaoliang\\dev\\frontend\\electron\\runtime\\cad\\drivers\\autocad-com\\python\\_diag\\plot_display.png"
+    }
+  }
+}

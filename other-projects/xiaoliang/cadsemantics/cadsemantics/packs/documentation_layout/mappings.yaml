@@ -1,0 +1,89 @@
+mappings:
+  - mapping_id: documentation.sheet_boundary.from_peripheral_face
+    version: 1.0.0
+    target_class: documentation.SheetBoundary
+    source_patterns: [generic.sheet_boundary_candidate]
+    representation_mode: reference_only
+    functional_roles: [core.boundary]
+    must:
+      - predicate: pattern_type_is
+        value: generic.sheet_boundary_candidate
+  - mapping_id: documentation.sheet.from_boundary
+    version: 1.0.0
+    target_class: documentation.Sheet
+    source_patterns: [generic.sheet_boundary_candidate]
+    representation_mode: reference_only
+    must:
+      - predicate: pattern_type_is
+        value: generic.sheet_boundary_candidate
+  - mapping_id: documentation.title_block.from_table
+    version: 1.0.0
+    target_class: documentation.TitleBlock
+    source_patterns: [generic.table_grid]
+    representation_mode: reference_only
+    must_any:
+      - predicate: text_matches_lexicon
+        lexicon: title_block
+  - mapping_id: documentation.view.from_enclosure
+    version: 1.0.0
+    target_class: documentation.DrawingView
+    source_patterns: [generic.enclosure_candidate]
+    representation_mode: reference_only
+    must_not:
+      - predicate: shares_feature_with_pattern_type
+        pattern_type: generic.sheet_boundary_candidate
+        feature: face_id
+      - predicate: text_matches_lexicon
+        lexicon: legend
+      - predicate: text_matches_lexicon
+        lexicon: detail
+  - mapping_id: documentation.legend.from_enclosure
+    version: 1.0.0
+    target_class: documentation.Legend
+    source_patterns: [generic.enclosure_candidate]
+    representation_mode: reference_only
+    must_any:
+      - predicate: text_matches_lexicon
+        lexicon: legend
+    must_not:
+      - predicate: shares_feature_with_pattern_type
+        pattern_type: generic.sheet_boundary_candidate
+        feature: face_id
+  - mapping_id: documentation.schedule.from_grid
+    version: 1.0.0
+    target_class: documentation.Schedule
+    source_patterns: [generic.table_grid]
+    representation_mode: reference_only
+    must:
+      - predicate: pattern_type_is
+        value: generic.table_grid
+    should:
+      - predicate: text_matches_lexicon
+        lexicon: schedule
+    must_not:
+      - predicate: text_matches_lexicon
+        lexicon: title_block
+  - mapping_id: documentation.note_block.from_text
+    version: 1.0.0
+    target_class: documentation.NoteBlock
+    source_patterns: [generic.text_block]
+    representation_mode: reference_only
+    must:
+      - predicate: member_count_at_least
+        value: 1
+  - mapping_id: documentation.detail_reference.from_text
+    version: 1.0.0
+    target_class: documentation.DetailReference
+    source_patterns: [generic.text_block]
+    representation_mode: reference_only
+    must_any:
+      - predicate: text_matches_lexicon
+        lexicon: detail
+  - mapping_id: documentation.section_reference.from_text
+    version: 1.0.0
+    target_class: documentation.SectionReference
+    source_patterns: [generic.text_block]
+    representation_mode: reference_only
+    must_any:
+      - predicate: text_matches_lexicon
+        lexicon: section

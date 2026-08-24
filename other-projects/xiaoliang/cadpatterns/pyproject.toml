@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xiaoliang-cadpatterns"
+version = "0.1.0"
+description = "Deterministic generic drawing-pattern layer over xiaoliang-cadkernel."
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = "LicenseRef-Proprietary"
+dependencies = [
+  "xiaoliang-cadkernel==0.1.0",
+  "PyYAML==6.0.2",
+]
+
+[project.scripts]
+cadpatterns = "cadpatterns.cli.main:main"
+
+[dependency-groups]
+dev = [
+  "import-linter==2.3",
+  "pytest==8.4.2",
+]
+
+[tool.uv.sources]
+xiaoliang-cadkernel = { path = "../cadkernel", editable = true }
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cadpatterns*"]
+
+[tool.setuptools.package-data]
+cadpatterns = ["specs/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+  "bench: pattern-layer performance baseline",
+  "corpus: requires an external real-drawing corpus",
+]
+
+[tool.importlinter]
+root_packages = ["cadpatterns", "cadkernel"]
+
+[[tool.importlinter.contracts]]
+name = "Generic pattern-layer dependency direction"
+type = "layers"
+layers = [
+  "cadpatterns.cli",
+  "cadpatterns.evaluation",
+  "cadpatterns.runtime",
+  "cadpatterns.storage",
+  "cadpatterns.graph",
+  "cadpatterns.resolvers | cadpatterns.composers",
+  "cadpatterns.relations",
+  "cadpatterns.detectors",
+  "cadpatterns.candidates",
+  "cadpatterns.features",
+  "cadpatterns.scopes",
+  "cadpatterns.ontology",
+  "cadpatterns.contracts",
+]
+
+[[tool.importlinter.contracts]]
+name = "Pattern layer never reaches into CAD ingestion or product surfaces"
+type = "forbidden"
+source_modules = ["cadpatterns"]
+forbidden_modules = [
+  "cadkernel.adapters",
+  "cadkernel.cli",
+  "cadkernel.coverage",
+]

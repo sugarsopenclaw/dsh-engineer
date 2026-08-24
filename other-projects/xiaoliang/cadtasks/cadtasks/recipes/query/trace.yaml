@@ -1,0 +1,16 @@
+recipe_id: generic.trace_evidence
+version: "1.0.0"
+summary: Trace a selected fact through semantic, pattern, and source layers.
+task_type: TRACE
+target_parameterized: true
+supported_mutation_policies: [READ_ONLY]
+quantity_bases: []
+required_capabilities: [semantic.query]
+required_rules: []
+nodes:
+  - {node_id: resolve_scope, block_id: scope.resolve, depends_on: []}
+  - {node_id: trace, block_id: query.trace_evidence, depends_on: [resolve_scope]}
+  - {node_id: decide, block_id: result.decide, depends_on: [trace]}
+  - {node_id: act, block_id: artifact.read_only, depends_on: [decide]}
+  - {node_id: validate, block_id: result.validate, depends_on: [act]}
+

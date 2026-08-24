@@ -1,0 +1,14 @@
+node_modules
+dist
+build
+release
+release-publish
+.DS_Store
+*.log
+.env
+.env.local
+**/__pycache__/
+**/*.pyc
+electron/runtime/cad/drivers/autocad-com/python/packaged-bin/*.exe
+electron/runtime/cad/drivers/autocad-http/python/packaged-bin/*.exe
+

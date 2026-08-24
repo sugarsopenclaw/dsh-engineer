@@ -1,0 +1,11 @@
+# 查询/导出产物（可能含用户对话与路径，勿提交）
+exports/
+*.csv
+*.jsonl
+*.db
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/

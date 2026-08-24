@@ -1,0 +1,4 @@
+interface:
+  display_name: "Excel 表格写作"
+  short_description: "在晓量中按规范完成Excel 表格写作相关任务、交付与质量检查"
+  default_prompt: "使用 $spreadsheet-writing 完成相关任务。"

@@ -1,0 +1,47 @@
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #f1f5f9;
+}
+
+#cad-preview-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  /* applyUiTheme writes inline --ml-ui-* that default to Element Plus blue.
+     !important wins those inline tokens so chrome follows Xiaoliang violet. */
+  --el-color-primary: #7c3aed;
+  --ml-ui-accent: #7c3aed !important;
+  --ml-ui-canvas-line: #7c3aed !important;
+  --ml-ui-canvas-fill: rgba(124, 58, 237, 0.2) !important;
+  --ml-ui-canvas-fill-mix: color-mix(in srgb, #7c3aed 20%, transparent) !important;
+}
+
+#cad-preview-root[data-ml-ui-theme='dark'] {
+  background: #0f172a;
+}
+
+#cad-preview-root canvas {
+  display: block;
+}
+
+/* Keep the upstream spinner/about mark box; hide the baked-in "ML" SVG. */
+.ml-ccl-spinner-icon,
+.ml-brand-mark-icon {
+  background: url('../assets/logo.png') center / contain no-repeat;
+  border-radius: 6px;
+}
+
+.ml-ccl-spinner-icon svg,
+.ml-brand-mark-icon svg {
+  opacity: 0;
+}
+
+.ml-brand-mark-label,
+.ml-ui-about-links,
+.ml-ui-about-copyright {
+  display: none !important;
+}

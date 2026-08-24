@@ -1,0 +1,66 @@
+:root {
+  color: #334155;
+  background: #f1f5f9;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: auto;
+}
+
+#docx-preview-root {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 8px;
+}
+
+#docx-preview-root.is-rendering {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+#docx-preview-root .docx-wrapper {
+  min-width: max-content;
+  padding: 0;
+  background: transparent;
+}
+
+#docx-preview-root section.xiaoliang-docx {
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 12%);
+}
+
+#docx-preview-root img {
+  max-width: 100%;
+  height: auto;
+}
+
+#docx-preview-root :has(> .docx-image-missing) {
+  width: auto !important;
+  max-width: none;
+}
+
+#docx-preview-root .docx-image-missing {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: max-content;
+  min-width: 72px;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 4px;
+  background: #f8fafc;
+  color: #94a3b8;
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+  vertical-align: middle;
+}

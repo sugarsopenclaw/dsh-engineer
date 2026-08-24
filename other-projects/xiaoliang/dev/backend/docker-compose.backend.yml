@@ -1,0 +1,14 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: xiaoliang-backend:${DEPLOY_IMAGE_TAG:-local}
+    container_name: xiaoliang-backend
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    ports:
+      - "127.0.0.1:18092:8000"
+    volumes:
+      - ./wechatpay_key:/app/wechatpay_key:ro
