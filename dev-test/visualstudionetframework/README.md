@@ -29,6 +29,25 @@ cd D:\dev\dsh-engineer\dev-test\visualstudionetframework
 
 `accoreconsole` 批跑需要先把 `SECURELOAD` 设为 0（脚本已做），否则会“加载成功”但命令不注册。退出时用 `QUIT` + `N`，避免把 DWG 写回去。
 
+## THCAD V24 抽取（对照）
+
+插件：`ThcadExtractor\bin\x64\Debug\Shb.Thcad.Extractor.dll`  
+产出：`out-thcad/<图纸名>/`  
+命令同样是 `SHBEXTRACT`（在天河里加载这份 DLL，不要加载 AutoCAD 那份）。
+
+天河里：
+
+1. 只读打开图纸，不要另存
+2. 必要时 `SECURELOAD` 设为 `0`
+3. `NETLOAD` → 上面的 `Shb.Thcad.Extractor.dll`
+4. `SHBEXTRACT`
+
+对比：
+
+```powershell
+.\compare-hosts.ps1 -DrawingId "5TBC.384.A110050.2_1"
+```
+
 ## 这不是「全部数据」
 
 这是文档里的第三层：标准 DWG 数据库。天河标题栏/明细表/算单要等 THCAD/PCCAD。Proxy 会记在 `proxies.jsonl`，`decode_status` 为 `proxy`。
