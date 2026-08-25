@@ -33,9 +33,15 @@ cd D:\dev\dsh-engineer\dev-test\visualstudionetframework
 
 插件：`ThcadExtractor\bin\x64\Debug\Shb.Thcad.Extractor.dll`  
 产出：`out-thcad/<图纸名>/`  
-命令同样是 `SHBEXTRACT`（在天河里加载这份 DLL，不要加载 AutoCAD 那份）。
+命令：`SHBEXTRACT`（当前图）和 `SHBEXTRACTALL`（批量，旁数据库读 drop 里全部 DWG，不在编辑器打开，不写回源文件；已有 `extraction-report.json` 的跳过，`SHB_EXTRACT_FORCE=1` 强制重抽）。批量进度看 `out-thcad/_batch-log.txt`，完成哨兵 `_batch-done.txt`。
 
-天河里：
+天河没有 accoreconsole 等价物，批跑走 COM 驱动已启动的 GUI 实例（`BricscadApp.AcadApplication`）：
+
+```powershell
+.\trigger-thcad-batch.ps1   # 对运行中的 THCAD SendCommand: NETLOAD + SHBEXTRACTALL
+```
+
+手动方式（在天河里加载这份 DLL，不要加载 AutoCAD 那份）：
 
 1. 只读打开图纸，不要另存
 2. 必要时 `SECURELOAD` 设为 `0`

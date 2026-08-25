@@ -69,6 +69,103 @@ namespace Shb.Thcad.Extractor
             return true;
         }
 
+        // Batch-extract every DWG in the drop via side databases (no editor open,
+        // so the host can never rewrite client-data). Skips drawings that already
+        // have an extraction-report.json unless SHB_EXTRACT_FORCE=1.
+        // Progress: _batch-log.txt; completion sentinel: _batch-done.txt (both in output root).
+        [CommandMethod("SHBEXTRACTALL", CommandFlags.Session)]
+        public void ExtractAll()
+        {
+            string outputRoot;
+            try
+            {
+                outputRoot = ResolveOutputRoot();
+                Directory.CreateDirectory(outputRoot);
+            }
+            catch (System.Exception ex)
+            {
+                WriteMessage("\nSHBEXTRACTALL: cannot resolve output root: " + ex.Message + "\n");
+                return;
+            }
+
+            string srcRoot = Environment.GetEnvironmentVariable("SHB_EXTRACT_SRC");
+            if (string.IsNullOrWhiteSpace(srcRoot))
+            {
+                srcRoot = @"D:\dev\dsh-engineer\client-data\transformer-design-drawings";
+            }
+
+            string logPath = Path.Combine(outputRoot, "_batch-log.txt");
+            Action<string> log = line =>
+            {
+                try { File.AppendAllText(logPath, DateTime.UtcNow.ToString("o") + " " + line + Environment.NewLine); }
+                catch { }
+            };
+
+            try
+            {
+                if (!Directory.Exists(srcRoot))
+                {
+                    log("src_missing " + srcRoot);
+                    WriteMessage("\nSHBEXTRACTALL: source dir missing: " + srcRoot + "\n");
+                    return;
+                }
+
+                var files = Directory.GetFiles(srcRoot, "*.dwg");
+                Array.Sort(files, StringComparer.OrdinalIgnoreCase);
+                log("batch_start files=" + files.Length);
+
+                int done = 0, skipped = 0, failed = 0;
+                foreach (var path in files)
+                {
+                    string stem = Path.GetFileNameWithoutExtension(path);
+                    if (File.Exists(Path.Combine(outputRoot, stem, "extraction-report.json"))
+                        && Environment.GetEnvironmentVariable("SHB_EXTRACT_FORCE") != "1")
+                    {
+                        skipped++;
+                        log("skip " + stem);
+                        continue;
+                    }
+
+                    Database db = null;
+                    try
+                    {
+                        log("start " + stem);
+                        db = new Database(false, true);
+                        db.ReadDwgFile(path, FileOpenMode.OpenForReadAndAllShare, false, "");
+                        db.CloseInput(true);
+                        string report = DrawingExtractor.Extract(db, outputRoot);
+                        done++;
+                        log("done " + stem + " -> " + report);
+                    }
+                    catch (System.Exception ex)
+                    {
+                        failed++;
+                        log("fail " + stem + " " + ex.GetType().Name + " " + ex.Message);
+                        WriteMessage("\nSHBEXTRACTALL failed for " + stem + ": " + ex.Message + "\n");
+                    }
+                    finally
+                    {
+                        if (db != null)
+                        {
+                            db.Dispose();
+                        }
+                    }
+                }
+
+                string summary = "batch_end done=" + done + " skipped=" + skipped + " failed=" + failed;
+                log(summary);
+                File.WriteAllText(
+                    Path.Combine(outputRoot, "_batch-done.txt"),
+                    DateTime.UtcNow.ToString("o") + " " + summary + Environment.NewLine);
+                WriteMessage("\nSHBEXTRACTALL " + summary + "\n");
+            }
+            catch (System.Exception ex)
+            {
+                log("batch_abort " + ex);
+                WriteMessage("\nSHBEXTRACTALL aborted: " + ex.Message + "\n");
+            }
+        }
+
         internal static string ResolveOutputRoot()
         {
             string fromEnv = Environment.GetEnvironmentVariable("SHB_EXTRACT_OUT");
