@@ -41,6 +41,15 @@ pnpm run build
 当前项目通过 FastAPI 转发 Harness 的 DeepSeek 对话请求：
 
 ```powershell
+# 一键启动 FastAPI + DSH Web；也可以直接双击根目录 start-dev.cmd
+.\scripts\start-dev.ps1
+```
+
+一键脚本会等待 FastAPI 健康后再启动 DSH Web。若 8000 端口上已有健康的本项目后端，它会直接复用；否则会自行启动，并在 DSH 退出时一并关闭。
+
+原来的分步启动方式仍然可用：
+
+```powershell
 # 终端 1
 cd backend
 uv sync

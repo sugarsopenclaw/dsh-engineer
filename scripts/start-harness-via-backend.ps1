@@ -3,6 +3,7 @@ param(
     [string]$BackendBaseUrl = "http://127.0.0.1:8000",
     [string]$Profile = "web",
     [switch]$SkipHealthCheck,
+    [switch]$NoExit,
     [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
     [string[]]$DshArguments
 )
@@ -71,6 +72,11 @@ finally {
         $previousSearchBaseUrl,
         "Process"
     )
+}
+
+if ($NoExit) {
+    $global:LASTEXITCODE = $exitCode
+    return
 }
 
 exit $exitCode
