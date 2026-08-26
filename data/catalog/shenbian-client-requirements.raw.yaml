@@ -1,0 +1,20 @@
+schema_version: "1.0"
+id: shenbian.client_requirements.raw.v1
+stage: raw
+status: available_local
+description: 沈变需求、调研和优先级原始资料。
+source:
+  kind: client_data_drop
+  path: client-data/client-requirements
+format: mixed_documents
+media_types: [text/markdown, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet]
+governance:
+  sensitivity: customer_confidential
+  immutable: true
+  git_tracked: false
+observed:
+  file_count: 4
+  markdown_count: 2
+  docx_count: 1
+  xlsx_count: 1
+

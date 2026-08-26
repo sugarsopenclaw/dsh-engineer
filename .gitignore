@@ -12,6 +12,14 @@ dist/
 lib/
 *.tsbuildinfo
 
+# Python / uv (backend and data pipelines)
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
 # Secrets and local harness state — never commit
 .env
 .env.*

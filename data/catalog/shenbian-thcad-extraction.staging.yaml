@@ -1,0 +1,27 @@
+schema_version: "1.0"
+id: shenbian.thcad_extraction.staging.v1
+stage: staging
+status: available_local_poc
+description: 2026-08-25 由同一 THCAD 插件版本抽取的 7 套旁数据库事实。
+source:
+  kind: derived_local_output
+  dataset_id: shenbian.transformer_drawings.raw.v1
+  import_path: dev-test/visualstudionetframework/out-thcad
+format: thcad_json_bundle
+media_types: [application/json, application/x-ndjson]
+pipeline: data/pipelines/import_thcad_extraction
+governance:
+  sensitivity: customer_confidential
+  immutable: true
+  git_tracked: false
+  ontology_ready: false
+observed:
+  drawing_count: 7
+  entity_count: 91605
+  title_block_count: 7
+  bom_row_count: 208
+  professional_entity_count: 450
+  proxy_count: 0
+  failed_entity_count: 0
+  xuhao_bom_link_count: 24
+

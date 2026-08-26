@@ -1,0 +1,21 @@
+schema_version: "1.0"
+id: shenbian.transformer_drawings.raw.v1
+stage: raw
+status: available_with_lineage_question
+description: 沈变 PCCAD V21 变压器二维 CAD 原始交付。
+source:
+  kind: client_data_drop
+  path: client-data/transformer-design-drawings
+format: cad_directory
+media_types: [application/acad, application/octet-stream]
+governance:
+  sensitivity: customer_confidential
+  immutable: true
+  git_tracked: false
+  canonical_revision_confirmed: false
+observed:
+  drawing_count: 7
+  dwg_count: 7
+  bak_count: 7
+  note: DWG 多为天河宿主保存版本，BAK 为打开前文件；两者均登记，待业务确认权威版本。
+
