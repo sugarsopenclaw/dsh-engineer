@@ -640,6 +640,7 @@ dependencies = [
     { name = "alibabacloud-oss-v2" },
     { name = "asyncpg" },
     { name = "fastapi" },
+    { name = "httpx2" },
     { name = "pydantic-settings" },
     { name = "pyyaml" },
     { name = "redis" },
@@ -649,7 +650,6 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "httpx2" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
@@ -661,6 +661,7 @@ requires-dist = [
     { name = "alibabacloud-oss-v2" },
     { name = "asyncpg", specifier = ">=0.30.0" },
     { name = "fastapi", specifier = ">=0.116.0" },
+    { name = "httpx2", specifier = ">=2.12.0" },
     { name = "pydantic-settings", specifier = ">=2.10.0" },
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "redis", specifier = ">=6.2.0" },
@@ -670,7 +671,6 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "httpx2" },
     { name = "pytest", specifier = ">=8.4.0" },
     { name = "pytest-asyncio", specifier = ">=1.1.0" },
     { name = "ruff", specifier = ">=0.12.0" },

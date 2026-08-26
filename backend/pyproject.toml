@@ -1,7 +1,7 @@
 [project]
 name = "shenbian-api"
 version = "0.1.0"
-description = "沈变工程图纸 Ontology 与审查任务后端"
+description = "沈变 Harness Agent 的共享 API 与模型网关"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
@@ -9,6 +9,7 @@ dependencies = [
     "alibabacloud-oss-v2",
     "asyncpg>=0.30.0",
     "fastapi>=0.116.0",
+    "httpx2>=2.12.0",
     "pydantic-settings>=2.10.0",
     "pyyaml>=6.0.2",
     "redis>=6.2.0",
@@ -21,7 +22,6 @@ shenbian-api = "shenbian_api.cli:main"
 
 [dependency-groups]
 dev = [
-    "httpx2",
     "pytest>=8.4.0",
     "pytest-asyncio>=1.1.0",
     "ruff>=0.12.0",

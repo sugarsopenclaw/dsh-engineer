@@ -15,3 +15,4 @@
 | 目录 | 主题 |
 | --- | --- |
 | [001-platform-layers](001-platform-layers/spec.md) | 客户资料 / Data Layer / Ontology / 插件 四层怎么拆 |
+| [003-harness-deepseek-gateway](003-harness-deepseek-gateway/spec.md) | Harness 通过 FastAPI 模型网关访问 DeepSeek |

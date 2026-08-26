@@ -1,0 +1,64 @@
+THCAD / PCCAD / AutoCAD public sources consulted for field analysis
+Date: 2026-08-26
+
+Hits
+----
+1. https://www.thcad.net/pccad
+   PCCAD mechanical modules: 序号明细表 bidirectional association, 标题栏, 批量数据提取
+   (装配图明细表 vs 零件图标题栏关联检查). Confirms PC_TITLE_BLOCK / 明细 / 序号 are first-class
+   mechanical objects, not ordinary blocks.
+
+2. https://www.thcad.net/5485.html
+   Command table: PC_BTLEDIT (标题栏填充), PC_FJLEDIT / PC_CSLEDIT (附加栏/参数栏),
+   PC_XH (标注序号), PC_MXB (生成明细表), PC_CCD (粗糙度), PC_JZBZ (基准),
+   PC_TYDHDEF (自定义图样代号栏), PC_BTLDEF / PC_MXBDEF, PC_CRE/PC_DRI (参数化).
+   Used to name PC_* blocks and to bound what TH_DimRough* / TH_XuHaoEntity *should*
+   contain internally — the extract still has no those internals.
+
+3. https://www.thcad.net/18108.html
+   明细表表体定义 (PC_MXBDEF). Confirms 明细 is a defined attribute block body.
+
+4. https://www.thcad.net/5367.html
+   TH-GTCODE 编码嵌入标题栏/明细 — explains 代号 is an enterprise code slot.
+
+5. https://www.thcad.net/5399.html
+   批量DWG浏览 extracts title-block and BOM attributes from blocks.
+
+6. AutoCAD .NET Handle / ObjectId
+   https://help.autodesk.com/view/OARX/2025/ENU/?guid=GUID-8D56532D-2B17-48D1-8C81-B4AD89603A1C
+   Handle persists across sessions; ObjectId does not.
+
+7. AutoCAD Entity.GeometricExtents
+   https://help.autodesk.com/view/OARX/2026/ENU/?guid=OARX-ManagedRefGuide-Autodesk_AutoCAD_DatabaseServices_Entity_GeometricExtents
+
+8. AutoCAD XData
+   https://help.autodesk.com/view/OARX/2027/ENU?guid=GUID-92D663FA-0452-44F4-BDAC-0EEF0AF3BD88
+   Application-name grouped TypedValues; AutoCAD stores but does not interpret.
+
+9. AutoCAD Dimension.DimensionText vs Measurement
+   https://help.autodesk.com/view/OARX/2024/ENU?guid=OARX-ManagedRefGuide-Autodesk_AutoCAD_DatabaseServices_Dimension
+   Empty DimensionText => display Measurement; non-empty is override.
+
+10. https://github.com/haplokuon/netDxf/discussions/340
+    AcDbBlockRepBTag analogue (dynamic-block replacement handle). AcDbBlockRepETag
+    itself is undocumented; observed on ordinary Lines in this set, so not treated
+    as dynamic-block identity.
+
+11. Community note on TH_GBDIM / PC_TEXTSTYLE / THXuHaoStyle font roles:
+    https://www.jb51.net/softs/556498.html
+
+Misses (no public field list)
+-----------------------------
+- TH_XuHaoEntity internal balloon number / geometry parameters
+- TH_DimRough2010 / TH_DimRoughA Ra / grade values
+- TH_DimLeaderUA leader professional parameters
+- TH_ParaBasePntUA datum letter
+- TH_CVArrowLine arrow parameters
+- TH_BOMRecorder / TH_BOMItem2XuhaoAssoiateRecoder record body
+- TH_POWERPARA TypedValue dictionary (1001 / handle 0 observed only)
+- TH_XDATA_* family beyond empirical attDef codes (Material/Name/Code/PageNo/…)
+- TH_EXTENT_XDATA CSTRUCT / c:pc_yj tokens
+- PC_CSL_BLOCK attribute tag names (no model-space insert; attDef tags not extracted)
+
+Policy: field docs mark these as 目前不能支撑工程结论 or combination-only at the
+shell (class + layer + bbox) level. No invented internals.

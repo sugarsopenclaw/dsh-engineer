@@ -1,6 +1,8 @@
 # shenbian-api
 
-沈变工程图纸 Ontology 与审查任务后端。该服务位于应用服务层，读取根目录 `ontology/` 类型契约和 `data/catalog/` 数据登记；它不会直接扫描或修改 `client-data/`。
+本地 DeepSeek Harness Agent 的共享 API 与模型网关。Harness/沈变插件负责理解用户任务并调用 THCAD；FastAPI 按需提供模型转发、知识和规则读取、业务 CRUD 以及 PostgreSQL/Redis/OSS 适配。
+
+当前第一条链路只解决一件事：Harness 的 DeepSeek 模型请求先经过本服务，再转发到 DeepSeek 上游。它覆盖主对话的 OpenAI-compatible Chat Completions，以及 Harness `web_search` 使用的 Anthropic-compatible Messages 接口；不要求上传当前 DWG，也不参与本地 CAD 图元读写。
 
 ## 启动
 
@@ -18,7 +20,12 @@ uv run shenbian-api
 uv run uvicorn shenbian_api.app_factory:create_app --factory --reload
 ```
 
-主要接口：
+当前 Harness 模型链路：
+
+- `POST /api/v1/llm/deepseek/chat/completions`
+- `POST /api/v1/llm/deepseek/anthropic/v1/messages`
+
+已有的共享读取与诊断接口继续保留，但不构成 DWG 本地任务的前置流程：
 
 - `GET /api/v1/health/live`
 - `GET /api/v1/health/ready`
@@ -34,4 +41,37 @@ uv run pytest
 uv run ruff check .
 ```
 
-架构和数据边界见 [`specs/002-shenbian-ontology-api/`](../specs/002-shenbian-ontology-api/)。
+## Harness 接入
+
+DSH 自带的 DeepSeek 适配器会请求 `{DEEPSEEK_BASE_URL}/chat/completions`。从仓库根运行：
+
+```powershell
+.\scripts\start-harness-via-backend.ps1
+```
+
+脚本把当前 DSH 子进程的两个 DeepSeek 地址指向本地网关：
+
+```text
+http://127.0.0.1:8000/api/v1/llm/deepseek
+http://127.0.0.1:8000/api/v1/llm/deepseek/anthropic/v1
+```
+
+认证有两种配置：
+
+1. 默认开发模式：`DEEPSEEK_UPSTREAM_API_KEY` 和 `SHENBIAN_GATEWAY_API_KEY` 均留空。FastAPI 将 Harness 发来的 Bearer Key 转发给 DeepSeek。
+2. 服务端持钥模式：同时填写 `DEEPSEEK_UPSTREAM_API_KEY` 和 `SHENBIAN_GATEWAY_API_KEY`。Harness 只携带网关 Key，FastAPI 换成上游 Key 后转发。
+
+模型请求体、工具定义、thinking 字段和 SSE 数据帧均不做业务改写。当前规格见 [`specs/003-harness-deepseek-gateway/`](../specs/003-harness-deepseek-gateway/)。
+
+## 图像输入
+
+DSH 已内置 DeepSeek 官方视觉链路。在 Web 模型选择器中选用
+`deepseek-v4-flash-vision-exp` 后，可在输入框附加 JPEG、PNG、GIF 或 WebP：
+
+1. DSH 将图片保存为本机内容寻址附件，Session 只记录附件引用；
+2. 官方 `llm-deepseek` 适配器在请求时读取附件，并生成
+   `image_url.url = data:<media-type>;base64,...`；
+3. FastAPI 将包含图片的 Chat Completions 请求按原始字节转发，不解析图片正文；
+4. DeepSeek 返回的 SSE 沿原链路交给本地 Agent。
+
+Base64 data URL 是 DeepSeek 官方支持的本地图片传入方式，因此当前交互链路不需要把图片上传 OSS。已有公网或 OSS 签名 URL 的调用方也可以按官方 `image_url` 结构直接提交；网关同样透明转发。网关请求体上限为 48 MiB，与 DeepSeek 当前官方限制一致；DSH 自身仍会执行更严格的附件准入和历史图片预算。

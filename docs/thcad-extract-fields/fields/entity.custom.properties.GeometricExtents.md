@@ -1,0 +1,46 @@
+# 字段：GeometricExtents
+
+- **字段 ID**：`entity.custom.properties.GeometricExtents`
+- **JSON 路径**：`entities.jsonl / custom.properties.GeometricExtents`
+- **来源表/文件**：`entities.jsonl`
+- **作用域**：`entity.custom.properties`
+
+## 实测观察
+
+- 来源文件：`entities.jsonl`
+- JSON 路径：`entities.jsonl / custom.properties.GeometricExtents`
+- 作用域：`entity.custom.properties`（同名键按表区分，例如 `layer.handle` ≠ `entity.handle`）
+- 抽取器 Serialize/Dump 是否声明该键：是
+- 在这些图纸的 JSON 中出现过：`5TBC.384.A110050.1_1`、`5TBC.384.A110050.2_1`、`5TBC.426.A110050.1_1`、`5TBC.457.A110050.1_1`、`5TBC.709.A110050.1_1`、`5TBC.709.A110050.1_2`、`8TBC.312.A110050.101_1`
+- 计数：{"seen": 272}
+- 实测例子：
+  - `5TBC.384.A110050.1_1 h=630D TH_DimLeaderUA: ((11586.3752604424,10610.6063538823,0),(11636.3752604424,10731.5691433203,0))`
+  - `5TBC.384.A110050.1_1 h=630E TH_DimLeaderUA: ((11506.3752604424,8471.56914332025,0),(11561.3752604424,8649.60635388234,0))`
+  - `5TBC.384.A110050.1_1 h=64A8 TH_DimLeaderUA: ((10980.9491430433,10041.5691433203,0),(11080.9975958419,10121.5691433203,0))`
+  - `5TBC.384.A110050.1_1 h=6F74 TH_DimLeaderUA: ((664.627693890592,1063.09020289451,0),(819.138150701854,1428.41764905981,0))`
+  - `5TBC.384.A110050.1_1 h=72EF TH_DimLeaderUA: ((3399.22517070678,800.436182561423,0),(3436.22517070678,942.649466518903,0))`
+  - `5TBC.384.A110050.1_1 h=D793 TH_DimLeaderUA: ((13054.6714730701,10757.5865182412,0),(13104.6714730701,10878.5493076791,0))`
+
+## CAD 含义
+
+TH_* 反射属性 `GeometricExtents`。公开文档没有天河专业对象自己的字段表，这些是基类 Entity/Dimension 属性。
+
+公开资料：未找到公开的字段级说明；以下只根据 AutoCAD/.NET 同类语义 + 本仓库 out-thcad 实测，不编造 TH_* 内部参数。
+
+## 沈变工程能做什么
+
+对象是特变沈变变压器图纸（本批 `SZ-63000/110`：油箱、桥架、联气管、总装配附件、箱盖），目标场景是图纸去标注 / 文件配对 / BOM·序号 / 标注 vs 几何，而不是通用 CAD 教程。
+
+### 单独使用
+
+包围盒字符串。Entity.GeometricExtents 是 WCS 轴对齐包围盒（https://help.autodesk.com/view/OARX/2026/ENU/?guid=OARX-ManagedRefGuide-Autodesk_AutoCAD_DatabaseServices_Entity_GeometricExtents）。
+
+### 与其他字段组合
+
+与 `entity.bbox` 同信息，给序号/引出定位。
+
+## 工程可用性判定
+
+**判定：仅与其他字段组合可用**
+
+内部 TH_* 专业参数（气泡数字、粗糙度 Ra、基准字母）若本抽取没有列，本文不会编造。
