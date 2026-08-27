@@ -220,9 +220,7 @@ async def test_httpx_gateway_forwards_client_bearer_to_upstream(settings: Settin
 async def test_httpx_gateway_uses_root_deepseek_key_as_server_default(
     settings: Settings,
 ) -> None:
-    server_settings = settings.model_copy(
-        update={"deepseek_api_key": SecretStr("root-server-key")}
-    )
+    server_settings = settings.model_copy(update={"deepseek_api_key": SecretStr("root-server-key")})
     seen_authorization: list[str] = []
 
     async def handler(request: httpx.Request) -> httpx.Response:

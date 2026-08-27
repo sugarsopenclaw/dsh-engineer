@@ -13,6 +13,7 @@
 | `data/` | Data Layer：管线、登记、派生数据集 |
 | `ontology/` | Ontology：对象 / 链接 / 动作的类型定义 |
 | `backend/` | FastAPI 共享 API 与模型网关，供 Harness 工具按需调用 |
+| `frontend/` | 产品 Web 前端，只通过后端真实 API 使用业务数据 |
 | `specs/` | SDD 规格 |
 | `docs/` | 本仓库文档（调研、开发笔记）；规格仍写 `specs/` |
 | `other-projects/` | 参考项目。晓量冻结快照在本仓 `other-projects/xiaoliang/`（钉 `94720be`），不跟原仓同步；其余克隆仍只留本机 |
@@ -41,11 +42,26 @@ pnpm run build
 当前项目通过 FastAPI 转发 Harness 的 DeepSeek 对话请求：
 
 ```powershell
+# 只启动 FastAPI（先自动执行 Alembic migration）；也可双击根目录 start-backend.cmd
+.\scripts\start-backend.ps1
+
 # 一键启动 FastAPI + DSH Web；也可以直接双击根目录 start-dev.cmd
 .\scripts\start-dev.ps1
 ```
 
-一键脚本会等待 FastAPI 健康后再启动 DSH Web。若 8000 端口上已有健康的本项目后端，它会直接复用；否则会自行启动，并在 DSH 退出时一并关闭。
+`start-backend` 只启动后端，不启动 Harness、THCAD、Redis、OSS 或前端；它使用根 `.env`，执行数据库迁移后在前台运行 FastAPI。`start-dev` 会等待 FastAPI 健康后再启动 DSH Web。若 8000 端口上已有健康的本项目后端，它会直接复用；否则会自行启动，并在 DSH 退出时一并关闭。
+
+业务需求图谱前端的完整开发交接提示词见 [`docs/frontend/2026-08-27-业务需求图谱前端开发提示词.md`](docs/frontend/2026-08-27-业务需求图谱前端开发提示词.md)。
+
+前端本体在 `frontend/`（Vite + React + TS + pnpm，独立于 harness 的 workspace）：
+
+```powershell
+# 先启动后端（见上），再启动前端开发服务器
+cd frontend
+pnpm install
+pnpm dev        # http://localhost:5173，/api 代理到 http://127.0.0.1:8000
+pnpm lint; pnpm test --run; pnpm build
+```
 
 原来的分步启动方式仍然可用：
 

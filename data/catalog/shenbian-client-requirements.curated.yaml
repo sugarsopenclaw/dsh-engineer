@@ -1,0 +1,43 @@
+schema_version: "1.0"
+id: shenbian.client_requirements.curated.v1
+stage: curated
+status: reproducible_local
+description: 沈变客户需求的来源证据、业务需求实体、层级/复用关系、适用范围、候选验收条件、待确认项和图谱视图数据。
+source:
+  kind: derived_dataset
+  dataset_id: shenbian.client_requirements.raw.v1
+  import_path: data/datasets/curated/shenbian-client-requirements/v1
+upstream_dataset_ids:
+  - shenbian.client_requirements.raw.v1
+pipeline: data/pipelines/shenbian_client_requirements/build_curated.py
+format: jsonl_and_markdown
+tables:
+  - source_documents
+  - source_evidence
+  - requirement_nodes
+  - requirement_relations
+  - requirement_source_links
+  - requirement_aliases
+  - dedup_decisions
+  - dedup_decision_requirement_links
+  - scope_dimensions
+  - scope_values
+  - requirement_scope_links
+  - acceptance_criteria
+  - open_questions
+  - open_question_requirement_links
+  - graph_views
+  - graph_view_filters
+  - graph_layout_positions
+governance:
+  sensitivity: customer_confidential
+  immutable: true
+  git_tracked: false
+  source_immutable: true
+quality_contract:
+  source_hashes_must_match: true
+  requirement_ids_unique: true
+  relation_endpoints_must_exist: true
+  hierarchy_must_be_acyclic: true
+  every_atomic_requirement_has_verification_method: true
+  every_customer_stated_requirement_has_direct_evidence: true

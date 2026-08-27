@@ -10,6 +10,10 @@ from shenbian_api.app_factory import create_app
 from shenbian_api.application.model_gateway import ModelGatewayResponse
 from shenbian_api.application.ports import DependencyProbe
 from shenbian_api.core.config import Settings
+from shenbian_api.domain.business_requirements import (
+    BusinessRequirementDetailData,
+    BusinessRequirementsGraphSnapshot,
+)
 
 
 class HealthyProbe(DependencyProbe):
@@ -88,6 +92,25 @@ class FakeDeepSeekGateway:
         self.closed = True
 
 
+class NoopBusinessRequirementsReader:
+    async def get_graph(
+        self,
+        dataset_id: str,
+        view_id: str,
+    ) -> BusinessRequirementsGraphSnapshot:
+        raise AssertionError(f"unexpected graph query: {dataset_id}/{view_id}")
+
+    async def get_detail(
+        self,
+        dataset_id: str,
+        requirement_id: str,
+    ) -> BusinessRequirementDetailData:
+        raise AssertionError(f"unexpected detail query: {dataset_id}/{requirement_id}")
+
+    async def close(self) -> None:
+        return None
+
+
 @pytest.fixture
 def settings() -> Settings:
     return Settings(
@@ -115,6 +138,7 @@ def client(settings: Settings, deepseek_gateway: FakeDeepSeekGateway) -> TestCli
         settings=settings,
         probes=[HealthyProbe("postgresql"), HealthyProbe("redis"), HealthyProbe("oss")],
         deepseek_gateway=deepseek_gateway,
+        business_requirements_reader=NoopBusinessRequirementsReader(),
     )
     with TestClient(app) as test_client:
         yield test_client

@@ -8,6 +8,16 @@
 
 后端只读取仓库根目录 `.env`，不要在本目录创建第二份环境文件。
 
+从仓库根目录只启动后端（会先执行 Alembic migration）：
+
+```powershell
+.\scripts\start-backend.ps1
+```
+
+也可以直接双击根目录 `start-backend.cmd`。该入口不会启动 Harness、THCAD、Redis、OSS 或前端。
+
+分步启动仍然可用：
+
 ```powershell
 cd backend
 uv sync
@@ -19,6 +29,17 @@ uv run shenbian-api
 ```powershell
 uv run uvicorn shenbian_api.app_factory:create_app --factory --reload
 ```
+
+## 数据库迁移
+
+后端用 Alembic 管理 PostgreSQL 表结构，连接仍只读取根 `.env`：
+
+```powershell
+cd backend
+uv run alembic upgrade head
+```
+
+业务需求实例位于 `ontology` schema；表结构由后端迁移管理，客户数据只由 [`data/pipelines/shenbian_client_requirements/`](../data/pipelines/shenbian_client_requirements/) 导入，API 启动时不会偷偷重建或重灌数据。
 
 当前 Harness 模型链路：
 
@@ -32,7 +53,11 @@ uv run uvicorn shenbian_api.app_factory:create_app --factory --reload
 - `GET /api/v1/ontology`
 - `GET /api/v1/ontology/actions`
 - `GET /api/v1/data-catalog`
+- `GET /api/v1/business-requirements/graph`
+- `GET /api/v1/business-requirements/{requirement_id}`
 - `GET /docs`
+
+业务需求图谱接口的参数、响应类型、坐标语义和前端联调顺序见 [`docs/backend/business-requirements-graph-api.md`](../docs/backend/business-requirements-graph-api.md)。
 
 ## 验证
 

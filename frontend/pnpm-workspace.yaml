@@ -1,0 +1,6 @@
+allowBuilds:
+  esbuild: true
+
+# 所有依赖（vitest、@vitejs/plugin-react、直接依赖）对齐到同一份 vite，避免双份类型冲突。
+overrides:
+  vite: ^5.4.11

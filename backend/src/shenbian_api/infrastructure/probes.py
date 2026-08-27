@@ -6,33 +6,24 @@ from typing import Any
 
 import alibabacloud_oss_v2 as oss
 from redis.asyncio import Redis
-from sqlalchemy import URL, make_url, text
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from shenbian_api.application.ports import DependencyProbe
 from shenbian_api.core.config import Settings
-
-
-def _as_async_postgres_url(raw_url: str) -> URL:
-    url = make_url(raw_url)
-    if url.drivername in {"postgres", "postgresql"}:
-        return url.set(drivername="postgresql+asyncpg")
-    if url.drivername != "postgresql+asyncpg":
-        raise ValueError("database_url_requires_postgresql")
-    return url
+from shenbian_api.infrastructure.database import create_postgres_engine
 
 
 class PostgresProbe(DependencyProbe):
     name = "postgresql"
 
     def __init__(self, settings: Settings) -> None:
-        url = _as_async_postgres_url(settings.database_url.get_secret_value())
-        self._engine: AsyncEngine = create_async_engine(
-            url,
-            pool_pre_ping=True,
+        self._engine: AsyncEngine = create_postgres_engine(
+            settings.database_url.get_secret_value(),
             pool_size=2,
             max_overflow=0,
-            connect_args={"timeout": 3, "command_timeout": 3},
+            connect_timeout_seconds=3,
+            command_timeout_seconds=3,
         )
 
     async def check(self) -> None:

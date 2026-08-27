@@ -1,0 +1,257 @@
+schema_version: "1.0"
+namespace: shenbian.business_requirements
+display_name: 沈变客户需求业务 Ontology
+description: >-
+  面向客户需求发现、拆分、去重、范围确认和验收准备的业务语义模型。
+  对象实例由登记数据集 shenbian.client_requirements.curated.v1 提供；本文件只定义类型。
+backing_dataset_id: shenbian.client_requirements.curated.v1
+
+object_types:
+  - id: business_requirement
+    display_name: 业务需求
+    identity_property: requirement_id
+    backing_table: requirement_nodes
+    properties:
+      - requirement_id
+      - name
+      - description
+      - requirement_kind
+      - origin_kind
+      - atomic
+      - verification_method
+      - priority_order
+      - source_emphasis
+      - customer_visible
+      - needs_confirmation
+      - lifecycle_status
+
+  - id: requirement_relation
+    display_name: 需求关系
+    identity_property: requirement_relation_id
+    backing_table: requirement_relations
+    description: 关系本身带有关系类型、展示顺序和拆分理由，因此建成对象支持多父 DAG。
+    properties:
+      - requirement_relation_id
+      - relation_kind
+      - display_order
+      - rationale
+      - origin_kind
+
+  - id: source_document
+    display_name: 来源文档
+    identity_property: source_document_id
+    backing_table: source_documents
+    properties:
+      - source_document_id
+      - name
+      - source_kind
+      - storage_ref
+      - sha256
+      - authority_rank
+
+  - id: source_evidence
+    display_name: 来源证据
+    identity_property: source_evidence_id
+    backing_table: source_evidence
+    properties:
+      - source_evidence_id
+      - locator
+      - verbatim_text
+      - evidence_kind
+
+  - id: requirement_source_link
+    display_name: 需求证据关系
+    identity_property: requirement_source_link_id
+    backing_table: requirement_source_links
+    properties:
+      - requirement_source_link_id
+      - link_kind
+
+  - id: requirement_alias
+    display_name: 需求别名
+    identity_property: requirement_alias_id
+    backing_table: requirement_aliases
+    properties:
+      - requirement_alias_id
+      - alternate_name
+      - alias_kind
+      - note
+
+  - id: dedup_decision
+    display_name: 去重决定
+    identity_property: dedup_decision_id
+    backing_table: dedup_decisions
+    properties:
+      - dedup_decision_id
+      - decision
+      - rationale
+
+  - id: dedup_decision_requirement_link
+    display_name: 去重决定涉及需求
+    identity_property: dedup_decision_requirement_link_id
+    backing_table: dedup_decision_requirement_links
+    properties:
+      - dedup_decision_requirement_link_id
+      - candidate_order
+
+  - id: scope_dimension
+    display_name: 适用范围维度
+    identity_property: scope_dimension_id
+    backing_table: scope_dimensions
+    properties:
+      - scope_dimension_id
+      - name
+      - value_semantics
+
+  - id: scope_value
+    display_name: 适用范围值
+    identity_property: scope_value_id
+    backing_table: scope_values
+    properties:
+      - scope_value_id
+      - name
+      - status
+
+  - id: requirement_scope_assignment
+    display_name: 需求适用范围
+    identity_property: requirement_scope_link_id
+    backing_table: requirement_scope_links
+    properties:
+      - requirement_scope_link_id
+      - applicability
+      - inherit_to_descendants
+
+  - id: acceptance_criterion
+    display_name: 候选验收条件
+    identity_property: acceptance_criterion_id
+    backing_table: acceptance_criteria
+    properties:
+      - acceptance_criterion_id
+      - criterion_statement
+      - criterion_status
+      - threshold
+      - measurement_method
+      - origin_kind
+
+  - id: open_question
+    display_name: 待确认问题
+    identity_property: open_question_id
+    backing_table: open_questions
+    properties:
+      - open_question_id
+      - question
+      - blocking_kind
+      - status
+
+  - id: open_question_requirement_link
+    display_name: 待确认问题影响需求
+    identity_property: open_question_requirement_link_id
+    backing_table: open_question_requirement_links
+    properties:
+      - open_question_requirement_link_id
+
+  - id: graph_view
+    display_name: 图谱视图
+    identity_property: graph_view_id
+    backing_table: graph_views
+    properties:
+      - graph_view_id
+      - name
+      - description
+      - layout_algorithm
+      - layout_version
+
+  - id: graph_view_filter
+    display_name: 图谱视图筛选条件
+    identity_property: graph_view_filter_id
+    backing_table: graph_view_filters
+    properties:
+      - graph_view_filter_id
+      - operator
+
+  - id: graph_layout_position
+    display_name: 图谱视图节点位置
+    identity_property: graph_layout_position_id
+    backing_table: graph_layout_positions
+    description: x/y/z 只在给定视图和布局版本中有意义，不属于业务需求事实。
+    properties:
+      - graph_layout_position_id
+      - node_kind
+      - x
+      - y
+      - z
+      - position_source
+      - locked
+
+link_types:
+  - { id: relation_parent_requirement, from: requirement_relation, to: business_requirement }
+  - { id: relation_child_requirement, from: requirement_relation, to: business_requirement }
+  - { id: source_document_embedded_in_document, from: source_document, to: source_document }
+  - { id: evidence_extracted_from_document, from: source_evidence, to: source_document }
+  - { id: source_link_requirement, from: requirement_source_link, to: business_requirement }
+  - { id: source_link_evidence, from: requirement_source_link, to: source_evidence }
+  - { id: alias_names_requirement, from: requirement_alias, to: business_requirement }
+  - { id: dedup_link_decision, from: dedup_decision_requirement_link, to: dedup_decision }
+  - { id: dedup_link_requirement, from: dedup_decision_requirement_link, to: business_requirement }
+  - { id: scope_value_belongs_to_dimension, from: scope_value, to: scope_dimension }
+  - { id: scope_assignment_requirement, from: requirement_scope_assignment, to: business_requirement }
+  - { id: scope_assignment_value, from: requirement_scope_assignment, to: scope_value }
+  - { id: criterion_accepts_requirement, from: acceptance_criterion, to: business_requirement }
+  - { id: question_link_question, from: open_question_requirement_link, to: open_question }
+  - { id: question_link_requirement, from: open_question_requirement_link, to: business_requirement }
+  - { id: view_filter_view, from: graph_view_filter, to: graph_view }
+  - { id: view_filter_dimension, from: graph_view_filter, to: scope_dimension }
+  - { id: view_filter_value, from: graph_view_filter, to: scope_value }
+  - { id: position_in_view, from: graph_layout_position, to: graph_view }
+  - { id: position_for_requirement, from: graph_layout_position, to: business_requirement }
+
+action_types:
+  - id: propose_requirement_decomposition
+    display_name: 提议拆分业务需求
+    risk: reversible_write
+    requires_approval: false
+    input_types: [business_requirement]
+    output_types: [business_requirement, requirement_relation]
+
+  - id: confirm_requirement_wording
+    display_name: 确认客户可读需求名称
+    risk: reversible_write
+    requires_approval: true
+    input_types: [business_requirement, source_evidence]
+    output_types: [business_requirement]
+
+  - id: record_dedup_decision
+    display_name: 记录需求合并、拆开或复用决定
+    risk: reversible_write
+    requires_approval: true
+    input_types: [business_requirement]
+    output_types: [dedup_decision, dedup_decision_requirement_link]
+
+  - id: set_requirement_scope
+    display_name: 设置需求适用范围
+    risk: reversible_write
+    requires_approval: true
+    input_types: [business_requirement, scope_value]
+    output_types: [requirement_scope_assignment]
+
+  - id: confirm_acceptance_criterion
+    display_name: 确认原子需求验收条件
+    risk: reversible_write
+    requires_approval: true
+    input_types: [business_requirement, acceptance_criterion]
+    output_types: [acceptance_criterion]
+
+  - id: resolve_open_question
+    display_name: 关闭待确认问题
+    risk: reversible_write
+    requires_approval: true
+    input_types: [open_question, source_evidence]
+    output_types: [open_question, business_requirement]
+
+  - id: publish_requirement_baseline
+    display_name: 发布需求基线
+    risk: external_side_effect
+    requires_approval: true
+    input_types: [business_requirement, acceptance_criterion, open_question]
+    output_types: [graph_view]
+
