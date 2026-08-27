@@ -156,6 +156,8 @@ def write_completeness(inv: dict[str, dict], path: Path) -> None:
 
     text = f"""# THCAD 抽取字段完备性对照
 
+> **口径说明（2026-08-26）：** 本页保留 `docs/dev/2026-08-24-THCAD全量实体数据能拿到什么.md` 补写键级 §12 **之前**的目录覆盖基线，用来说明为什么需要补文。198 / 0 / 257 不再表示补写后目标文档的当前覆盖率；455 字段库存和逐字段页仍是现行结果。
+
 对照对象：
 
 - 目录文档（`docs/dev`）：
@@ -224,7 +226,7 @@ def write_readme(n: int, path: Path) -> None:
 
 本目录是对 `docs/dev` 三篇 THCAD 抽取目录的字段级工程释义：对照七张 `out-thcad` 实测 JSON，逐字段说明在沈变变压器图纸里能做什么（或明确做不到）。
 
-- 完备性对照：[`00-completeness.md`](./00-completeness.md)
+- 补全前目录完备性基线：[`00-completeness.md`](./00-completeness.md)
 - 字段文档：[`fields/`](./fields/)（共 {n} 篇，一字段一篇）
 - 库存清单：[`_inventory.txt`](./_inventory.txt)
 

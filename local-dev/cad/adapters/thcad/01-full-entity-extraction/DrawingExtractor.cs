@@ -5,6 +5,7 @@ using System.IO;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
+using Shb.Cad.Core;
 using Teigha.DatabaseServices;
 using Teigha.Geometry;
 using CoreApp = Bricscad.ApplicationServices.Application;
@@ -44,6 +45,13 @@ namespace Shb.Thcad.Extractor
             var bomRows = new List<Dictionary<string, object>>();
             var otherPcBlocks = new List<Dictionary<string, object>>();
             var professionalEntities = new List<Dictionary<string, object>>();
+            var frameLineSegments = new List<DrawingFrameSegment>();
+            var zoneTextSamples = new List<DrawingZoneTextSample>();
+            var bomObservations = new List<MechanicalBomRowObservation>();
+            var technicalRequirementTexts = new List<TechnicalRequirementTextObservation>();
+            var layerEntityObservations = new List<CadLayerEntityObservation>();
+            var bodyCenterlineLines = new List<BodyCenterlineLineObservation>();
+            var bodyCenterlineTexts = new List<BodyCenterlineTextObservation>();
 
             string entitiesPath = Path.Combine(outDir, "entities.jsonl");
             string proxiesPath = Path.Combine(outDir, "proxies.jsonl");
@@ -83,7 +91,56 @@ namespace Shb.Thcad.Extractor
                                 continue;
                             }
 
+                            var modelLine = ent as Line;
+                            if (modelLine != null)
+                            {
+                                bodyCenterlineLines.Add(new BodyCenterlineLineObservation(
+                                    HandleOf(modelLine),
+                                    Safe(() => modelLine.Layer) as string ?? "",
+                                    ownerScope,
+                                    btr.Name,
+                                    modelLine.StartPoint.X,
+                                    modelLine.StartPoint.Y,
+                                    modelLine.EndPoint.X,
+                                    modelLine.EndPoint.Y));
+                            }
+                            if (modelLine != null && ownerScope == "model_space")
+                            {
+                                frameLineSegments.Add(new DrawingFrameSegment(
+                                    HandleOf(modelLine),
+                                    Safe(() => modelLine.Layer) as string ?? "",
+                                    modelLine.StartPoint.X,
+                                    modelLine.StartPoint.Y,
+                                    modelLine.EndPoint.X,
+                                    modelLine.EndPoint.Y));
+                            }
+
+                            if (ownerScope == "model_space")
+                            {
+                                DrawingZoneTextSample zoneText = ZoneTextSampleOf(ent);
+                                if (zoneText != null)
+                                {
+                                    zoneTextSamples.Add(zoneText);
+                                }
+                            }
+
                             Dictionary<string, object> record = SerializeEntity(ent, btr, ownerScope, tr);
+                            layerEntityObservations.Add(CadLayerEntityObservationOf(record));
+                            BodyCenterlineTextObservation bodyCenterlineText =
+                                BodyCenterlineTextObservationOf(record);
+                            if (bodyCenterlineText != null)
+                            {
+                                bodyCenterlineTexts.Add(bodyCenterlineText);
+                            }
+                            if (ownerScope == "model_space")
+                            {
+                                TechnicalRequirementTextObservation technicalText =
+                                    TechnicalRequirementTextObservationOf(record);
+                                if (technicalText != null)
+                                {
+                                    technicalRequirementTexts.Add(technicalText);
+                                }
+                            }
                             string runtime = Convert.ToString(record["runtime_class"]) ?? "unknown";
                             string layer = Convert.ToString(record["layer"]) ?? "";
                             string decode = Convert.ToString(record["decode_status"]) ?? "full";
@@ -98,7 +155,8 @@ namespace Shb.Thcad.Extractor
                                 titleBlocks,
                                 bomRows,
                                 otherPcBlocks,
-                                professionalEntities);
+                                professionalEntities,
+                                bomObservations);
                             WriteLine(entities, record);
                             if (decode == "proxy")
                             {
@@ -122,6 +180,142 @@ namespace Shb.Thcad.Extractor
                 tr.Commit();
             }
 
+            DrawingFrameDetectionResult frameDetection = DrawingFrameDetector.Detect(frameLineSegments);
+            Dictionary<string, object> frameDetectionMap = frameDetection.ToMap();
+            var zoneDetectionResults = new List<DrawingZoneDetectionResult>();
+            var zoneDetectionSystems = new List<Dictionary<string, object>>();
+            var technicalRequirementFrames = new List<TechnicalRequirementsFrameBounds>();
+            var bodyCenterlineFrames = new List<BodyCenterlineFrameBounds>();
+            int detectedZoneSystemCount = 0;
+            int detectedZoneCount = 0;
+            foreach (DrawingFrameCandidate frame in frameDetection.OutermostFrames)
+            {
+                technicalRequirementFrames.Add(new TechnicalRequirementsFrameBounds(
+                    frame.Id,
+                    frame.MinX,
+                    frame.MinY,
+                    frame.MaxX,
+                    frame.MaxY));
+                bodyCenterlineFrames.Add(new BodyCenterlineFrameBounds(
+                    frame.Id,
+                    frame.MinX,
+                    frame.MinY,
+                    frame.MaxX,
+                    frame.MaxY));
+                var frameBounds = new DrawingZoneFrameBounds(
+                    frame.Id,
+                    frame.MinX,
+                    frame.MinY,
+                    frame.MaxX,
+                    frame.MaxY);
+                DrawingZoneDetectionResult zoneResult = DrawingZoneDetector.Detect(
+                    frameBounds,
+                    zoneTextSamples);
+                zoneDetectionResults.Add(zoneResult);
+                zoneDetectionSystems.Add(zoneResult.ToMap());
+                if (zoneResult.System.IsDetected)
+                {
+                    detectedZoneSystemCount++;
+                    detectedZoneCount += zoneResult.System.Columns.Count
+                        * zoneResult.System.Rows.Count;
+                }
+            }
+            Dictionary<string, object> zoneDetectionMap = Map(
+                "schema_version", SchemaVersion,
+                "detector", "drawing_zone_detector",
+                "source_text_count", zoneTextSamples.Count,
+                "frame_count", frameDetection.OutermostFrames.Count,
+                "detected_system_count", detectedZoneSystemCount,
+                "detected_zone_count", detectedZoneCount,
+                "systems", zoneDetectionSystems);
+            MechanicalBomKnowledgeDocument bomKnowledge = MechanicalBomKnowledgeBuilder.Build(
+                drawingId,
+                bomObservations);
+            Dictionary<string, object> bomKnowledgeMap = bomKnowledge.ToMap();
+            var bomZoneLocations = new List<Dictionary<string, object>>();
+            foreach (MechanicalBomTableKnowledge table in bomKnowledge.Tables)
+            {
+                foreach (DrawingZoneDetectionResult zoneResult in zoneDetectionResults)
+                {
+                    DrawingZoneLocation location = zoneResult.System.LocateBounds(
+                        table.MinX,
+                        table.MinY,
+                        table.MaxX,
+                        table.MaxY);
+                    if (location.IntersectsFrame)
+                    {
+                        bomZoneLocations.Add(Map(
+                            "table_id", table.Id,
+                            "frame_id", zoneResult.System.Frame.FrameId,
+                            "location", location.ToMap()));
+                        break;
+                    }
+                }
+            }
+            bomKnowledgeMap["zone_locations"] = bomZoneLocations;
+            TechnicalRequirementsDocument technicalRequirements =
+                TechnicalRequirementsExtractor.Extract(
+                    drawingId,
+                    technicalRequirementFrames,
+                    technicalRequirementTexts);
+            Dictionary<string, object> technicalRequirementsMap = technicalRequirements.ToMap();
+            var technicalRequirementZoneLocations = new List<Dictionary<string, object>>();
+            foreach (TechnicalRequirementsSection section in technicalRequirements.Sections)
+            {
+                foreach (DrawingZoneDetectionResult zoneResult in zoneDetectionResults)
+                {
+                    DrawingZoneLocation location = zoneResult.System.LocateBounds(
+                        section.MinX,
+                        section.MinY,
+                        section.MaxX,
+                        section.MaxY);
+                    if (location.IntersectsFrame)
+                    {
+                        technicalRequirementZoneLocations.Add(Map(
+                            "section_id", section.Id,
+                            "frame_id", zoneResult.System.Frame.FrameId,
+                            "location", location.ToMap()));
+                        break;
+                    }
+                }
+            }
+            technicalRequirementsMap["zone_locations"] = technicalRequirementZoneLocations;
+            List<CadLayerDefinitionObservation> layerDefinitions = LayerDefinitionsOf(tables);
+            CadLayerAnalysisDocument layerAnalysis = CadLayerAnalyzer.Analyze(
+                drawingId,
+                layerDefinitions,
+                layerEntityObservations);
+            Dictionary<string, object> layerAnalysisMap = layerAnalysis.ToMap();
+            List<BodyCenterlineLayerObservation> bodyCenterlineLayers =
+                BodyCenterlineLayerDefinitionsOf(tables);
+            BodyCenterlineAnalysisDocument bodyCenterlineAnalysis =
+                BodyCenterlineAnalyzer.Analyze(
+                    drawingId,
+                    bodyCenterlineFrames,
+                    bodyCenterlineLayers,
+                    bodyCenterlineLines,
+                    bodyCenterlineTexts);
+            Dictionary<string, object> bodyCenterlineAnalysisMap =
+                bodyCenterlineAnalysis.ToMap();
+            int offLayerCount = 0;
+            int frozenLayerCount = 0;
+            int lockedLayerCount = 0;
+            foreach (CadLayerSummary layer in layerAnalysis.Layers)
+            {
+                if (layer.IsOff)
+                {
+                    offLayerCount++;
+                }
+                if (layer.IsFrozen)
+                {
+                    frozenLayerCount++;
+                }
+                if (layer.IsLocked)
+                {
+                    lockedLayerCount++;
+                }
+            }
+
             var drawing = Map(
                 "schema_version", SchemaVersion,
                 "drawing_id", drawingId,
@@ -133,6 +327,8 @@ namespace Shb.Thcad.Extractor
                 "insunits", db.Insunits.ToString(),
                 "original_file_version", db.OriginalFileVersion.ToString(),
                 "last_saved_as_version", db.LastSavedAsVersion.ToString(),
+                "frame_detection", frameDetectionMap,
+                "zone_detection", zoneDetectionMap,
                 "block_inventory", blockInventory);
 
             var report = Map(
@@ -158,6 +354,27 @@ namespace Shb.Thcad.Extractor
                 "semantic_bom_rows", bomRows.Count,
                 "semantic_pc_blocks", otherPcBlocks.Count,
                 "semantic_professional_entities", professionalEntities.Count,
+                "drawing_frame_candidate_count", frameDetection.Candidates.Count,
+                "outermost_drawing_frame_count", frameDetection.OutermostFrames.Count,
+                "drawing_area_frame_count", frameDetection.OutermostFrames.Count,
+                "drawing_zone_system_count", detectedZoneSystemCount,
+                "drawing_zone_count", detectedZoneCount,
+                "mechanical_bom_table_count", bomKnowledge.Tables.Count,
+                "mechanical_bom_row_count", bomKnowledge.RowCount,
+                "technical_requirements_section_count", technicalRequirements.Sections.Count,
+                "technical_requirements_item_count", technicalRequirements.ItemCount,
+                "layer_definition_count", layerAnalysis.DefinedLayerCount,
+                "used_layer_definition_count", layerAnalysis.UsedDefinedLayerCount,
+                "unused_layer_definition_count", layerAnalysis.UnusedDefinedLayerNames.Count,
+                "off_layer_count", offLayerCount,
+                "frozen_layer_count", frozenLayerCount,
+                "locked_layer_count", lockedLayerCount,
+                "layer_suppressed_model_entity_count", layerAnalysis.LayerSuppressedModelEntityCount,
+                "body_centerline_axis_candidate_count", bodyCenterlineAnalysis.AxisCandidates.Count,
+                "body_centerline_axis_system_candidate_count",
+                    bodyCenterlineAnalysis.AxisSystemCandidates.Count,
+                "body_centerline_has_explicit_model_evidence",
+                    bodyCenterlineAnalysis.HasExplicitModelEvidence,
                 "output_dir", outDir);
 
             var semantic = Map(
@@ -166,14 +383,231 @@ namespace Shb.Thcad.Extractor
                 "drawing_id", drawingId,
                 "title_blocks", titleBlocks,
                 "bom_rows", bomRows,
+                "bom_knowledge", bomKnowledgeMap,
+                "technical_requirements", technicalRequirementsMap,
                 "other_pc_blocks", otherPcBlocks,
                 "professional_entities", professionalEntities);
 
             AtomicWrite(Path.Combine(outDir, "drawing.json"), JsonUtil.Serialize(drawing));
+            AtomicWrite(Path.Combine(outDir, "drawing-frames.json"), JsonUtil.Serialize(frameDetectionMap));
+            AtomicWrite(Path.Combine(outDir, "drawing-zones.json"), JsonUtil.Serialize(zoneDetectionMap));
+            AtomicWrite(Path.Combine(outDir, "bom-knowledge.json"), JsonUtil.Serialize(bomKnowledgeMap));
+            AtomicWrite(
+                Path.Combine(outDir, "technical-requirements.json"),
+                JsonUtil.Serialize(technicalRequirementsMap));
+            AtomicWrite(
+                Path.Combine(outDir, "technical-requirements.md"),
+                technicalRequirements.ToMarkdown());
+            AtomicWrite(
+                Path.Combine(outDir, "layer-analysis.json"),
+                JsonUtil.Serialize(layerAnalysisMap));
+            AtomicWrite(
+                Path.Combine(outDir, "layer-analysis.md"),
+                layerAnalysis.ToMarkdown());
+            AtomicWrite(
+                Path.Combine(outDir, "body-centerline-analysis.json"),
+                JsonUtil.Serialize(bodyCenterlineAnalysisMap));
+            AtomicWrite(
+                Path.Combine(outDir, "body-centerline-analysis.md"),
+                bodyCenterlineAnalysis.ToMarkdown());
             AtomicWrite(Path.Combine(outDir, "tables.json"), JsonUtil.Serialize(tables));
             AtomicWrite(Path.Combine(outDir, "semantic-objects.json"), JsonUtil.Serialize(semantic));
             AtomicWrite(Path.Combine(outDir, "extraction-report.json"), JsonUtil.Serialize(report));
             return Path.Combine(outDir, "extraction-report.json");
+        }
+
+        public static string ExtractSelection(
+            Database db,
+            IList<ObjectId> selectedIds,
+            string outputRoot)
+        {
+            if (db == null)
+            {
+                throw new ArgumentNullException("db");
+            }
+
+            if (selectedIds == null)
+            {
+                throw new ArgumentNullException("selectedIds");
+            }
+
+            string sourcePath = db.Filename ?? "";
+            string drawingId = SafeStem(string.IsNullOrWhiteSpace(sourcePath) ? "unnamed" : sourcePath);
+            DateTime startedAt = DateTime.UtcNow;
+            string captureId = startedAt.ToString("yyyyMMddTHHmmssfffZ", CultureInfo.InvariantCulture);
+            string outDir = Path.Combine(outputRoot, drawingId, captureId);
+            if (Directory.Exists(outDir))
+            {
+                outDir += "-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+            }
+            Directory.CreateDirectory(outDir);
+
+            var typeCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+            var layerCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+            var ownerCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+            var decodeCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+            var requestedHandles = new List<string>(selectedIds.Count);
+            var serializedHandles = new List<string>(selectedIds.Count);
+            var titleBlocks = new List<Dictionary<string, object>>();
+            var bomRows = new List<Dictionary<string, object>>();
+            var otherPcBlocks = new List<Dictionary<string, object>>();
+            var professionalEntities = new List<Dictionary<string, object>>();
+            int serializedCount = 0;
+            int proxyCount = 0;
+            int failedCount = 0;
+
+            foreach (ObjectId id in selectedIds)
+            {
+                requestedHandles.Add(HandleOf(id));
+            }
+
+            string entitiesPath = Path.Combine(outDir, "entities.jsonl");
+            string proxiesPath = Path.Combine(outDir, "proxies.jsonl");
+            string errorsPath = Path.Combine(outDir, "errors.jsonl");
+
+            using (var entities = NewWriter(entitiesPath))
+            using (var proxies = NewWriter(proxiesPath))
+            using (var errors = NewWriter(errorsPath))
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                for (int selectionIndex = 0; selectionIndex < selectedIds.Count; selectionIndex++)
+                {
+                    ObjectId entId = selectedIds[selectionIndex];
+                    try
+                    {
+                        Entity ent = tr.GetObject(entId, OpenMode.ForRead, false) as Entity;
+                        if (ent == null)
+                        {
+                            failedCount++;
+                            WriteLine(errors, Map(
+                                "selection_index", selectionIndex,
+                                "handle", HandleOf(entId),
+                                "error", "not_an_entity"));
+                            continue;
+                        }
+
+                        BlockTableRecord owner = tr.GetObject(
+                            ent.OwnerId,
+                            OpenMode.ForRead,
+                            false) as BlockTableRecord;
+                        if (owner == null)
+                        {
+                            failedCount++;
+                            WriteLine(errors, Map(
+                                "selection_index", selectionIndex,
+                                "handle", HandleOf(entId),
+                                "error", "owner_is_not_block_table_record"));
+                            continue;
+                        }
+
+                        string ownerScope = OwnerScope(owner);
+                        Dictionary<string, object> record = SerializeEntity(ent, owner, ownerScope, tr);
+                        record["selection_index"] = selectionIndex;
+                        record["selection_source"] = "pickfirst";
+
+                        string runtime = Convert.ToString(record["runtime_class"]) ?? "unknown";
+                        string layer = Convert.ToString(record["layer"]) ?? "";
+                        string decode = Convert.ToString(record["decode_status"]) ?? "full";
+                        Bump(typeCounts, runtime);
+                        Bump(layerCounts, layer.Length == 0 ? "(empty)" : layer);
+                        Bump(ownerCounts, ownerScope);
+                        Bump(decodeCounts, decode);
+
+                        CollectSemantic(
+                            record,
+                            ent,
+                            titleBlocks,
+                            bomRows,
+                            otherPcBlocks,
+                            professionalEntities);
+                        WriteLine(entities, record);
+                        serializedHandles.Add(HandleOf(ent));
+                        serializedCount++;
+
+                        if (decode == "proxy")
+                        {
+                            proxyCount++;
+                            WriteLine(proxies, record);
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        failedCount++;
+                        WriteLine(errors, Map(
+                            "selection_index", selectionIndex,
+                            "handle", HandleOf(entId),
+                            "error_type", ex.GetType().Name,
+                            "error", Clip(ex.Message, 2048)));
+                    }
+                }
+
+                tr.Commit();
+            }
+
+            DateTime completedAt = DateTime.UtcNow;
+            var selection = Map(
+                "schema_version", SchemaVersion,
+                "source", SourceTag,
+                "selection_source", "pickfirst",
+                "drawing_id", drawingId,
+                "source_path", sourcePath,
+                "filename", string.IsNullOrEmpty(sourcePath) ? "" : Path.GetFileName(sourcePath),
+                "captured_at", startedAt,
+                "requested_count", selectedIds.Count,
+                "requested_handles", requestedHandles,
+                "serialized_count", serializedCount,
+                "serialized_handles", serializedHandles);
+
+            var report = Map(
+                "schema_version", SchemaVersion,
+                "source", SourceTag,
+                "selection_source", "pickfirst",
+                "drawing_id", drawingId,
+                "source_path", sourcePath,
+                "source_size_bytes", TrySize(sourcePath),
+                "started_at", startedAt,
+                "completed_at", completedAt,
+                "elapsed_ms", Math.Round((completedAt - startedAt).TotalMilliseconds, 1),
+                "host", HostInfo(),
+                "requested_count", selectedIds.Count,
+                "serialized_count", serializedCount,
+                "proxy_count", proxyCount,
+                "failed_count", failedCount,
+                "did_not_save", true,
+                "type_counts", typeCounts,
+                "layer_counts", layerCounts,
+                "owner_scope_counts", ownerCounts,
+                "decode_status_counts", decodeCounts,
+                "semantic_title_blocks", titleBlocks.Count,
+                "semantic_bom_rows", bomRows.Count,
+                "semantic_pc_blocks", otherPcBlocks.Count,
+                "semantic_professional_entities", professionalEntities.Count,
+                "output_dir", outDir);
+
+            var semantic = Map(
+                "schema_version", SchemaVersion,
+                "source", SourceTag,
+                "drawing_id", drawingId,
+                "selection_source", "pickfirst",
+                "title_blocks", titleBlocks,
+                "bom_rows", bomRows,
+                "other_pc_blocks", otherPcBlocks,
+                "professional_entities", professionalEntities);
+
+            string reportPath = Path.Combine(outDir, "selection-report.json");
+            AtomicWrite(Path.Combine(outDir, "selection.json"), JsonUtil.Serialize(selection));
+            AtomicWrite(Path.Combine(outDir, "semantic-objects.json"), JsonUtil.Serialize(semantic));
+            AtomicWrite(reportPath, JsonUtil.Serialize(report));
+            AtomicWrite(
+                Path.Combine(outputRoot, "_latest-selection.json"),
+                JsonUtil.Serialize(Map(
+                    "completed_at", completedAt,
+                    "drawing_id", drawingId,
+                    "requested_count", selectedIds.Count,
+                    "serialized_count", serializedCount,
+                    "failed_count", failedCount,
+                    "report_path", reportPath)));
+            return reportPath;
         }
 
         static Dictionary<string, object> SerializeEntity(
@@ -518,6 +952,64 @@ namespace Shb.Thcad.Extractor
             return null;
         }
 
+        static DrawingZoneTextSample ZoneTextSampleOf(Entity ent)
+        {
+            var text = ent as DBText;
+            if (text != null)
+            {
+                string value = text.TextString ?? "";
+                Point3d anchor = text.Position;
+                try
+                {
+                    if (!string.Equals(
+                        text.HorizontalMode.ToString(),
+                        "TextLeft",
+                        StringComparison.Ordinal))
+                    {
+                        anchor = text.AlignmentPoint;
+                    }
+                }
+                catch
+                {
+                    // Position remains a safe fallback for unusual text objects.
+                }
+
+                return new DrawingZoneTextSample(
+                    HandleOf(text),
+                    Safe(() => text.Layer) as string ?? "",
+                    value,
+                    anchor.X,
+                    anchor.Y);
+            }
+
+            var mtext = ent as MText;
+            if (mtext != null)
+            {
+                Point3d anchor = mtext.Location;
+                try
+                {
+                    Extents3d ext = mtext.GeometricExtents;
+                    anchor = new Point3d(
+                        (ext.MinPoint.X + ext.MaxPoint.X) * 0.5,
+                        (ext.MinPoint.Y + ext.MaxPoint.Y) * 0.5,
+                        (ext.MinPoint.Z + ext.MaxPoint.Z) * 0.5);
+                }
+                catch
+                {
+                    // Location remains a safe fallback.
+                }
+
+                return new DrawingZoneTextSample(
+                    HandleOf(mtext),
+                    Safe(() => mtext.Layer) as string ?? "",
+                    Safe(() => mtext.Text) as string ?? mtext.Contents ?? "",
+                    anchor.X,
+                    anchor.Y);
+            }
+
+            return null;
+        }
+
         static object AttributesOf(Entity ent, Transaction tr)
         {
             var br = ent as BlockReference;
@@ -843,7 +1335,8 @@ namespace Shb.Thcad.Extractor
             List<Dictionary<string, object>> titleBlocks,
             List<Dictionary<string, object>> bomRows,
             List<Dictionary<string, object>> otherPcBlocks,
-            List<Dictionary<string, object>> professionalEntities)
+            List<Dictionary<string, object>> professionalEntities,
+            List<MechanicalBomRowObservation> bomObservations = null)
         {
             Dictionary<string, object> geom = record["geometry"] as Dictionary<string, object>;
             string blockName = null;
@@ -859,6 +1352,10 @@ namespace Shb.Thcad.Extractor
             else if (blockName == "PC_MXB_BLOCK")
             {
                 bomRows.Add(SemanticBlock("bom_row", record));
+                if (bomObservations != null)
+                {
+                    bomObservations.Add(MechanicalBomObservationOf(record));
+                }
             }
             else if (blockName != null
                 && (blockName.StartsWith("PC_", StringComparison.Ordinal)
@@ -914,6 +1411,371 @@ namespace Shb.Thcad.Extractor
                 "position", geom != null && geom.ContainsKey("position") ? geom["position"] : null,
                 "xdata", record.ContainsKey("xdata") ? record["xdata"] : null,
                 "fields", fields);
+        }
+
+        static MechanicalBomRowObservation MechanicalBomObservationOf(
+            Dictionary<string, object> record)
+        {
+            var cells = new List<MechanicalBomCellObservation>();
+            System.Collections.IList attrs = record.ContainsKey("attributes")
+                ? record["attributes"] as System.Collections.IList
+                : null;
+            if (attrs != null)
+            {
+                foreach (object item in attrs)
+                {
+                    Dictionary<string, object> attribute = item as Dictionary<string, object>;
+                    if (attribute == null)
+                    {
+                        continue;
+                    }
+                    object position = attribute.ContainsKey("position")
+                        ? attribute["position"]
+                        : null;
+                    cells.Add(new MechanicalBomCellObservation(
+                        attribute.ContainsKey("tag") ? Convert.ToString(attribute["tag"]) : "",
+                        attribute.ContainsKey("value") ? Convert.ToString(attribute["value"]) : "",
+                        attribute.ContainsKey("handle") ? Convert.ToString(attribute["handle"]) : "",
+                        CoordinateAt(position, 0, double.NaN),
+                        CoordinateAt(position, 1, double.NaN)));
+                }
+            }
+
+            Dictionary<string, object> geometry = record.ContainsKey("geometry")
+                ? record["geometry"] as Dictionary<string, object>
+                : null;
+            object blockPosition = geometry != null && geometry.ContainsKey("position")
+                ? geometry["position"]
+                : null;
+            Dictionary<string, object> bbox = record.ContainsKey("bbox")
+                ? record["bbox"] as Dictionary<string, object>
+                : null;
+            object bboxMin = bbox != null && bbox.ContainsKey("min") ? bbox["min"] : null;
+            object bboxMax = bbox != null && bbox.ContainsKey("max") ? bbox["max"] : null;
+            double positionX = CoordinateAt(blockPosition, 0, 0);
+            double positionY = CoordinateAt(blockPosition, 1, 0);
+
+            return new MechanicalBomRowObservation(
+                record.ContainsKey("handle") ? Convert.ToString(record["handle"]) : "",
+                positionX,
+                positionY,
+                CoordinateAt(bboxMin, 0, positionX),
+                CoordinateAt(bboxMin, 1, positionY),
+                CoordinateAt(bboxMax, 0, positionX),
+                CoordinateAt(bboxMax, 1, positionY),
+                ThXuhaoItemNumber(record),
+                cells);
+        }
+
+        static TechnicalRequirementTextObservation TechnicalRequirementTextObservationOf(
+            Dictionary<string, object> record)
+        {
+            string managedType = record.ContainsKey("managed_type")
+                ? Convert.ToString(record["managed_type"], CultureInfo.InvariantCulture)
+                : "";
+            if (!string.Equals(managedType, "DBText", StringComparison.Ordinal)
+                && !string.Equals(managedType, "MText", StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            string value = "";
+            object text = record.ContainsKey("text") ? record["text"] : null;
+            if (text is string)
+            {
+                value = (string)text;
+            }
+            else
+            {
+                Dictionary<string, object> textMap = text as Dictionary<string, object>;
+                if (textMap != null && textMap.ContainsKey("plain"))
+                {
+                    value = Convert.ToString(textMap["plain"], CultureInfo.InvariantCulture) ?? "";
+                }
+            }
+
+            Dictionary<string, object> bbox = record.ContainsKey("bbox")
+                ? record["bbox"] as Dictionary<string, object>
+                : null;
+            if (bbox == null || !bbox.ContainsKey("min") || !bbox.ContainsKey("max"))
+            {
+                return null;
+            }
+            double minX = CoordinateAt(bbox["min"], 0, double.NaN);
+            double minY = CoordinateAt(bbox["min"], 1, double.NaN);
+            double maxX = CoordinateAt(bbox["max"], 0, double.NaN);
+            double maxY = CoordinateAt(bbox["max"], 1, double.NaN);
+            if (double.IsNaN(minX)
+                || double.IsNaN(minY)
+                || double.IsNaN(maxX)
+                || double.IsNaN(maxY))
+            {
+                return null;
+            }
+
+            return new TechnicalRequirementTextObservation(
+                record.ContainsKey("handle")
+                    ? Convert.ToString(record["handle"], CultureInfo.InvariantCulture)
+                    : "",
+                record.ContainsKey("layer")
+                    ? Convert.ToString(record["layer"], CultureInfo.InvariantCulture)
+                    : "",
+                value,
+                minX,
+                minY,
+                maxX,
+                maxY);
+        }
+
+        static BodyCenterlineTextObservation BodyCenterlineTextObservationOf(
+            Dictionary<string, object> record)
+        {
+            string managedType = record.ContainsKey("managed_type")
+                ? Convert.ToString(record["managed_type"], CultureInfo.InvariantCulture)
+                : "";
+            if (!string.Equals(managedType, "DBText", StringComparison.Ordinal)
+                && !string.Equals(managedType, "MText", StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            string value = "";
+            object text = record.ContainsKey("text") ? record["text"] : null;
+            if (text is string)
+            {
+                value = (string)text;
+            }
+            else
+            {
+                Dictionary<string, object> textMap = text as Dictionary<string, object>;
+                if (textMap != null && textMap.ContainsKey("plain"))
+                {
+                    value = Convert.ToString(textMap["plain"], CultureInfo.InvariantCulture) ?? "";
+                }
+            }
+
+            Dictionary<string, object> bbox = record.ContainsKey("bbox")
+                ? record["bbox"] as Dictionary<string, object>
+                : null;
+            if (bbox == null || !bbox.ContainsKey("min") || !bbox.ContainsKey("max"))
+            {
+                return null;
+            }
+            double minX = CoordinateAt(bbox["min"], 0, double.NaN);
+            double minY = CoordinateAt(bbox["min"], 1, double.NaN);
+            double maxX = CoordinateAt(bbox["max"], 0, double.NaN);
+            double maxY = CoordinateAt(bbox["max"], 1, double.NaN);
+            if (double.IsNaN(minX)
+                || double.IsNaN(minY)
+                || double.IsNaN(maxX)
+                || double.IsNaN(maxY))
+            {
+                return null;
+            }
+
+            return new BodyCenterlineTextObservation(
+                record.ContainsKey("handle")
+                    ? Convert.ToString(record["handle"], CultureInfo.InvariantCulture)
+                    : "",
+                record.ContainsKey("layer")
+                    ? Convert.ToString(record["layer"], CultureInfo.InvariantCulture)
+                    : "",
+                record.ContainsKey("owner_scope")
+                    ? Convert.ToString(record["owner_scope"], CultureInfo.InvariantCulture)
+                    : "",
+                value,
+                minX,
+                minY,
+                maxX,
+                maxY);
+        }
+
+        static CadLayerEntityObservation CadLayerEntityObservationOf(
+            Dictionary<string, object> record)
+        {
+            Dictionary<string, object> geometry = record.ContainsKey("geometry")
+                ? record["geometry"] as Dictionary<string, object>
+                : null;
+            string referencedBlockName = geometry != null && geometry.ContainsKey("block_name")
+                ? Convert.ToString(geometry["block_name"], CultureInfo.InvariantCulture) ?? ""
+                : "";
+            bool visible = true;
+            if (record.ContainsKey("visible") && record["visible"] != null)
+            {
+                try
+                {
+                    visible = Convert.ToBoolean(record["visible"], CultureInfo.InvariantCulture);
+                }
+                catch
+                {
+                    visible = true;
+                }
+            }
+            return new CadLayerEntityObservation(
+                record.ContainsKey("handle")
+                    ? Convert.ToString(record["handle"], CultureInfo.InvariantCulture)
+                    : "",
+                record.ContainsKey("layer")
+                    ? Convert.ToString(record["layer"], CultureInfo.InvariantCulture)
+                    : "",
+                record.ContainsKey("owner_scope")
+                    ? Convert.ToString(record["owner_scope"], CultureInfo.InvariantCulture)
+                    : "",
+                record.ContainsKey("owner_block_name")
+                    ? Convert.ToString(record["owner_block_name"], CultureInfo.InvariantCulture)
+                    : "",
+                record.ContainsKey("managed_type")
+                    ? Convert.ToString(record["managed_type"], CultureInfo.InvariantCulture)
+                    : "",
+                visible,
+                record.ContainsKey("decode_status")
+                    && string.Equals(
+                        Convert.ToString(record["decode_status"], CultureInfo.InvariantCulture),
+                        "proxy",
+                        StringComparison.Ordinal),
+                referencedBlockName);
+        }
+
+        static List<CadLayerDefinitionObservation> LayerDefinitionsOf(
+            Dictionary<string, object> tables)
+        {
+            var result = new List<CadLayerDefinitionObservation>();
+            System.Collections.IList layers = tables != null && tables.ContainsKey("layers")
+                ? tables["layers"] as System.Collections.IList
+                : null;
+            if (layers == null)
+            {
+                return result;
+            }
+            foreach (object item in layers)
+            {
+                Dictionary<string, object> layer = item as Dictionary<string, object>;
+                if (layer == null)
+                {
+                    continue;
+                }
+                result.Add(new CadLayerDefinitionObservation(
+                    layer.ContainsKey("name")
+                        ? Convert.ToString(layer["name"], CultureInfo.InvariantCulture)
+                        : "",
+                    layer.ContainsKey("handle")
+                        ? Convert.ToString(layer["handle"], CultureInfo.InvariantCulture)
+                        : "",
+                    BooleanValue(layer, "off"),
+                    BooleanValue(layer, "frozen"),
+                    BooleanValue(layer, "locked"),
+                    layer.ContainsKey("color")
+                        ? Convert.ToString(layer["color"], CultureInfo.InvariantCulture)
+                        : "",
+                    layer.ContainsKey("linetype")
+                        ? Convert.ToString(layer["linetype"], CultureInfo.InvariantCulture)
+                        : ""));
+            }
+            return result;
+        }
+
+        static List<BodyCenterlineLayerObservation> BodyCenterlineLayerDefinitionsOf(
+            Dictionary<string, object> tables)
+        {
+            var result = new List<BodyCenterlineLayerObservation>();
+            System.Collections.IList layers = tables != null && tables.ContainsKey("layers")
+                ? tables["layers"] as System.Collections.IList
+                : null;
+            if (layers == null)
+            {
+                return result;
+            }
+            foreach (object item in layers)
+            {
+                Dictionary<string, object> layer = item as Dictionary<string, object>;
+                if (layer == null)
+                {
+                    continue;
+                }
+                result.Add(new BodyCenterlineLayerObservation(
+                    layer.ContainsKey("name")
+                        ? Convert.ToString(layer["name"], CultureInfo.InvariantCulture)
+                        : "",
+                    layer.ContainsKey("handle")
+                        ? Convert.ToString(layer["handle"], CultureInfo.InvariantCulture)
+                        : "",
+                    layer.ContainsKey("linetype")
+                        ? Convert.ToString(layer["linetype"], CultureInfo.InvariantCulture)
+                        : ""));
+            }
+            return result;
+        }
+
+        static bool BooleanValue(Dictionary<string, object> values, string key)
+        {
+            if (values == null || !values.ContainsKey(key) || values[key] == null)
+            {
+                return false;
+            }
+            try
+            {
+                return Convert.ToBoolean(values[key], CultureInfo.InvariantCulture);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        static string ThXuhaoItemNumber(Dictionary<string, object> record)
+        {
+            Dictionary<string, object> xdata = record.ContainsKey("xdata")
+                ? record["xdata"] as Dictionary<string, object>
+                : null;
+            if (xdata == null || !xdata.ContainsKey("TH_XUHAO"))
+            {
+                return "";
+            }
+
+            System.Collections.IList values = xdata["TH_XUHAO"] as System.Collections.IList;
+            if (values == null)
+            {
+                return "";
+            }
+            foreach (object item in values)
+            {
+                Dictionary<string, object> typed = item as Dictionary<string, object>;
+                if (typed == null || !typed.ContainsKey("code"))
+                {
+                    continue;
+                }
+                int code;
+                try
+                {
+                    code = Convert.ToInt32(typed["code"], CultureInfo.InvariantCulture);
+                }
+                catch
+                {
+                    continue;
+                }
+                if (code == 1000 && typed.ContainsKey("value"))
+                {
+                    return Convert.ToString(typed["value"], CultureInfo.InvariantCulture) ?? "";
+                }
+            }
+            return "";
+        }
+
+        static double CoordinateAt(object value, int index, double fallback)
+        {
+            System.Collections.IList values = value as System.Collections.IList;
+            if (values == null || index < 0 || index >= values.Count)
+            {
+                return fallback;
+            }
+            try
+            {
+                return Convert.ToDouble(values[index], CultureInfo.InvariantCulture);
+            }
+            catch
+            {
+                return fallback;
+            }
         }
 
         static Dictionary<string, object> CustomPayload(Entity ent)

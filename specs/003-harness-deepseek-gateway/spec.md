@@ -14,7 +14,7 @@
 - 允许 DSH 视觉模型请求携带 Base64 data URL 或外部 URL，并按 DeepSeek 官方 48 MiB 请求体上限放行。
 - 保留 SSE 流式响应、HTTP 状态、请求 ID和 `Retry-After`。
 - 保留 Harness 的 session、user 和 compact 请求头。
-- 默认可透传 Harness 已有 Bearer Key；配置服务端上游 Key 后支持网关 Key 与上游 Key 分离。
+- 默认使用根目录 `DEEPSEEK_API_KEY` 作为服务端上游 Key，并替换 Harness Bearer；显式部署 Key 可覆盖，服务端未配置 Key 时保留 Bearer 透传兼容行为。
 - 不在日志、错误响应或测试输出中暴露任何 Key、提示词、工具参数或模型正文。
 - 通过进程级 `DEEPSEEK_BASE_URL` 接入，不修改 `harness/`，也不覆盖官方 patch row。
 

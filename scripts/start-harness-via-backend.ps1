@@ -13,6 +13,9 @@ $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $harnessDirectory = Join-Path $repositoryRoot "harness"
 $normalizedBackendBaseUrl = $BackendBaseUrl.TrimEnd("/")
 $modelGatewayBaseUrl = "$normalizedBackendBaseUrl/api/v1/llm/deepseek"
+$forwardedDshArguments = @(
+    $DshArguments | Where-Object { -not [string]::IsNullOrEmpty($_) }
+)
 
 if (-not (Test-Path -LiteralPath (Join-Path $harnessDirectory "package.json"))) {
     throw "Harness directory not found: $harnessDirectory"
@@ -54,7 +57,7 @@ try {
     )
     Push-Location -LiteralPath $harnessDirectory
     try {
-        & pnpm dsh --profile $Profile @DshArguments
+        & pnpm dsh --profile $Profile @forwardedDshArguments
         $exitCode = $LASTEXITCODE
     }
     finally {

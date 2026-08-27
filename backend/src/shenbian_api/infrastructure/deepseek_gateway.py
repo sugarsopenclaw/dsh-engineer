@@ -100,7 +100,13 @@ class HttpxDeepSeekModelGateway:
 
         self._endpoint = f"{base_url}/chat/completions"
         self._messages_endpoint = f"{search_base_url}/messages"
-        self._upstream_api_key = _secret_value(settings.deepseek_upstream_api_key)
+        # The repository-level DEEPSEEK_API_KEY is the default server-owned
+        # upstream credential. The gateway-specific name remains an explicit
+        # deployment override, and an empty override must not mask the default.
+        self._upstream_api_key = (
+            _secret_value(settings.deepseek_upstream_api_key)
+            or _secret_value(settings.deepseek_api_key)
+        )
         self._gateway_api_key = _secret_value(settings.shenbian_gateway_api_key)
         self._max_request_bytes = settings.deepseek_gateway_max_request_bytes
         self._owns_client = client is None

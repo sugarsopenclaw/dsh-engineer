@@ -15,6 +15,9 @@ $harnessStarter = Join-Path $PSScriptRoot "start-harness-via-backend.ps1"
 $healthUrl = "$($BackendBaseUrl.TrimEnd('/'))/api/v1/health/live"
 $backendProcess = $null
 $ownsBackendProcess = $false
+$forwardedDshArguments = @(
+    $DshArguments | Where-Object { -not [string]::IsNullOrEmpty($_) }
+)
 
 function Test-ShenbianBackendHealth {
     try {
@@ -82,7 +85,7 @@ try {
         -Profile $Profile `
         -SkipHealthCheck `
         -NoExit `
-        @DshArguments
+        @forwardedDshArguments
     $dshExitCode = $LASTEXITCODE
     if ($dshExitCode -ne 0) {
         throw "DSH exited with code $dshExitCode."

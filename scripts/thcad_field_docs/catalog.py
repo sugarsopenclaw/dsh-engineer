@@ -1,4 +1,9 @@
-"""Named fields from the three docs/dev THCAD extract catalogs, mapped to inventory ids."""
+"""Pre-supplement named fields from the three docs/dev THCAD catalogs.
+
+This intentionally preserves the baseline before the 2026-08-26 key-level section was
+added to ``2026-08-24-THCAD全量实体数据能拿到什么.md``.  It is used to explain the
+historical 198 / 0 / 257 gap, not to claim the supplemented document still has that gap.
+"""
 
 from __future__ import annotations
 
@@ -6,7 +11,7 @@ from pathlib import Path
 
 from .paths import CATALOG_FILES
 
-# Inventory ids that the catalogs name as extractable columns / keys / tags / apps.
+# Inventory ids that the catalogs explicitly named before the 2026-08-26 supplement.
 # Kind *values* (wipeout/unparsed/polyline2d) are not separate fields; they live under
 # entity.geometry.kind and are called out in completeness prose instead.
 

@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Reflection;
+using Bricscad.EditorInput;
 using Teigha.DatabaseServices;
 using Teigha.Runtime;
 using CoreApp = Bricscad.ApplicationServices.Application;
@@ -10,9 +11,13 @@ namespace Shb.Thcad.Extractor
     public sealed class Commands
     {
         public const string CommandName = "SHBEXTRACT";
+        public const string SelectionCommandName = "SHBEXTRACTSELECTED";
 
         internal static readonly string DefaultOutputRoot =
             @"D:\dev\dsh-engineer\dev-test\visualstudionetframework\out-thcad";
+
+        internal static readonly string DefaultSelectionOutputRoot =
+            @"D:\dev\dsh-engineer\dev-test\visualstudionetframework\out-thcad-selection";
 
         static Commands()
         {
@@ -67,6 +72,79 @@ namespace Shb.Thcad.Extractor
         {
             Extract();
             return true;
+        }
+
+        // Read the editor's existing pickfirst selection and serialize those
+        // entities through the same in-process .NET path as the whole-drawing
+        // extractor. The command is read-only and restores the implied selection
+        // after it finishes so repeated research captures stay convenient.
+        [CommandMethod(SelectionCommandName,
+            CommandFlags.Modal | CommandFlags.UsePickSet | CommandFlags.Redraw)]
+        public void ExtractSelected()
+        {
+            var doc = CoreApp.DocumentManager.MdiActiveDocument;
+            if (doc == null)
+            {
+                WriteMessage("\nSHBEXTRACTSELECTED: no active document.\n");
+                return;
+            }
+
+            ObjectId[] selectedIds = null;
+            try
+            {
+                PromptSelectionResult selected = doc.Editor.SelectImplied();
+                if (selected.Status != PromptStatus.OK || selected.Value == null)
+                {
+                    WriteMessage("\nSHBEXTRACTSELECTED: no preselected entities.\n");
+                    return;
+                }
+
+                selectedIds = selected.Value.GetObjectIds();
+                if (selectedIds == null || selectedIds.Length == 0)
+                {
+                    WriteMessage("\nSHBEXTRACTSELECTED: no preselected entities.\n");
+                    return;
+                }
+
+                string outputRoot = ResolveSelectionOutputRoot();
+                string reportPath = DrawingExtractor.ExtractSelection(
+                    doc.Database,
+                    selectedIds,
+                    outputRoot);
+                WriteMessage(
+                    "\nSHBEXTRACTSELECTED done: " + selectedIds.Length
+                    + " selected -> " + reportPath + "\n");
+            }
+            catch (System.Exception ex)
+            {
+                WriteMessage("\nSHBEXTRACTSELECTED FAILED: " + ex.Message + "\n");
+                try
+                {
+                    string failDir = ResolveSelectionOutputRoot();
+                    Directory.CreateDirectory(failDir);
+                    File.WriteAllText(
+                        Path.Combine(failDir, "extract-selected-failed.txt"),
+                        DateTime.UtcNow.ToString("o") + "\n" + ex);
+                }
+                catch
+                {
+                    // last-resort: keep CAD alive
+                }
+            }
+            finally
+            {
+                if (selectedIds != null && selectedIds.Length > 0)
+                {
+                    try
+                    {
+                        doc.Editor.SetImpliedSelection(selectedIds);
+                    }
+                    catch
+                    {
+                        // Extraction succeeded even if the editor cannot re-highlight.
+                    }
+                }
+            }
         }
 
         // Batch-extract every DWG in the drop via side databases (no editor open,
@@ -193,6 +271,17 @@ namespace Shb.Thcad.Extractor
             }
 
             return DefaultOutputRoot;
+        }
+
+        internal static string ResolveSelectionOutputRoot()
+        {
+            string fromEnv = Environment.GetEnvironmentVariable("SHB_EXTRACT_SELECTION_OUT");
+            if (!string.IsNullOrWhiteSpace(fromEnv))
+            {
+                return Path.GetFullPath(fromEnv.Trim());
+            }
+
+            return DefaultSelectionOutputRoot;
         }
 
         internal static void WriteMessage(string text)

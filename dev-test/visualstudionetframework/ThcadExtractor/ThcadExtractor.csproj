@@ -60,7 +60,27 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Commands.cs" />
-    <Compile Include="DrawingExtractor.cs" />
+    <Compile Include="..\..\..\local-dev\cad\adapters\thcad\01-full-entity-extraction\DrawingExtractor.cs">
+      <Link>Adapters\Thcad\DrawingExtractor.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\02-drawing-frame-detection\DrawingFrameDetector.cs">
+      <Link>Core\DrawingFrameDetector.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\03-drawing-zone-detection\DrawingZoneDetector.cs">
+      <Link>Core\DrawingZoneDetector.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\04-mechanical-bom-knowledge\MechanicalBomKnowledgeBuilder.cs">
+      <Link>Core\MechanicalBomKnowledgeBuilder.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\05-technical-requirements-extraction\TechnicalRequirementsExtractor.cs">
+      <Link>Core\TechnicalRequirementsExtractor.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\06-layer-analysis\CadLayerAnalyzer.cs">
+      <Link>Core\CadLayerAnalyzer.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\07-body-centerline-analysis\BodyCenterlineAnalyzer.cs">
+      <Link>Core\BodyCenterlineAnalyzer.cs</Link>
+    </Compile>
     <Compile Include="JsonUtil.cs" />
     <Compile Include="PluginApp.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

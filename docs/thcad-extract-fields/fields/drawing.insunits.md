@@ -23,7 +23,7 @@
 
 ## CAD 含义
 
-插入单位。七张 Undefined。字段目录未单列。
+插入单位。七张 Undefined；补全前字段目录未单列。
 
 公开资料：Database.Insunits
 

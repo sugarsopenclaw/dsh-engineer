@@ -47,6 +47,7 @@ dev-test/**/obj/
 dev-test/**/.vs/
 dev-test/**/out/
 dev-test/**/out-thcad/
+dev-test/**/out-thcad-selection/
 dev-test/**/compare/
 dev-test/**/*.user
 dev-test/**/*.suo

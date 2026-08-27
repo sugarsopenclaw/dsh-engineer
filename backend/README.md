@@ -56,10 +56,11 @@ http://127.0.0.1:8000/api/v1/llm/deepseek
 http://127.0.0.1:8000/api/v1/llm/deepseek/anthropic/v1
 ```
 
-认证有两种配置：
+默认由 FastAPI 持有上游密钥：根目录 `.env` 的 `DEEPSEEK_API_KEY` 会替换 Harness 请求中的 Bearer，再发送给 DeepSeek。可选项：
 
-1. 默认开发模式：`DEEPSEEK_UPSTREAM_API_KEY` 和 `SHENBIAN_GATEWAY_API_KEY` 均留空。FastAPI 将 Harness 发来的 Bearer Key 转发给 DeepSeek。
-2. 服务端持钥模式：同时填写 `DEEPSEEK_UPSTREAM_API_KEY` 和 `SHENBIAN_GATEWAY_API_KEY`。Harness 只携带网关 Key，FastAPI 换成上游 Key 后转发。
+1. `DEEPSEEK_UPSTREAM_API_KEY`：非空时优先于 `DEEPSEEK_API_KEY`，用于部署级覆盖。
+2. `SHENBIAN_GATEWAY_API_KEY`：非空时校验 Harness 发来的 Bearer，适合后端不只监听本机的部署；本机开发默认留空。
+3. 两个服务端上游 Key 都为空时，保留兼容行为，转发 Harness 自己的 Bearer。
 
 模型请求体、工具定义、thinking 字段和 SSE 数据帧均不做业务改写。当前规格见 [`specs/003-harness-deepseek-gateway/`](../specs/003-harness-deepseek-gateway/)。
 

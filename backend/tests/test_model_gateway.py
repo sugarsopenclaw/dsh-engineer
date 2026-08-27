@@ -217,6 +217,59 @@ async def test_httpx_gateway_forwards_client_bearer_to_upstream(settings: Settin
 
 
 @pytest.mark.asyncio
+async def test_httpx_gateway_uses_root_deepseek_key_as_server_default(
+    settings: Settings,
+) -> None:
+    server_settings = settings.model_copy(
+        update={"deepseek_api_key": SecretStr("root-server-key")}
+    )
+    seen_authorization: list[str] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        seen_authorization.append(request.headers["authorization"])
+        return httpx.Response(200, content=b"data: [DONE]\n\n")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    gateway = HttpxDeepSeekModelGateway(server_settings, client=client)
+    response = await gateway.chat_completions(
+        b"{}",
+        {"authorization": "Bearer dsh-client-key"},
+    )
+    await response.close()
+    await client.aclose()
+
+    assert seen_authorization == ["Bearer root-server-key"]
+
+
+@pytest.mark.asyncio
+async def test_httpx_gateway_explicit_upstream_key_overrides_root_key(
+    settings: Settings,
+) -> None:
+    server_settings = settings.model_copy(
+        update={
+            "deepseek_api_key": SecretStr("root-server-key"),
+            "deepseek_upstream_api_key": SecretStr("deployment-override-key"),
+        }
+    )
+    seen_authorization: list[str] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        seen_authorization.append(request.headers["authorization"])
+        return httpx.Response(200, content=b"data: [DONE]\n\n")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    gateway = HttpxDeepSeekModelGateway(server_settings, client=client)
+    response = await gateway.chat_completions(
+        b"{}",
+        {"authorization": "Bearer dsh-client-key"},
+    )
+    await response.close()
+    await client.aclose()
+
+    assert seen_authorization == ["Bearer deployment-override-key"]
+
+
+@pytest.mark.asyncio
 async def test_httpx_gateway_can_separate_gateway_and_upstream_credentials(
     settings: Settings,
 ) -> None:

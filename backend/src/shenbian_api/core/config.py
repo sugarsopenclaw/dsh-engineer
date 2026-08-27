@@ -50,6 +50,10 @@ class Settings(BaseSettings):
         default="https://api.deepseek.com/anthropic/v1",
         validation_alias="DEEPSEEK_SEARCH_UPSTREAM_BASE_URL",
     )
+    deepseek_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias="DEEPSEEK_API_KEY",
+    )
     deepseek_upstream_api_key: SecretStr | None = Field(
         default=None,
         validation_alias="DEEPSEEK_UPSTREAM_API_KEY",

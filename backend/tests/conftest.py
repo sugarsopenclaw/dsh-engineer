@@ -97,6 +97,10 @@ def settings() -> Settings:
         alibaba_cloud_access_key_secret=SecretStr("test"),
         oss_bucket="test-bucket",
         oss_region="cn-beijing",
+        # Never let a developer's real root .env influence gateway assertions.
+        deepseek_api_key=None,
+        deepseek_upstream_api_key=None,
+        shenbian_gateway_api_key=None,
     )
 
 

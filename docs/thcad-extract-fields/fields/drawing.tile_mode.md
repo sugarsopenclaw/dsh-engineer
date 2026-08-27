@@ -23,7 +23,7 @@
 
 ## CAD 含义
 
-Database.TileMode。true=当前在模型空间。字段目录未单列此键，数据里有。
+Database.TileMode。true=当前在模型空间；补全前字段目录未单列此键，数据里有。
 
 公开资料：Teigha Database.TileMode
 

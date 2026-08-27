@@ -2,7 +2,7 @@
 
 本目录是对 `docs/dev` 三篇 THCAD 抽取目录的字段级工程释义：对照七张 `out-thcad` 实测 JSON，逐字段说明在沈变变压器图纸里能做什么（或明确做不到）。
 
-- 完备性对照：[`00-completeness.md`](./00-completeness.md)
+- 补全前目录完备性基线：[`00-completeness.md`](./00-completeness.md)
 - 字段文档：[`fields/`](./fields/)（共 455 篇，一字段一篇）
 - 库存清单：[`_inventory.txt`](./_inventory.txt)
 - 公开资料检索记录：[`_research-log.txt`](./_research-log.txt)

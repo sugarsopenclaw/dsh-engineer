@@ -20,7 +20,7 @@
 | `cloud-dev/` | 云开发工作区（Cloud Agent / 远程环境），不是产品层 |
 | `.env` / `.env.example` | 全仓库环境变量，只认根目录这一份 |
 
-产品主循环是 `DSH Web → Harness Agent/沈变插件 → 本地 THCAD`。Agent 在需要共享知识、规则、模型能力或业务 CRUD 时调用 `backend/`；客户原文和已有 CAD 抽取数据继续作为插件与算法开发资料使用。不要在 `client-data/` 里加工文件。基础分层见 [`specs/001-platform-layers/spec.md`](specs/001-platform-layers/spec.md)，当前纵向切片见 [`specs/003-harness-deepseek-gateway/`](specs/003-harness-deepseek-gateway/)。
+产品主循环是 `DSH Web → Harness Agent/沈变插件 → 本地 THCAD`。Agent 在需要共享知识、规则、模型能力或业务 CRUD 时调用 `backend/`；客户原文和已有 CAD 抽取数据继续作为插件与算法开发资料使用。不要在 `client-data/` 里加工文件。基础分层见 [`specs/001-platform-layers/spec.md`](specs/001-platform-layers/spec.md)，当前纵向切片见 [`specs/003-harness-deepseek-gateway/`](specs/003-harness-deepseek-gateway/)，DSH 可扩展范围与项目边界见 [`docs/dev/2026-08-26-DSH官方扩展面与沈变插件化边界.md`](docs/dev/2026-08-26-DSH官方扩展面与沈变插件化边界.md)。
 
 上游目前不接受外部 PR；插件应作为独立包开发，发布时给 GitHub 仓库打上 `dsh-plugin` topic。
 
@@ -59,7 +59,7 @@ uv run shenbian-api
 .\scripts\start-harness-via-backend.ps1
 ```
 
-默认使用 `$DSH_HOME/.credentials.yaml` 中已有的 `DEEPSEEK_API_KEY`，FastAPI 原样转发认证和流式响应。服务端集中持有上游 Key 的配置方式见 [`backend/README.md`](backend/README.md)。
+FastAPI 默认使用仓库根 `.env` 的 `DEEPSEEK_API_KEY` 调用 DeepSeek，并替换 DSH 请求携带的 Bearer。`DEEPSEEK_UPSTREAM_API_KEY` 可作为部署级覆盖；完整认证规则见 [`backend/README.md`](backend/README.md)。
 
 开发中用 `--patch` 挂本地插件（路径按官方要求用绝对路径）：
 
