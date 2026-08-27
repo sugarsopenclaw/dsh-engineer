@@ -16,3 +16,5 @@
 | --- | --- |
 | [001-platform-layers](001-platform-layers/spec.md) | 客户资料 / Data Layer / Ontology / 插件 四层怎么拆 |
 | [003-harness-deepseek-gateway](003-harness-deepseek-gateway/spec.md) | Harness 通过 FastAPI 模型网关访问 DeepSeek |
+| [004-business-requirements-graph-api](004-business-requirements-graph-api/spec.md) | 从真实 PostgreSQL 查询业务需求图谱与节点详情 |
+| [005-cad-capability-catalog](005-cad-capability-catalog/spec.md) | COM/.NET/LISP/命令/原生原子能力 JSONL、归账与可恢复 Agent 循环 |

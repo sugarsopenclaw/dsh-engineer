@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dsh-engineer.local/schemas/cad-capabilities/capability-enrichment.schema.json",
+  "title": "CAD capability atom enrichment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "inventory_id",
+    "atom_id",
+    "status",
+    "operation_kinds",
+    "domain_tags",
+    "summary",
+    "classification_confidence",
+    "semantic_candidates",
+    "evidence",
+    "processor",
+    "processed_at",
+    "notes"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "inventory_id": { "type": "string", "minLength": 1 },
+    "atom_id": {
+      "type": "string",
+      "pattern": "^cap:(com|dotnet|lisp|command|native):[a-f0-9]{24}$"
+    },
+    "status": { "enum": ["classified", "deferred", "failed"] },
+    "operation_kinds": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "read",
+          "compute",
+          "create",
+          "edit",
+          "delete",
+          "transform",
+          "save",
+          "import",
+          "export",
+          "select",
+          "navigate",
+          "display",
+          "invoke",
+          "event",
+          "lifecycle",
+          "unknown"
+        ]
+      }
+    },
+    "domain_tags": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "summary": { "type": ["string", "null"] },
+    "classification_confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "semantic_candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "semantic_capability_id",
+          "label",
+          "confidence",
+          "status",
+          "basis"
+        ],
+        "properties": {
+          "semantic_capability_id": {
+            "type": "string",
+            "pattern": "^sem:[a-z0-9._-]+$"
+          },
+          "label": { "type": "string", "minLength": 1 },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "status": { "enum": ["proposed", "verified", "rejected"] },
+          "basis": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "ref", "claim"],
+        "properties": {
+          "kind": {
+            "enum": [
+              "member_name",
+              "signature",
+              "source_code",
+              "documentation",
+              "runtime_probe",
+              "human_review"
+            ]
+          },
+          "ref": { "type": "string", "minLength": 1 },
+          "claim": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "processor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "name", "run_id"],
+      "properties": {
+        "kind": { "enum": ["rule", "agent", "human"] },
+        "name": { "type": "string", "minLength": 1 },
+        "run_id": { "type": "string", "minLength": 1 }
+      }
+    },
+    "processed_at": { "type": "string", "format": "date-time" },
+    "notes": { "type": ["string", "null"] }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "status": { "const": "classified" } }
+      },
+      "then": {
+        "properties": {
+          "operation_kinds": { "minItems": 1 },
+          "summary": { "type": "string", "minLength": 1 },
+          "evidence": { "minItems": 1 }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": { "enum": ["deferred", "failed"] }
+        }
+      },
+      "then": {
+        "properties": {
+          "notes": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  ]
+}
