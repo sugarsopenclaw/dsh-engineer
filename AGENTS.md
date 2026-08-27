@@ -24,6 +24,19 @@
 
 分层边界见 `specs/001-platform-layers/`。不要在 `client-data/` 写派生文件（含 CAD `.bak`、抽取 JSON）；不要把数据集或对象实例放进 `plugins/`。`dev-test/` 和 `cloud-dev/` 的编译产物和抽取输出不进 git。
 
+## THCAD 开发前先查能力面
+
+开发 THCAD 的抽取、识图、审图、绘图或自动化能力前，先读 [`docs/dev/2026-08-27-THCAD-V24-能力面总索引.md`](docs/dev/2026-08-27-THCAD-V24-能力面总索引.md)，再按问题进入对应文档：
+
+- [`docs/dev/2026-08-24-THCAD全量实体数据能拿到什么.md`](docs/dev/2026-08-24-THCAD全量实体数据能拿到什么.md)：现有整图抽取的实际覆盖、样图证据和明确拿不到的业务参数；
+- [`docs/thcad-extract-fields/00-completeness.md`](docs/thcad-extract-fields/00-completeness.md)：当前抽取 JSON 的键级完整性及逐字段目录；
+- [`docs/dev/2026-08-27-THCAD-V24-DotNet公开能力盘点.md`](docs/dev/2026-08-27-THCAD-V24-DotNet公开能力盘点.md)：进程内 .NET 类型、属性、计算方法以及创建、修改等公开入口；
+- [`docs/dev/2026-08-27-THCAD-V24-COM-Automation能力盘点.md`](docs/dev/2026-08-27-THCAD-V24-COM-Automation能力盘点.md)：32/64 位 COM 对象模型、ProgID、天河业务组件和运行时激活结果；
+- [`docs/dev/2026-08-27-THCAD-V24-LISP与命令能力盘点.md`](docs/dev/2026-08-27-THCAD-V24-LISP与命令能力盘点.md)：LISP 函数、菜单宏、当前会话命令符号和已加载模块；
+- [`docs/dev/2026-08-27-THCAD-V24-原生BRX-ARX与PE导出能力盘点.md`](docs/dev/2026-08-27-THCAD-V24-原生BRX-ARX与PE导出能力盘点.md)：原生模块、PE 导出线索及当前是否具备可编译公开 SDK。
+
+不要把“当前 JSON 没有某个键”解释成“THCAD 没有这个能力”；字段库存回答“抽取器已经保存什么”，其他能力面回答“还可以主动调用什么”。采用入口前区分“元数据中存在、当前运行时可达、业务语义已经样图验证”三层。盘点与复现实验脚本放在 [`dev-test/visualstudionetframework/probes/`](dev-test/visualstudionetframework/probes/)；发现新入口或验证新的前置条件后，同步更新对应能力文档和总索引。现有盘点基于本机 THCAD V24 安装，不把七张样图或单一安装版本硬编码成所有图纸、所有版本的普遍事实。
+
 ## 硬性约定
 
 - 不要修改、提交 `harness/` 里的任何文件。需要改行为就在 `plugins/` 写插件，用 `patches/` 挂进去。

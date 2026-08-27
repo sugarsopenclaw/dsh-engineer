@@ -64,6 +64,76 @@ namespace Shb.Cad.Core
         public IList<MechanicalBomCellObservation> Cells { get; private set; }
     }
 
+    public sealed class MechanicalBomAnnotationObservation
+    {
+        public MechanicalBomAnnotationObservation(
+            int itemNumber,
+            string dictionaryKey,
+            string xuhaoHandle,
+            string associationRecordHandle,
+            string associationRecordClass,
+            bool entityPresent)
+            : this(
+                itemNumber,
+                dictionaryKey,
+                xuhaoHandle,
+                associationRecordHandle,
+                associationRecordClass,
+                entityPresent,
+                null,
+                null)
+        {
+        }
+
+        public MechanicalBomAnnotationObservation(
+            int itemNumber,
+            string dictionaryKey,
+            string xuhaoHandle,
+            string associationRecordHandle,
+            string associationRecordClass,
+            bool entityPresent,
+            double[] pointingPosition,
+            double[] numberPosition)
+        {
+            ItemNumber = itemNumber;
+            DictionaryKey = dictionaryKey ?? "";
+            XuhaoHandle = xuhaoHandle ?? "";
+            AssociationRecordHandle = associationRecordHandle ?? "";
+            AssociationRecordClass = associationRecordClass ?? "";
+            EntityPresent = entityPresent;
+            PointingPosition = CopyPosition(pointingPosition);
+            NumberPosition = CopyPosition(numberPosition);
+        }
+
+        public int ItemNumber { get; private set; }
+        public string DictionaryKey { get; private set; }
+        public string XuhaoHandle { get; private set; }
+        public string AssociationRecordHandle { get; private set; }
+        public string AssociationRecordClass { get; private set; }
+        public bool EntityPresent { get; private set; }
+        public double[] PointingPosition { get; private set; }
+        public double[] NumberPosition { get; private set; }
+
+        internal Dictionary<string, object> ToMap()
+        {
+            return MechanicalBomMaps.Map(
+                "kind", "xuhao_annotation",
+                "item_number", ItemNumber,
+                "xuhao_handle", XuhaoHandle,
+                "dictionary_key", DictionaryKey,
+                "association_record_handle", AssociationRecordHandle,
+                "association_record_class", AssociationRecordClass,
+                "entity_present", EntityPresent,
+                "pointing_position", PointingPosition,
+                "number_position", NumberPosition);
+        }
+
+        static double[] CopyPosition(double[] position)
+        {
+            return position == null ? null : (double[])position.Clone();
+        }
+    }
+
     public sealed class MechanicalBomColumnDefinition
     {
         internal MechanicalBomColumnDefinition(
@@ -104,6 +174,7 @@ namespace Shb.Cad.Core
             CellPositions = new Dictionary<string, double[]>(StringComparer.Ordinal);
             MissingColumns = new List<string>();
             DuplicateLabels = new List<string>();
+            Annotations = new List<MechanicalBomAnnotationObservation>();
         }
 
         internal MechanicalBomRowObservation Source { get; private set; }
@@ -117,14 +188,22 @@ namespace Shb.Cad.Core
         public IDictionary<string, double[]> CellPositions { get; private set; }
         public IList<string> MissingColumns { get; private set; }
         public IList<string> DuplicateLabels { get; private set; }
+        public IList<MechanicalBomAnnotationObservation> Annotations { get; private set; }
 
         internal Dictionary<string, object> ToMap()
         {
+            var annotations = new List<Dictionary<string, object>>();
+            foreach (MechanicalBomAnnotationObservation annotation in Annotations)
+            {
+                annotations.Add(annotation.ToMap());
+            }
+
             return MechanicalBomMaps.Map(
                 "id", Id,
                 "item_number", ItemNumber.HasValue ? (object)ItemNumber.Value : null,
                 "values", Values,
                 "parsed_values", ParsedValues,
+                "annotations", annotations,
                 "evidence", MechanicalBomMaps.Map(
                     "row_block_handle", Source.Handle,
                     "position", new[] { Source.PositionX, Source.PositionY },
@@ -164,6 +243,9 @@ namespace Shb.Cad.Core
         public IList<int> DuplicateItemNumbers { get; private set; }
         public int XDataComparableRowCount { get; internal set; }
         public int XDataMatchingRowCount { get; internal set; }
+        public int AnnotatedRowCount { get; internal set; }
+        public int AnnotationLinkCount { get; internal set; }
+        public int PresentAnnotationLinkCount { get; internal set; }
         public IDictionary<string, int> NonEmptyCounts { get; private set; }
         public double MinX { get; internal set; }
         public double MinY { get; internal set; }
@@ -205,6 +287,10 @@ namespace Shb.Cad.Core
                     "th_xuhao_matching_rows", XDataMatchingRowCount,
                     "all_comparable_rows_match",
                         XDataComparableRowCount == XDataMatchingRowCount),
+                "annotation_summary", MechanicalBomMaps.Map(
+                    "annotated_row_count", AnnotatedRowCount,
+                    "link_count", AnnotationLinkCount,
+                    "present_entity_link_count", PresentAnnotationLinkCount),
                 "non_empty_counts", NonEmptyCounts,
                 "rows", rows);
         }
@@ -246,7 +332,8 @@ namespace Shb.Cad.Core
                 "schema_version", "1",
                 "knowledge_type", "mechanical_bill_of_materials",
                 "builder", "mechanical_bom_knowledge_builder",
-                "builder_version", "1",
+                "builder_version", "2",
+                "annotation_source", "PC_BOMXHRELATEDIC",
                 "drawing_id", DrawingId,
                 "table_count", Tables.Count,
                 "row_count", RowCount,
@@ -279,9 +366,24 @@ namespace Shb.Cad.Core
             string drawingId,
             IList<MechanicalBomRowObservation> sourceRows)
         {
+            return Build(
+                drawingId,
+                sourceRows,
+                new List<MechanicalBomAnnotationObservation>());
+        }
+
+        public static MechanicalBomKnowledgeDocument Build(
+            string drawingId,
+            IList<MechanicalBomRowObservation> sourceRows,
+            IList<MechanicalBomAnnotationObservation> sourceAnnotations)
+        {
             if (sourceRows == null)
             {
                 throw new ArgumentNullException("sourceRows");
+            }
+            if (sourceAnnotations == null)
+            {
+                throw new ArgumentNullException("sourceAnnotations");
             }
 
             var document = new MechanicalBomKnowledgeDocument(drawingId);
@@ -303,6 +405,7 @@ namespace Shb.Cad.Core
             {
                 table.Rows[i].Id = "bom-row-" + (i + 1).ToString(CultureInfo.InvariantCulture);
             }
+            AttachAnnotations(table.Rows, sourceAnnotations);
             Summarize(table);
             document.Tables.Add(table);
             return document;
@@ -367,6 +470,70 @@ namespace Shb.Cad.Core
                     StringComparison.Ordinal);
             }
             return row;
+        }
+
+        static void AttachAnnotations(
+            IList<MechanicalBomRowKnowledge> rows,
+            IList<MechanicalBomAnnotationObservation> annotations)
+        {
+            var rowsByItemNumber =
+                new Dictionary<int, List<MechanicalBomRowKnowledge>>();
+            foreach (MechanicalBomRowKnowledge row in rows)
+            {
+                if (!row.ItemNumber.HasValue)
+                {
+                    continue;
+                }
+                List<MechanicalBomRowKnowledge> matchingRows;
+                if (!rowsByItemNumber.TryGetValue(row.ItemNumber.Value, out matchingRows))
+                {
+                    matchingRows = new List<MechanicalBomRowKnowledge>();
+                    rowsByItemNumber[row.ItemNumber.Value] = matchingRows;
+                }
+                matchingRows.Add(row);
+            }
+
+            foreach (MechanicalBomAnnotationObservation annotation in annotations)
+            {
+                if (annotation == null)
+                {
+                    continue;
+                }
+                List<MechanicalBomRowKnowledge> matchingRows;
+                if (!rowsByItemNumber.TryGetValue(annotation.ItemNumber, out matchingRows))
+                {
+                    continue;
+                }
+                foreach (MechanicalBomRowKnowledge row in matchingRows)
+                {
+                    row.Annotations.Add(annotation);
+                }
+            }
+
+            foreach (MechanicalBomRowKnowledge row in rows)
+            {
+                var list = row.Annotations as List<MechanicalBomAnnotationObservation>;
+                if (list != null)
+                {
+                    list.Sort(CompareAnnotations);
+                }
+            }
+        }
+
+        static int CompareAnnotations(
+            MechanicalBomAnnotationObservation left,
+            MechanicalBomAnnotationObservation right)
+        {
+            int handle = string.Compare(
+                left.XuhaoHandle,
+                right.XuhaoHandle,
+                StringComparison.OrdinalIgnoreCase);
+            return handle != 0
+                ? handle
+                : string.Compare(
+                    left.AssociationRecordHandle,
+                    right.AssociationRecordHandle,
+                    StringComparison.OrdinalIgnoreCase);
         }
 
         static object ParseValue(string key, string raw)
@@ -475,6 +642,19 @@ namespace Shb.Cad.Core
                     if (row.ItemNumberMatchesXData.Value)
                     {
                         table.XDataMatchingRowCount++;
+                    }
+                }
+
+                if (row.Annotations.Count > 0)
+                {
+                    table.AnnotatedRowCount++;
+                    table.AnnotationLinkCount += row.Annotations.Count;
+                    foreach (MechanicalBomAnnotationObservation annotation in row.Annotations)
+                    {
+                        if (annotation.EntityPresent)
+                        {
+                            table.PresentAnnotationLinkCount++;
+                        }
                     }
                 }
 

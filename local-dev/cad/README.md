@@ -12,6 +12,14 @@ PowerShell COM 触发 / CAD 命令
 
 反方向依赖禁止。例如图框算法不能调用 THCAD；THCAD Adapter 可以把 `Line` 转成图框算法需要的普通坐标数据。
 
+## 开发前先查能力总索引
+
+- [`THCAD V24 能力面总索引`](../../docs/dev/2026-08-27-THCAD-V24-能力面总索引.md) 统一链接字段、公开 .NET、COM Automation、LISP/命令和原生 BRX/ARX 五个能力面；
+- [`docs/thcad-extract-fields/`](../../docs/thcad-extract-fields/) 是当前抽取 JSON 的键级库存，回答“已经保存了什么”；
+- [`THCAD V24 .NET 公开能力盘点`](../../docs/dev/2026-08-27-THCAD-V24-DotNet公开能力盘点.md) 是公开方法、属性、事件和构造能力的库存，回答“宿主还允许主动调用什么”。其中包含读取、计算、创建、修改、删除、变换、保存和编辑器交互，不做只读阉割。
+
+JSON 或某一个 API 面没有某项，不等于 THCAD 拿不到它；先查总索引，再在具体入口和 `runtime_class` 上实测是否可用。需要宿主 API 的调用放在 THCAD Adapter/Host，能由普通坐标和语义数据完成的判断继续留在宿主无关 Core。
+
 ## 01 · 全量实体抽取
 
 - 类型：THCAD .NET Adapter，不是假装成纯算法。
@@ -44,9 +52,9 @@ PowerShell COM 触发 / CAD 命令
 
 - 类型：宿主无关 Core 算法。
 - 唯一实现：[`core/04-mechanical-bom-knowledge/MechanicalBomKnowledgeBuilder.cs`](core/04-mechanical-bom-knowledge/MechanicalBomKnowledgeBuilder.cs)
-- 输入：`PC_MXB_BLOCK` 行块的八个命名属性及句柄、坐标、包围盒、`TH_XUHAO` 证据。
-- 输出：固定列定义、结构化行、原始值与安全解析值、证据链和缺号/重号/缺列等质量报告。
-- 七张图已验证五张正式明细表、208 行，全部八字段齐全且序号与 `TH_XUHAO` 一致。
+- 输入：`PC_MXB_BLOCK` 行块的八个命名属性及句柄、坐标、包围盒、`TH_XUHAO` 证据，以及 `PC_BOMXHRELATEDIC` 的序号标注关系。
+- 输出：固定列定义、结构化行、原始值与安全解析值、证据链、每行对应的零个/一个/多个图面序号标注（含可取得时的指向侧与序号侧坐标），以及缺号/重号/缺列等质量报告。
+- 七张图已验证五张正式明细表、208 行，全部八字段齐全且序号与 `TH_XUHAO` 一致；174 条字典关系中 147 条附加到同图明细行，覆盖 136 行。
 - 原生块属性是主路径；晓量式线网/DCEL 表格拓扑只保留为以后处理炸开表格的降级方向。
 
 ## 05 · 技术要求提取
@@ -66,14 +74,14 @@ PowerShell COM 触发 / CAD 命令
 - 提供按名称找图层、按图层与所属空间查实体句柄的函数；实际修改图层开关仍留给以后独立的 THCAD Adapter 工具。
 - 七图已核对 91,605 个实体，图层引用全部完整；`消隐层` 关闭共影响 162 个模型空间实体。
 
-## 07 · 器身中心线候选分析
+## 07 · 中心线与中心几何识别
 
-- 类型：宿主无关 Core 分析与几何函数能力。
-- 唯一实现：[`core/07-body-centerline-analysis/BodyCenterlineAnalyzer.cs`](core/07-body-centerline-analysis/BodyCenterlineAnalyzer.cs)
-- 输入：绘图区内框、图层名/线型、各空间 Line，以及可能提到“器身中心线”的文字。
-- 输出：独立轴和正交轴系候选、图层/文字/源句柄证据、歧义与限制；不会把普通中心线直接认证为器身轴。
-- 每条候选提供带符号点到轴距离和镜像点计算，可供以后做轴两侧分类、对称拓扑搜索和经验证后的语义标签迁移。
-- 七图都有几何候选，但都没有足够的模型空间显式证据升级成“已确认器身中心线”；结果如实保留多候选。
+- 类型：宿主无关 Core 识别、查询与几何函数能力。
+- 实现：[`core/07-centerline-identification/CenterlineIdentifier.cs`](core/07-centerline-identification/CenterlineIdentifier.cs) 负责发现与查询，[`CenterlineShapeClassifier.cs`](core/07-centerline-identification/CenterlineShapeClassifier.cs) 负责形态组装与求交。
+- 文字正查和中心线层/`CENTER*` 样式倒查共同处理 Line、Arc、Circle、Polyline、Spline，再按坐标空间 + 句柄求并集。
+- Line 保留精确角度并分为水平、竖直、斜向；Line/Arc 可按端点与切向组装，Polyline 可识别 U 形，Circle 保留圆心半径。
+- 任意支持的中心几何在同一坐标空间内求交；同一点多路结果合并为视觉锚点，保留参与句柄、相交角，并可生成交点附近局部窗口。
+- 七图识别 3,848 个有效中心几何（其中斜向 Line 743），组装 3,412 个形态，得到 2,059 个去重交点；详细边界见 07 README。
 
 ## 暂不单独编号
 
@@ -88,7 +96,6 @@ PowerShell COM 触发 / CAD 命令
 
 - 七张图只是当前回归样本，不代表全部图纸；“七图通过”不能写成通用标准。
 - 每项能力都按“并列发现信号 → 用独立证据验证 → 保留证据后利用”推进。名字可以是信号，但不能成为唯一真相。
-- 未找到、单个候选、多个候选和暂不支持都应正常返回状态与诊断，不能卡死整轮抽取，也不能为了有结果而硬猜。
 - 具体信号、硬编码风险和扩样方式见 [`validation-and-risk-notes.md`](validation-and-risk-notes.md)；新图纸出现后按小模块补回归并迭代。
 
 ## 实现心得（先记住，不当硬规则）

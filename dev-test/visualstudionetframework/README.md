@@ -49,7 +49,7 @@ cd D:\dev\dsh-engineer\dev-test\visualstudionetframework
 .\trigger-thcad-selection.ps1
 ```
 
-脚本会保存当前句柄、按需加载插件、恢复因 `NETLOAD` 清掉的 Pickfirst，最后触发进程内 .NET 命令。COM 只负责连接与触发；实体的几何、文字、XData、扩展字典和 TH 专业对象反射包仍由 `DrawingExtractor` 读取。输出位于 `out-thcad-selection/<图纸名>/<UTC 时间>/`：
+脚本会保存当前句柄、按需加载插件、恢复因 `NETLOAD` 清掉的 Pickfirst，最后触发进程内 .NET 命令。COM 只负责连接与触发；实体的几何、文字、XData、扩展字典和 TH 专业对象反射包仍由 `DrawingExtractor` 读取。`TH_XuHaoEntity` 还会通过 .NET `ExplodeGeometry` 在 `geometry` 中记录 `pointing_position` 与 `number_position`。输出位于 `out-thcad-selection/<图纸名>/<UTC 时间>/`：
 
 - `selection.json`：选择顺序和句柄核对
 - `entities.jsonl`：所选顶层实体的完整记录
@@ -58,16 +58,16 @@ cd D:\dev\dsh-engineer\dev-test\visualstudionetframework
 
 命令结束后会恢复同一选择集。块参照目前按一个顶层实体记录，不自动展开成块定义内的子实体。
 
-可复用能力源码已按依赖边界整理到 `local-dev/cad/`：全量实体抽取位于 THCAD Adapter，图框检测、图框分区检测、机械明细表知识化、技术要求提取、图层分析和器身中心线候选分析位于宿主无关 Core。当前插件通过 MSBuild linked file 编译这些唯一源码，不在 `dev-test` 复制实现。整图抽取另写：
+可复用能力源码已按依赖边界整理到 `local-dev/cad/`：全量实体抽取位于 THCAD Adapter，图框检测、图框分区检测、机械明细表知识化、技术要求提取、图层分析和中心线识别位于宿主无关 Core。当前插件通过 MSBuild linked file 编译这些唯一源码，不在 `dev-test` 复制实现。整图抽取另写：
 
 - `drawing-frames.json`、`drawing-zones.json`：图框及字母数字分区证据；
-- `bom-knowledge.json`：机械明细表八列、结构化行、句柄证据及序号质量报告；
+- `bom-knowledge.json`：机械明细表八列、结构化行、句柄证据、每行对应的图面 `TH_XuHaoEntity` 序号标注、标注指向侧/序号侧坐标及序号质量报告；
 - `technical-requirements.json`：技术要求原始文字、合并正文、句柄、位置和编号诊断；
 - `technical-requirements.md`：面向人和 LLM 的技术要求正文。
 - `layer-analysis.json`：图层定义、实体归属、空间分账、显示状态和引用诊断；
 - `layer-analysis.md`：面向人和 LLM 的图层清单及主要实体类型。
-- `body-centerline-analysis.json`：中心线轴/正交轴系候选、源句柄、证据、歧义和对称几何操作契约；
-- `body-centerline-analysis.md`：明确区分几何候选与已确认器身轴的简明报告。
+- `centerline-identification.json`：文字/样式并集后的 Line、Arc、Circle、Polyline、Spline，直线角度、中心形态、交点视觉锚点及所属坐标空间；
+- `centerline-identification.md`：面向人和 LLM 的方向、形态、交点、带文字结果和完整中心几何清单。
 
 重新编译 DLL 后，当前 THCAD 进程中已经 `NETLOAD` 的旧程序集通常无法真正卸载。需要先保存要保留的图纸状态，退出并重启 THCAD，再加载新 DLL；仅重复执行 `NETLOAD` 不应当作可靠热更新。
 

@@ -48,10 +48,18 @@ namespace Shb.Thcad.Extractor
             var frameLineSegments = new List<DrawingFrameSegment>();
             var zoneTextSamples = new List<DrawingZoneTextSample>();
             var bomObservations = new List<MechanicalBomRowObservation>();
+            var bomAnnotationObservations =
+                new List<MechanicalBomAnnotationObservation>();
+            var xuhaoEntityHandles =
+                new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var xuhaoCoordinatesByHandle =
+                new Dictionary<string, XuhaoAnnotationCoordinates>(
+                    StringComparer.OrdinalIgnoreCase);
             var technicalRequirementTexts = new List<TechnicalRequirementTextObservation>();
             var layerEntityObservations = new List<CadLayerEntityObservation>();
-            var bodyCenterlineLines = new List<BodyCenterlineLineObservation>();
-            var bodyCenterlineTexts = new List<BodyCenterlineTextObservation>();
+            var centerlinePrimitives = new List<CenterlinePrimitiveObservation>();
+            var centerlineLabelLeaders =
+                new List<CenterlineLabelLeaderObservation>();
 
             string entitiesPath = Path.Combine(outDir, "entities.jsonl");
             string proxiesPath = Path.Combine(outDir, "proxies.jsonl");
@@ -92,18 +100,6 @@ namespace Shb.Thcad.Extractor
                             }
 
                             var modelLine = ent as Line;
-                            if (modelLine != null)
-                            {
-                                bodyCenterlineLines.Add(new BodyCenterlineLineObservation(
-                                    HandleOf(modelLine),
-                                    Safe(() => modelLine.Layer) as string ?? "",
-                                    ownerScope,
-                                    btr.Name,
-                                    modelLine.StartPoint.X,
-                                    modelLine.StartPoint.Y,
-                                    modelLine.EndPoint.X,
-                                    modelLine.EndPoint.Y));
-                            }
                             if (modelLine != null && ownerScope == "model_space")
                             {
                                 frameLineSegments.Add(new DrawingFrameSegment(
@@ -124,14 +120,21 @@ namespace Shb.Thcad.Extractor
                                 }
                             }
 
-                            Dictionary<string, object> record = SerializeEntity(ent, btr, ownerScope, tr);
-                            layerEntityObservations.Add(CadLayerEntityObservationOf(record));
-                            BodyCenterlineTextObservation bodyCenterlineText =
-                                BodyCenterlineTextObservationOf(record);
-                            if (bodyCenterlineText != null)
+                            XuhaoAnnotationCoordinates xuhaoCoordinates =
+                                XuhaoAnnotationCoordinateExtractor.Extract(ent);
+                            Dictionary<string, object> record = SerializeEntity(
+                                ent,
+                                btr,
+                                ownerScope,
+                                tr,
+                                xuhaoCoordinates);
+                            CenterlinePrimitiveObservation centerlinePrimitive =
+                                CenterlinePrimitiveObservationOf(record);
+                            if (centerlinePrimitive != null)
                             {
-                                bodyCenterlineTexts.Add(bodyCenterlineText);
+                                centerlinePrimitives.Add(centerlinePrimitive);
                             }
+                            layerEntityObservations.Add(CadLayerEntityObservationOf(record));
                             if (ownerScope == "model_space")
                             {
                                 TechnicalRequirementTextObservation technicalText =
@@ -144,6 +147,22 @@ namespace Shb.Thcad.Extractor
                             string runtime = Convert.ToString(record["runtime_class"]) ?? "unknown";
                             string layer = Convert.ToString(record["layer"]) ?? "";
                             string decode = Convert.ToString(record["decode_status"]) ?? "full";
+                            if (string.Equals(
+                                runtime,
+                                "TH_XuHaoEntity",
+                                StringComparison.Ordinal))
+                            {
+                                xuhaoEntityHandles.Add(
+                                    Convert.ToString(record["handle"], CultureInfo.InvariantCulture)
+                                    ?? "");
+                                if (xuhaoCoordinates != null)
+                                {
+                                    xuhaoCoordinatesByHandle[
+                                        Convert.ToString(
+                                            record["handle"],
+                                            CultureInfo.InvariantCulture) ?? ""] = xuhaoCoordinates;
+                                }
+                            }
                             Bump(typeCounts, runtime);
                             Bump(layerCounts, layer.Length == 0 ? "(empty)" : layer);
                             Bump(ownerCounts, ownerScope);
@@ -157,6 +176,12 @@ namespace Shb.Thcad.Extractor
                                 otherPcBlocks,
                                 professionalEntities,
                                 bomObservations);
+                            CenterlineLabelLeaderObservation centerlineLabelLeader =
+                                CenterlineLabelLeaderObservationOf(record);
+                            if (centerlineLabelLeader != null)
+                            {
+                                centerlineLabelLeaders.Add(centerlineLabelLeader);
+                            }
                             WriteLine(entities, record);
                             if (decode == "proxy")
                             {
@@ -176,7 +201,13 @@ namespace Shb.Thcad.Extractor
                     }
                 }
 
-                DumpNamedObjects(db, tr, dictionaries);
+                DumpNamedObjects(
+                    db,
+                    tr,
+                    dictionaries,
+                    bomAnnotationObservations,
+                    xuhaoEntityHandles,
+                    xuhaoCoordinatesByHandle);
                 tr.Commit();
             }
 
@@ -185,18 +216,11 @@ namespace Shb.Thcad.Extractor
             var zoneDetectionResults = new List<DrawingZoneDetectionResult>();
             var zoneDetectionSystems = new List<Dictionary<string, object>>();
             var technicalRequirementFrames = new List<TechnicalRequirementsFrameBounds>();
-            var bodyCenterlineFrames = new List<BodyCenterlineFrameBounds>();
             int detectedZoneSystemCount = 0;
             int detectedZoneCount = 0;
             foreach (DrawingFrameCandidate frame in frameDetection.OutermostFrames)
             {
                 technicalRequirementFrames.Add(new TechnicalRequirementsFrameBounds(
-                    frame.Id,
-                    frame.MinX,
-                    frame.MinY,
-                    frame.MaxX,
-                    frame.MaxY));
-                bodyCenterlineFrames.Add(new BodyCenterlineFrameBounds(
                     frame.Id,
                     frame.MinX,
                     frame.MinY,
@@ -230,11 +254,18 @@ namespace Shb.Thcad.Extractor
                 "systems", zoneDetectionSystems);
             MechanicalBomKnowledgeDocument bomKnowledge = MechanicalBomKnowledgeBuilder.Build(
                 drawingId,
-                bomObservations);
+                bomObservations,
+                bomAnnotationObservations);
             Dictionary<string, object> bomKnowledgeMap = bomKnowledge.ToMap();
             var bomZoneLocations = new List<Dictionary<string, object>>();
+            int bomAnnotatedRowCount = 0;
+            int bomAnnotationLinkCount = 0;
+            int bomPresentAnnotationLinkCount = 0;
             foreach (MechanicalBomTableKnowledge table in bomKnowledge.Tables)
             {
+                bomAnnotatedRowCount += table.AnnotatedRowCount;
+                bomAnnotationLinkCount += table.AnnotationLinkCount;
+                bomPresentAnnotationLinkCount += table.PresentAnnotationLinkCount;
                 foreach (DrawingZoneDetectionResult zoneResult in zoneDetectionResults)
                 {
                     DrawingZoneLocation location = zoneResult.System.LocateBounds(
@@ -286,17 +317,16 @@ namespace Shb.Thcad.Extractor
                 layerDefinitions,
                 layerEntityObservations);
             Dictionary<string, object> layerAnalysisMap = layerAnalysis.ToMap();
-            List<BodyCenterlineLayerObservation> bodyCenterlineLayers =
-                BodyCenterlineLayerDefinitionsOf(tables);
-            BodyCenterlineAnalysisDocument bodyCenterlineAnalysis =
-                BodyCenterlineAnalyzer.Analyze(
+            List<CenterlineLayerObservation> centerlineLayers =
+                CenterlineLayerDefinitionsOf(tables);
+            CenterlineIdentificationDocument centerlineIdentification =
+                CenterlineIdentifier.Identify(
                     drawingId,
-                    bodyCenterlineFrames,
-                    bodyCenterlineLayers,
-                    bodyCenterlineLines,
-                    bodyCenterlineTexts);
-            Dictionary<string, object> bodyCenterlineAnalysisMap =
-                bodyCenterlineAnalysis.ToMap();
+                    centerlineLayers,
+                    centerlinePrimitives,
+                    centerlineLabelLeaders);
+            Dictionary<string, object> centerlineIdentificationMap =
+                centerlineIdentification.ToMap();
             int offLayerCount = 0;
             int frozenLayerCount = 0;
             int lockedLayerCount = 0;
@@ -361,6 +391,11 @@ namespace Shb.Thcad.Extractor
                 "drawing_zone_count", detectedZoneCount,
                 "mechanical_bom_table_count", bomKnowledge.Tables.Count,
                 "mechanical_bom_row_count", bomKnowledge.RowCount,
+                "mechanical_bom_annotation_source_count", bomAnnotationObservations.Count,
+                "mechanical_bom_annotated_row_count", bomAnnotatedRowCount,
+                "mechanical_bom_annotation_link_count", bomAnnotationLinkCount,
+                "mechanical_bom_present_annotation_link_count",
+                    bomPresentAnnotationLinkCount,
                 "technical_requirements_section_count", technicalRequirements.Sections.Count,
                 "technical_requirements_item_count", technicalRequirements.ItemCount,
                 "layer_definition_count", layerAnalysis.DefinedLayerCount,
@@ -370,11 +405,21 @@ namespace Shb.Thcad.Extractor
                 "frozen_layer_count", frozenLayerCount,
                 "locked_layer_count", lockedLayerCount,
                 "layer_suppressed_model_entity_count", layerAnalysis.LayerSuppressedModelEntityCount,
-                "body_centerline_axis_candidate_count", bodyCenterlineAnalysis.AxisCandidates.Count,
-                "body_centerline_axis_system_candidate_count",
-                    bodyCenterlineAnalysis.AxisSystemCandidates.Count,
-                "body_centerline_has_explicit_model_evidence",
-                    bodyCenterlineAnalysis.HasExplicitModelEvidence,
+                "center_geometry_count", centerlineIdentification.Centerlines.Count,
+                "center_geometry_text_matched_count", centerlineIdentification.TextMatchedCount,
+                "center_geometry_style_matched_count", centerlineIdentification.StyleMatchedCount,
+                "center_geometry_both_matched_count", centerlineIdentification.BothMatchedCount,
+                "center_geometry_model_space_count", centerlineIdentification.ModelSpaceCount,
+                "center_geometry_block_definition_count",
+                    centerlineIdentification.BlockDefinitionCount,
+                "center_shape_count", centerlineIdentification.Shapes.Count,
+                "center_intersection_count", centerlineIdentification.Intersections.Count,
+                "center_horizontal_line_count",
+                    centerlineIdentification.HorizontalLineCount,
+                "center_vertical_line_count",
+                    centerlineIdentification.VerticalLineCount,
+                "center_angled_line_count",
+                    centerlineIdentification.AngledLineCount,
                 "output_dir", outDir);
 
             var semantic = Map(
@@ -405,11 +450,11 @@ namespace Shb.Thcad.Extractor
                 Path.Combine(outDir, "layer-analysis.md"),
                 layerAnalysis.ToMarkdown());
             AtomicWrite(
-                Path.Combine(outDir, "body-centerline-analysis.json"),
-                JsonUtil.Serialize(bodyCenterlineAnalysisMap));
+                Path.Combine(outDir, "centerline-identification.json"),
+                JsonUtil.Serialize(centerlineIdentificationMap));
             AtomicWrite(
-                Path.Combine(outDir, "body-centerline-analysis.md"),
-                bodyCenterlineAnalysis.ToMarkdown());
+                Path.Combine(outDir, "centerline-identification.md"),
+                centerlineIdentification.ToMarkdown());
             AtomicWrite(Path.Combine(outDir, "tables.json"), JsonUtil.Serialize(tables));
             AtomicWrite(Path.Combine(outDir, "semantic-objects.json"), JsonUtil.Serialize(semantic));
             AtomicWrite(Path.Combine(outDir, "extraction-report.json"), JsonUtil.Serialize(report));
@@ -501,7 +546,14 @@ namespace Shb.Thcad.Extractor
                         }
 
                         string ownerScope = OwnerScope(owner);
-                        Dictionary<string, object> record = SerializeEntity(ent, owner, ownerScope, tr);
+                        XuhaoAnnotationCoordinates xuhaoCoordinates =
+                            XuhaoAnnotationCoordinateExtractor.Extract(ent);
+                        Dictionary<string, object> record = SerializeEntity(
+                            ent,
+                            owner,
+                            ownerScope,
+                            tr,
+                            xuhaoCoordinates);
                         record["selection_index"] = selectionIndex;
                         record["selection_source"] = "pickfirst";
 
@@ -614,7 +666,8 @@ namespace Shb.Thcad.Extractor
             Entity ent,
             BlockTableRecord owner,
             string ownerScope,
-            Transaction tr)
+            Transaction tr,
+            XuhaoAnnotationCoordinates xuhaoCoordinates)
         {
             bool isProxy = ent.IsAProxy || ent is ProxyEntity;
             var record = new Dictionary<string, object>(StringComparer.Ordinal)
@@ -635,7 +688,7 @@ namespace Shb.Thcad.Extractor
                 { "owner_handle", HandleOf(owner) },
                 { "block_path", new[] { owner.Name } },
                 { "bbox", BBoxOf(ent) },
-                { "geometry", GeometryOf(ent, tr) },
+                { "geometry", GeometryOf(ent, tr, xuhaoCoordinates) },
                 { "text", TextOf(ent) },
                 { "attributes", AttributesOf(ent, tr) },
                 { "xdata", XDataOf(ent) },
@@ -657,7 +710,10 @@ namespace Shb.Thcad.Extractor
             return record;
         }
 
-        static Dictionary<string, object> GeometryOf(Entity ent, Transaction tr)
+        static Dictionary<string, object> GeometryOf(
+            Entity ent,
+            Transaction tr,
+            XuhaoAnnotationCoordinates xuhaoCoordinates)
         {
             try
             {
@@ -772,7 +828,17 @@ namespace Shb.Thcad.Extractor
                 var leader = ent as Leader;
                 if (leader != null)
                 {
-                    return Map("kind", "leader", "has_arrow_head", leader.HasArrowHead);
+                    var vertices = new List<object>();
+                    int vertexCount = leader.NumVertices;
+                    for (int index = 0; index < vertexCount; index++)
+                    {
+                        vertices.Add(Pt(leader.VertexAt(index)));
+                    }
+                    return Map(
+                        "kind", "leader",
+                        "has_arrow_head", leader.HasArrowHead,
+                        "vertex_count", vertexCount,
+                        "vertices", vertices);
                 }
 
                 var solid = ent as Solid;
@@ -829,7 +895,18 @@ namespace Shb.Thcad.Extractor
                 string rx = RxName(ent);
                 if (rx.StartsWith("TH_", StringComparison.Ordinal) || rx.StartsWith("PC_", StringComparison.Ordinal))
                 {
-                    return Map("kind", "professional", "rx", rx, "custom", CustomPayload(ent));
+                    Dictionary<string, object> professional = Map(
+                        "kind", "professional",
+                        "rx", rx,
+                        "custom", CustomPayload(ent));
+                    if (xuhaoCoordinates != null)
+                    {
+                        professional["pointing_position"] =
+                            xuhaoCoordinates.PointingPosition;
+                        professional["number_position"] =
+                            xuhaoCoordinates.NumberPosition;
+                    }
+                    return professional;
                 }
 
                 return Map("kind", "unparsed", "managed_type", ent.GetType().Name);
@@ -1151,7 +1228,13 @@ namespace Shb.Thcad.Extractor
                 "is_proxy", obj.IsAProxy);
         }
 
-        static void DumpNamedObjects(Database db, Transaction tr, StreamWriter writer)
+        static void DumpNamedObjects(
+            Database db,
+            Transaction tr,
+            StreamWriter writer,
+            IList<MechanicalBomAnnotationObservation> bomAnnotations,
+            ISet<string> xuhaoEntityHandles,
+            IDictionary<string, XuhaoAnnotationCoordinates> xuhaoCoordinatesByHandle)
         {
             var nod = tr.GetObject(db.NamedObjectsDictionaryId, OpenMode.ForRead) as DBDictionary;
             if (nod == null)
@@ -1164,6 +1247,18 @@ namespace Shb.Thcad.Extractor
                 try
                 {
                     DBObject child = tr.GetObject(entry.Value, OpenMode.ForRead, false);
+                    if (string.Equals(
+                        entry.Key,
+                        "PC_BOMXHRELATEDIC",
+                        StringComparison.Ordinal))
+                    {
+                        CollectMechanicalBomAnnotations(
+                            child,
+                            tr,
+                            bomAnnotations,
+                            xuhaoEntityHandles,
+                            xuhaoCoordinatesByHandle);
+                    }
                     WriteLine(writer, Map(
                         "key", entry.Key,
                         "object", DumpDbObject(child, tr, MaxDictionaryDepth)));
@@ -1527,67 +1622,261 @@ namespace Shb.Thcad.Extractor
                 maxY);
         }
 
-        static BodyCenterlineTextObservation BodyCenterlineTextObservationOf(
+        static CenterlinePrimitiveObservation CenterlinePrimitiveObservationOf(
+            Dictionary<string, object> record)
+        {
+            Dictionary<string, object> geometry = record.ContainsKey("geometry")
+                ? record["geometry"] as Dictionary<string, object>
+                : null;
+            if (geometry == null)
+            {
+                return null;
+            }
+            string kind = geometry.ContainsKey("kind")
+                ? Convert.ToString(geometry["kind"], CultureInfo.InvariantCulture) ?? ""
+                : "";
+            string handle = record.ContainsKey("handle")
+                ? Convert.ToString(record["handle"], CultureInfo.InvariantCulture) ?? ""
+                : "";
+            string layer = record.ContainsKey("layer")
+                ? Convert.ToString(record["layer"], CultureInfo.InvariantCulture) ?? ""
+                : "";
+            string entityLinetype = record.ContainsKey("linetype")
+                ? Convert.ToString(record["linetype"], CultureInfo.InvariantCulture) ?? ""
+                : "";
+            string ownerScope = record.ContainsKey("owner_scope")
+                ? Convert.ToString(record["owner_scope"], CultureInfo.InvariantCulture) ?? ""
+                : "";
+            string ownerBlockName = record.ContainsKey("owner_block_name")
+                ? Convert.ToString(record["owner_block_name"], CultureInfo.InvariantCulture) ?? ""
+                : "";
+
+            if (string.Equals(kind, "line", StringComparison.Ordinal))
+            {
+                object start = geometry.ContainsKey("start") ? geometry["start"] : null;
+                object end = geometry.ContainsKey("end") ? geometry["end"] : null;
+                double startX = CoordinateAt(start, 0, double.NaN);
+                double startY = CoordinateAt(start, 1, double.NaN);
+                double endX = CoordinateAt(end, 0, double.NaN);
+                double endY = CoordinateAt(end, 1, double.NaN);
+                if (AnyNaN(startX, startY, endX, endY))
+                {
+                    return null;
+                }
+                return CenterlinePrimitiveObservation.CreateLine(
+                    handle,
+                    layer,
+                    entityLinetype,
+                    ownerScope,
+                    ownerBlockName,
+                    startX,
+                    startY,
+                    endX,
+                    endY);
+            }
+            if (string.Equals(kind, "arc", StringComparison.Ordinal))
+            {
+                object center = geometry.ContainsKey("center") ? geometry["center"] : null;
+                double centerX = CoordinateAt(center, 0, double.NaN);
+                double centerY = CoordinateAt(center, 1, double.NaN);
+                double radius = NumberValue(geometry, "radius", double.NaN);
+                double startAngle = NumberValue(geometry, "start_angle", double.NaN);
+                double endAngle = NumberValue(geometry, "end_angle", double.NaN);
+                if (AnyNaN(centerX, centerY, radius, startAngle, endAngle))
+                {
+                    return null;
+                }
+                return CenterlinePrimitiveObservation.CreateArc(
+                    handle,
+                    layer,
+                    entityLinetype,
+                    ownerScope,
+                    ownerBlockName,
+                    centerX,
+                    centerY,
+                    radius,
+                    startAngle,
+                    endAngle);
+            }
+            if (string.Equals(kind, "circle", StringComparison.Ordinal))
+            {
+                object center = geometry.ContainsKey("center") ? geometry["center"] : null;
+                double centerX = CoordinateAt(center, 0, double.NaN);
+                double centerY = CoordinateAt(center, 1, double.NaN);
+                double radius = NumberValue(geometry, "radius", double.NaN);
+                if (AnyNaN(centerX, centerY, radius))
+                {
+                    return null;
+                }
+                return CenterlinePrimitiveObservation.CreateCircle(
+                    handle,
+                    layer,
+                    entityLinetype,
+                    ownerScope,
+                    ownerBlockName,
+                    centerX,
+                    centerY,
+                    radius);
+            }
+            if (string.Equals(kind, "lwpolyline", StringComparison.Ordinal))
+            {
+                var vertices = new List<CenterlineVertexObservation>();
+                System.Collections.IList rawVertices = geometry.ContainsKey("vertices")
+                    ? geometry["vertices"] as System.Collections.IList
+                    : null;
+                if (rawVertices == null)
+                {
+                    return null;
+                }
+                foreach (object item in rawVertices)
+                {
+                    Dictionary<string, object> vertex = item as Dictionary<string, object>;
+                    if (vertex == null)
+                    {
+                        continue;
+                    }
+                    object point = vertex.ContainsKey("point") ? vertex["point"] : null;
+                    double x = CoordinateAt(point, 0, double.NaN);
+                    double y = CoordinateAt(point, 1, double.NaN);
+                    if (!double.IsNaN(x) && !double.IsNaN(y))
+                    {
+                        vertices.Add(new CenterlineVertexObservation(
+                            x,
+                            y,
+                            NumberValue(vertex, "bulge", 0)));
+                    }
+                }
+                return CenterlinePrimitiveObservation.CreatePolyline(
+                    handle,
+                    layer,
+                    entityLinetype,
+                    ownerScope,
+                    ownerBlockName,
+                    BooleanValue(geometry, "closed"),
+                    vertices);
+            }
+            if (string.Equals(kind, "spline", StringComparison.Ordinal))
+            {
+                var points = new List<CenterlinePointObservation>();
+                System.Collections.IList rawPoints = geometry.ContainsKey("control_points")
+                    ? geometry["control_points"] as System.Collections.IList
+                    : null;
+                if (rawPoints == null)
+                {
+                    return null;
+                }
+                foreach (object point in rawPoints)
+                {
+                    double x = CoordinateAt(point, 0, double.NaN);
+                    double y = CoordinateAt(point, 1, double.NaN);
+                    if (!double.IsNaN(x) && !double.IsNaN(y))
+                    {
+                        points.Add(new CenterlinePointObservation(x, y));
+                    }
+                }
+                return CenterlinePrimitiveObservation.CreateSpline(
+                    handle,
+                    layer,
+                    entityLinetype,
+                    ownerScope,
+                    ownerBlockName,
+                    BooleanValue(geometry, "closed"),
+                    points);
+            }
+            return null;
+        }
+
+        static CenterlineLabelLeaderObservation CenterlineLabelLeaderObservationOf(
             Dictionary<string, object> record)
         {
             string managedType = record.ContainsKey("managed_type")
                 ? Convert.ToString(record["managed_type"], CultureInfo.InvariantCulture)
                 : "";
-            if (!string.Equals(managedType, "DBText", StringComparison.Ordinal)
-                && !string.Equals(managedType, "MText", StringComparison.Ordinal))
+            if (!string.Equals(managedType, "Leader", StringComparison.Ordinal))
             {
                 return null;
             }
 
-            string value = "";
-            object text = record.ContainsKey("text") ? record["text"] : null;
-            if (text is string)
+            Dictionary<string, object> custom = record.ContainsKey("custom")
+                ? record["custom"] as Dictionary<string, object>
+                : null;
+            System.Collections.IList exploded = custom != null && custom.ContainsKey("explode")
+                ? custom["explode"] as System.Collections.IList
+                : null;
+            if (exploded == null)
             {
-                value = (string)text;
+                return null;
             }
-            else
+            string value = "";
+            foreach (object item in exploded)
             {
-                Dictionary<string, object> textMap = text as Dictionary<string, object>;
-                if (textMap != null && textMap.ContainsKey("plain"))
+                Dictionary<string, object> part = item as Dictionary<string, object>;
+                if (part == null)
                 {
-                    value = Convert.ToString(textMap["plain"], CultureInfo.InvariantCulture) ?? "";
+                    continue;
+                }
+                string candidate = "";
+                if (part.ContainsKey("plain"))
+                {
+                    candidate = Convert.ToString(part["plain"], CultureInfo.InvariantCulture) ?? "";
+                }
+                else if (part.ContainsKey("string"))
+                {
+                    candidate = Convert.ToString(part["string"], CultureInfo.InvariantCulture) ?? "";
+                }
+                if (candidate.IndexOf("中心线", StringComparison.Ordinal) >= 0)
+                {
+                    value = candidate;
+                    if (part.ContainsKey("plain"))
+                    {
+                        break;
+                    }
                 }
             }
+            if (string.IsNullOrEmpty(value))
+            {
+                return null;
+            }
 
-            Dictionary<string, object> bbox = record.ContainsKey("bbox")
-                ? record["bbox"] as Dictionary<string, object>
+            Dictionary<string, object> geometry = record.ContainsKey("geometry")
+                ? record["geometry"] as Dictionary<string, object>
                 : null;
-            if (bbox == null || !bbox.ContainsKey("min") || !bbox.ContainsKey("max"))
+            System.Collections.IList vertices = geometry != null && geometry.ContainsKey("vertices")
+                ? geometry["vertices"] as System.Collections.IList
+                : null;
+            if (vertices == null || vertices.Count < 2)
             {
                 return null;
             }
-            double minX = CoordinateAt(bbox["min"], 0, double.NaN);
-            double minY = CoordinateAt(bbox["min"], 1, double.NaN);
-            double maxX = CoordinateAt(bbox["max"], 0, double.NaN);
-            double maxY = CoordinateAt(bbox["max"], 1, double.NaN);
-            if (double.IsNaN(minX)
-                || double.IsNaN(minY)
-                || double.IsNaN(maxX)
-                || double.IsNaN(maxY))
+            object first = vertices[0];
+            object last = vertices[vertices.Count - 1];
+            double startX = CoordinateAt(first, 0, double.NaN);
+            double startY = CoordinateAt(first, 1, double.NaN);
+            double endX = CoordinateAt(last, 0, double.NaN);
+            double endY = CoordinateAt(last, 1, double.NaN);
+            if (double.IsNaN(startX)
+                || double.IsNaN(startY)
+                || double.IsNaN(endX)
+                || double.IsNaN(endY))
             {
                 return null;
             }
 
-            return new BodyCenterlineTextObservation(
+            return new CenterlineLabelLeaderObservation(
                 record.ContainsKey("handle")
                     ? Convert.ToString(record["handle"], CultureInfo.InvariantCulture)
-                    : "",
-                record.ContainsKey("layer")
-                    ? Convert.ToString(record["layer"], CultureInfo.InvariantCulture)
                     : "",
                 record.ContainsKey("owner_scope")
                     ? Convert.ToString(record["owner_scope"], CultureInfo.InvariantCulture)
                     : "",
+                record.ContainsKey("owner_block_name")
+                    ? Convert.ToString(record["owner_block_name"], CultureInfo.InvariantCulture)
+                    : "",
                 value,
-                minX,
-                minY,
-                maxX,
-                maxY);
+                startX,
+                startY,
+                endX,
+                endY);
         }
 
         static CadLayerEntityObservation CadLayerEntityObservationOf(
@@ -1674,10 +1963,10 @@ namespace Shb.Thcad.Extractor
             return result;
         }
 
-        static List<BodyCenterlineLayerObservation> BodyCenterlineLayerDefinitionsOf(
+        static List<CenterlineLayerObservation> CenterlineLayerDefinitionsOf(
             Dictionary<string, object> tables)
         {
-            var result = new List<BodyCenterlineLayerObservation>();
+            var result = new List<CenterlineLayerObservation>();
             System.Collections.IList layers = tables != null && tables.ContainsKey("layers")
                 ? tables["layers"] as System.Collections.IList
                 : null;
@@ -1692,7 +1981,7 @@ namespace Shb.Thcad.Extractor
                 {
                     continue;
                 }
-                result.Add(new BodyCenterlineLayerObservation(
+                result.Add(new CenterlineLayerObservation(
                     layer.ContainsKey("name")
                         ? Convert.ToString(layer["name"], CultureInfo.InvariantCulture)
                         : "",
@@ -1720,6 +2009,131 @@ namespace Shb.Thcad.Extractor
             {
                 return false;
             }
+        }
+
+        static void CollectMechanicalBomAnnotations(
+            DBObject source,
+            Transaction tr,
+            IList<MechanicalBomAnnotationObservation> observations,
+            ISet<string> xuhaoEntityHandles,
+            IDictionary<string, XuhaoAnnotationCoordinates> xuhaoCoordinatesByHandle)
+        {
+            var dictionary = source as DBDictionary;
+            if (dictionary == null || observations == null)
+            {
+                return;
+            }
+
+            foreach (DBDictionaryEntry entry in dictionary)
+            {
+                int itemNumber;
+                string xuhaoHandle;
+                if (!TryParseMechanicalBomAnnotationKey(
+                    entry.Key,
+                    out itemNumber,
+                    out xuhaoHandle))
+                {
+                    continue;
+                }
+
+                DBObject association = null;
+                try
+                {
+                    association = tr.GetObject(entry.Value, OpenMode.ForRead, false);
+                }
+                catch
+                {
+                }
+
+                XuhaoAnnotationCoordinates coordinates = null;
+                if (xuhaoCoordinatesByHandle != null)
+                {
+                    xuhaoCoordinatesByHandle.TryGetValue(xuhaoHandle, out coordinates);
+                }
+
+                observations.Add(new MechanicalBomAnnotationObservation(
+                    itemNumber,
+                    entry.Key,
+                    xuhaoHandle,
+                    association == null ? HandleOf(entry.Value) : HandleOf(association),
+                    association == null ? "" : RxName(association),
+                    xuhaoEntityHandles != null
+                        && xuhaoEntityHandles.Contains(xuhaoHandle),
+                    coordinates == null ? null : coordinates.PointingPosition,
+                    coordinates == null ? null : coordinates.NumberPosition));
+            }
+        }
+
+        static bool TryParseMechanicalBomAnnotationKey(
+            string key,
+            out int itemNumber,
+            out string xuhaoHandle)
+        {
+            itemNumber = 0;
+            xuhaoHandle = "";
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return false;
+            }
+
+            int separator = key.IndexOf('#');
+            if (separator <= 0
+                || separator >= key.Length - 1
+                || key.IndexOf('#', separator + 1) >= 0)
+            {
+                return false;
+            }
+
+            ulong decimalHandle;
+            if (!int.TryParse(
+                    key.Substring(0, separator),
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out itemNumber)
+                || itemNumber <= 0
+                || !ulong.TryParse(
+                    key.Substring(separator + 1),
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out decimalHandle))
+            {
+                itemNumber = 0;
+                return false;
+            }
+
+            xuhaoHandle = decimalHandle.ToString("X", CultureInfo.InvariantCulture);
+            return true;
+        }
+
+        static double NumberValue(
+            Dictionary<string, object> values,
+            string key,
+            double fallback)
+        {
+            if (values == null || !values.ContainsKey(key) || values[key] == null)
+            {
+                return fallback;
+            }
+            try
+            {
+                return Convert.ToDouble(values[key], CultureInfo.InvariantCulture);
+            }
+            catch
+            {
+                return fallback;
+            }
+        }
+
+        static bool AnyNaN(params double[] values)
+        {
+            foreach (double value in values)
+            {
+                if (double.IsNaN(value))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         static string ThXuhaoItemNumber(Dictionary<string, object> record)

@@ -1,5 +1,6 @@
 **/bin/
 **/obj/
+probes/.tmp-*
 **/.vs/
 out/
 scripts/*.scr

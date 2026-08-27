@@ -125,6 +125,42 @@ $expectedRowCounts = [ordered]@{
     "5TBC.709.A110050.1_2"   = 64
     "8TBC.312.A110050.101_1" = 0
 }
+$expectedAnnotationSourceCounts = [ordered]@{
+    "5TBC.384.A110050.1_1"   = 51
+    "5TBC.384.A110050.2_1"   = 24
+    "5TBC.426.A110050.1_1"   = 10
+    "5TBC.457.A110050.1_1"   = 62
+    "5TBC.709.A110050.1_1"   = 27
+    "5TBC.709.A110050.1_2"   = 0
+    "8TBC.312.A110050.101_1" = 0
+}
+$expectedAttachedAnnotationCounts = [ordered]@{
+    "5TBC.384.A110050.1_1"   = 51
+    "5TBC.384.A110050.2_1"   = 24
+    "5TBC.426.A110050.1_1"   = 10
+    "5TBC.457.A110050.1_1"   = 62
+    "5TBC.709.A110050.1_1"   = 0
+    "5TBC.709.A110050.1_2"   = 0
+    "8TBC.312.A110050.101_1" = 0
+}
+$expectedAnnotatedRowCounts = [ordered]@{
+    "5TBC.384.A110050.1_1"   = 45
+    "5TBC.384.A110050.2_1"   = 24
+    "5TBC.426.A110050.1_1"   = 10
+    "5TBC.457.A110050.1_1"   = 57
+    "5TBC.709.A110050.1_1"   = 0
+    "5TBC.709.A110050.1_2"   = 0
+    "8TBC.312.A110050.101_1" = 0
+}
+$expectedPresentAttachedAnnotationCounts = [ordered]@{
+    "5TBC.384.A110050.1_1"   = 46
+    "5TBC.384.A110050.2_1"   = 24
+    "5TBC.426.A110050.1_1"   = 10
+    "5TBC.457.A110050.1_1"   = 61
+    "5TBC.709.A110050.1_1"   = 0
+    "5TBC.709.A110050.1_2"   = 0
+    "8TBC.312.A110050.101_1" = 0
+}
 $expectedLabels = @("序号", "代号", "名称", "数量", "材料", "单重", "总重", "备注")
 $results = @()
 $documents = @{}
@@ -137,16 +173,50 @@ foreach ($drawingId in $expectedRowCounts.Keys) {
     }
 
     $observations = [System.Collections.Generic.List[Shb.Cad.Core.MechanicalBomRowObservation]]::new()
+    $xuhaoHandles = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::OrdinalIgnoreCase)
     foreach ($line in Get-Content -LiteralPath $entitiesPath) {
-        if ($line -notlike '*"owner_scope":"model_space"*' `
-            -or $line -notlike '*"block_name":"PC_MXB_BLOCK"*') {
-            continue
+        if ($line -like '*"runtime_class":"TH_XuHaoEntity"*') {
+            $xuhao = $line | ConvertFrom-Json
+            [void]$xuhaoHandles.Add([string]$xuhao.handle)
         }
-        $record = $line | ConvertFrom-Json
-        $observations.Add((New-BomObservation $record))
+        if ($line -like '*"owner_scope":"model_space"*' `
+            -and $line -like '*"block_name":"PC_MXB_BLOCK"*') {
+            $record = $line | ConvertFrom-Json
+            $observations.Add((New-BomObservation $record))
+        }
     }
 
-    $document = [Shb.Cad.Core.MechanicalBomKnowledgeBuilder]::Build($drawingId, $observations)
+    $annotationObservations = [System.Collections.Generic.List[Shb.Cad.Core.MechanicalBomAnnotationObservation]]::new()
+    $dictionariesPath = Join-Path $ExtractionRoot "$drawingId\dictionaries.jsonl"
+    foreach ($line in Get-Content -LiteralPath $dictionariesPath) {
+        if ($line -notlike '*"key":"PC_BOMXHRELATEDIC"*') {
+            continue
+        }
+        $dictionaryRecord = $line | ConvertFrom-Json
+        foreach ($item in $dictionaryRecord.object.items.PSObject.Properties) {
+            $parts = $item.Name -split '#'
+            if ($parts.Count -ne 2) {
+                continue
+            }
+            $itemNumber = [int]$parts[0]
+            $xuhaoHandle = [Convert]::ToString([int64]$parts[1], 16).ToUpperInvariant()
+            $annotationObservations.Add(
+                [Shb.Cad.Core.MechanicalBomAnnotationObservation]::new(
+                    $itemNumber,
+                    [string]$item.Name,
+                    $xuhaoHandle,
+                    [string]$item.Value.handle,
+                    [string]$item.Value.runtime_class,
+                    $xuhaoHandles.Contains($xuhaoHandle)))
+        }
+    }
+    Assert-Equal $expectedAnnotationSourceCounts[$drawingId] $annotationObservations.Count "$drawingId annotation source count"
+
+    $document = [Shb.Cad.Core.MechanicalBomKnowledgeBuilder]::Build(
+        $drawingId,
+        $observations,
+        $annotationObservations)
     $documents[$drawingId] = $document
     $expectedRows = $expectedRowCounts[$drawingId]
     Assert-Equal $expectedRows $document.RowCount "$drawingId BOM row count"
@@ -163,6 +233,9 @@ foreach ($drawingId in $expectedRowCounts.Keys) {
         Assert-Equal 0 $table.DuplicateItemNumbers.Count "$drawingId duplicate item numbers"
         Assert-Equal $expectedRows $table.XDataComparableRowCount "$drawingId TH_XUHAO comparable rows"
         Assert-Equal $expectedRows $table.XDataMatchingRowCount "$drawingId TH_XUHAO matching rows"
+        Assert-Equal $expectedAttachedAnnotationCounts[$drawingId] $table.AnnotationLinkCount "$drawingId attached annotation count"
+        Assert-Equal $expectedAnnotatedRowCounts[$drawingId] $table.AnnotatedRowCount "$drawingId annotated row count"
+        Assert-Equal $expectedPresentAttachedAnnotationCounts[$drawingId] $table.PresentAnnotationLinkCount "$drawingId present annotation link count"
         foreach ($row in $table.Rows) {
             Assert-Equal 8 $row.Values.Count "$drawingId row $($row.Id) normalized cell count"
             Assert-Equal 0 $row.MissingColumns.Count "$drawingId row $($row.Id) missing columns"
@@ -182,6 +255,7 @@ foreach ($drawingId in $expectedRowCounts.Keys) {
         Rows = $document.RowCount
         Sequence = if ($expectedRows -gt 0) { "1-$expectedRows" } else { "-" }
         ThXuhaoMatches = if ($expectedRows -gt 0) { "$expectedRows/$expectedRows" } else { "-" }
+        AnnotationLinks = if ($document.Tables.Count -gt 0) { $document.Tables[0].AnnotationLinkCount } else { 0 }
     }
 }
 
@@ -203,6 +277,28 @@ $row20Quantity = $row20[0].ParsedValues["quantity"]
 Assert-Equal 1 $row20Quantity["value"] "lower 384 row 20 parsed quantity"
 Assert-Equal "parenthesized" $row20Quantity["notation"] "lower 384 row 20 quantity notation"
 
+# The currently selected annotation in the upper 5TBC.384 drawing proves the
+# full row -> named dictionary -> TH_XuHaoEntity chain without reading the
+# number from graphics.
+$upper384 = $documents["5TBC.384.A110050.1_1"].Tables[0]
+$upperRow1 = @($upper384.Rows | Where-Object ItemNumber -eq 1)
+Assert-Equal 1 $upperRow1.Count "upper 384 row 1"
+Assert-Equal "箱壁" $upperRow1[0].Values["name"] "upper 384 row 1 name"
+Assert-Equal 1 $upperRow1[0].Annotations.Count "upper 384 row 1 annotation count"
+Assert-Equal "6A3C" $upperRow1[0].Annotations[0].XuhaoHandle "upper 384 row 1 annotation handle"
+Assert-Equal "1#27196" $upperRow1[0].Annotations[0].DictionaryKey "upper 384 row 1 dictionary key"
+Assert-Equal "4E3C6" $upperRow1[0].Annotations[0].AssociationRecordHandle "upper 384 row 1 association record"
+Assert-Equal $true $upperRow1[0].Annotations[0].EntityPresent "upper 384 row 1 annotation entity present"
+$upper384Json = $documents["5TBC.384.A110050.1_1"].ToMap() | ConvertTo-Json -Depth 20 -Compress
+if ($upper384Json -notlike '*"xuhao_handle":"6A3C"*' `
+    -or $upper384Json -notlike '*"dictionary_key":"1#27196"*' `
+    -or $upper384Json -notlike '*"present_entity_link_count":46*') {
+    throw "upper 384 annotation knowledge did not serialize"
+}
+
+$upperRow10 = @($upper384.Rows | Where-Object ItemNumber -eq 10)
+Assert-Equal 2 $upperRow10[0].Annotations.Count "upper 384 row 10 repeated annotations"
+
 # Synthetic regression: report gaps, duplicates, XData mismatches, missing
 # columns, and duplicate attribute labels instead of silently normalizing them.
 $problemRows = [System.Collections.Generic.List[Shb.Cad.Core.MechanicalBomRowObservation]]::new()
@@ -222,5 +318,35 @@ $quality = [Shb.Cad.Core.MechanicalBomKnowledgeBuilder]::Build("synthetic-qualit
 Assert-Equal "remark" ($quality.MissingColumns -join ",") "synthetic missing column"
 Assert-Equal "名称" ($quality.DuplicateLabels -join ",") "synthetic duplicate label"
 
+# One item may have multiple annotation records. A dictionary record whose
+# sequence has no BOM row stays in the raw dictionary and is not attached to a
+# different row.
+$annotationRows = [System.Collections.Generic.List[Shb.Cad.Core.MechanicalBomRowObservation]]::new()
+$annotationRows.Add((New-SyntheticObservation "annotation-row" "1" "1"))
+$annotationLinks = [System.Collections.Generic.List[Shb.Cad.Core.MechanicalBomAnnotationObservation]]::new()
+$annotationLinks.Add([Shb.Cad.Core.MechanicalBomAnnotationObservation]::new(
+    1, "1#16", "10", "A1", "TH_BOMItem2XuhaoAssoiateRecoder", $true,
+    [double[]]@(10, 20, 0), [double[]]@(30, 40, 0)))
+$annotationLinks.Add([Shb.Cad.Core.MechanicalBomAnnotationObservation]::new(
+    1, "1#17", "11", "A2", "TH_BOMItem2XuhaoAssoiateRecoder", $false,
+    $null, [double[]]@(50, 60, 0)))
+$annotationLinks.Add([Shb.Cad.Core.MechanicalBomAnnotationObservation]::new(
+    99, "99#18", "12", "A3", "TH_BOMItem2XuhaoAssoiateRecoder", $true))
+$annotationTable = [Shb.Cad.Core.MechanicalBomKnowledgeBuilder]::Build(
+    "synthetic-annotations", $annotationRows, $annotationLinks).Tables[0]
+Assert-Equal 1 $annotationTable.AnnotatedRowCount "synthetic annotated row count"
+Assert-Equal 2 $annotationTable.AnnotationLinkCount "synthetic attached annotation count"
+Assert-Equal 1 $annotationTable.PresentAnnotationLinkCount "synthetic present annotation link count"
+Assert-Equal "10,11" (($annotationTable.Rows[0].Annotations | ForEach-Object XuhaoHandle) -join ",") "synthetic annotation ordering"
+Assert-Equal "10,20,0" ($annotationTable.Rows[0].Annotations[0].PointingPosition -join ",") "synthetic pointing position"
+Assert-Equal "30,40,0" ($annotationTable.Rows[0].Annotations[0].NumberPosition -join ",") "synthetic number position"
+Assert-Equal $null $annotationTable.Rows[0].Annotations[1].PointingPosition "missing annotation pointing position"
+Assert-Equal "50,60,0" ($annotationTable.Rows[0].Annotations[1].NumberPosition -join ",") "number-only annotation position"
+$documentMap = [Shb.Cad.Core.MechanicalBomKnowledgeBuilder]::Build(
+    "synthetic-annotation-map", $annotationRows, $annotationLinks).ToMap()
+$mappedAnnotation = $documentMap["tables"][0]["rows"][0]["annotations"][0]
+Assert-Equal "10,20,0" ($mappedAnnotation["pointing_position"] -join ",") "mapped pointing position"
+Assert-Equal "30,40,0" ($mappedAnnotation["number_position"] -join ",") "mapped number position"
+
 $results | Format-Table -AutoSize
-Write-Host "PASS: 7/7 drawings; 5 native BOM tables; 208 rows; 8 fields per row; all TH_XUHAO values match; quality regressions."
+Write-Host "PASS: 7/7 drawings; 5 native BOM tables; 208 rows; 147 row-to-annotation links; coordinate fields; quality regressions."
