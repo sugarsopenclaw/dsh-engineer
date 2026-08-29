@@ -1,0 +1,20 @@
+{
+  "extends": "../../pi/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "typeRoots": [
+      "../../pi/node_modules/@types"
+    ],
+    "paths": {
+      "@earendil-works/pi-coding-agent": [
+        "../../pi/packages/coding-agent/dist/index.d.ts"
+      ],
+      "@earendil-works/pi-tui": [
+        "../../pi/packages/tui/dist/index.d.ts"
+      ]
+    }
+  },
+  "include": [
+    "extensions/**/*.ts"
+  ]
+}

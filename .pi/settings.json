@@ -1,0 +1,15 @@
+{
+  "defaultProvider": "deepseek",
+  "defaultModel": "deepseek-v4-flash",
+  "defaultThinkingLevel": "high",
+  "enabledModels": [
+    "deepseek/deepseek-v4-flash",
+    "deepseek/deepseek-v4-pro",
+    "deepseek/deepseek-v4-flash-vision-exp"
+  ],
+  "theme": "shenbian",
+  "tuiMode": "regular",
+  "packages": [
+    "../plugins/shenbian-pi"
+  ]
+}

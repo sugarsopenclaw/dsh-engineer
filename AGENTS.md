@@ -1,8 +1,8 @@
 # AGENTS.md
 
-本仓库是 DeepSeek Harness 的下游二次开发，按官方推荐方式：**不改上游源码，能力都做成独立插件**。
+本仓库以 Pi Coding Agent 为 Agent 与 TUI 基座，按上游公开扩展方式二次开发：**不改上游源码，沈变能力都放在独立 Pi package**。
 
-`harness/AGENTS.md` 是上游给官方仓库贡献者看的，不适用于本仓库。改能力时只看本文件。
+`pi/AGENTS.md` 与 `harness/AGENTS.md` 都是上游仓库的贡献说明，不适用于本仓库。改本项目能力时只看本文件。DeepSeek Harness 代码暂留作迁移期兼容，不再承载新功能。
 
 ## 目录
 
@@ -11,19 +11,20 @@
 | `client-data/` | 客户原文 drop（只收不改，不进 git） |
 | `data/` | Data Layer：登记、管线、派生数据集 |
 | `ontology/` | 对象 / 属性 / 链接 / 动作的类型定义 |
-| `backend/` | Harness 的共享 API 与模型网关：按需提供 CRUD、知识/数据分发和基础设施适配；只读根 `.env` |
+| `backend/` | Pi extension 按需调用的共享 API：提供 CRUD、知识/数据分发和基础设施适配；只读根 `.env` |
 | `frontend/` | 产品 Web 前端：只通过 `backend/` 的 `/api/v1` 契约读取或操作业务数据，不直连数据库、不读取客户原文 |
-| `plugins/` | 我们的插件（`dsh.bundle`） |
-| `patches/` | 本地 `--patch` 叠加层 |
-| `harness/` | 上游 submodule，只读 |
+| `.pi/` | 项目级 Pi 设置；`runtime/` 是默认隔离状态目录并忽略，不放密钥或可提交运行缓存 |
+| `plugins/` | 我们的 Pi package；当前入口是 `plugins/shenbian-pi/` |
+| `pi/` | Pi Coding Agent 上游 submodule，只读，固定到已验证 release commit |
+| `harness/` / `patches/` | DeepSeek Harness 迁移期遗留，只维护已有兼容，不新增业务能力 |
 | `specs/` | SDD：先规格后实现 |
 | `docs/` | 本仓库文档（调研、开发笔记等）；规格仍写 `specs/` |
-| `other-projects/` | 对本工程有帮助的参考项目，只参考。晓量冻结快照进本仓 `other-projects/xiaoliang/`（钉 `94720be`），不要 `git pull` 原仓、不要当 submodule；`pi` / `grok-build` 等仍只留本机 |
+| `other-projects/` | 对本工程有帮助的参考项目，只参考。晓量冻结快照进本仓 `other-projects/xiaoliang/`（钉 `94720be`），不要 `git pull` 原仓、不要当 submodule；`grok-build` 等其余克隆仍只留本机 |
 | `dev-test/` | 本机实验 / PoC（如 AutoCAD 抽取器）。不是产品层，不进 `plugins/` / `data/pipelines/` |
 | `cloud-dev/` | 云开发工作区（Cloud Agent / 远程环境）。不是产品层，不进 `plugins/` / `data/pipelines/` |
 | `.env` / `.env.example` | 全仓库环境变量，只认根目录这一份；两份键集合必须一致；`.env` 不进 git |
 
-分层边界见 `specs/001-platform-layers/`。不要在 `client-data/` 写派生文件（含 CAD `.bak`、抽取 JSON）；不要把数据集或对象实例放进 `plugins/`。`dev-test/` 和 `cloud-dev/` 的编译产物和抽取输出不进 git。
+分层边界见 `specs/001-platform-layers/`。产品主循环是 `Pi TUI / 未来 GUI → 沈变 Pi package → 本地 THCAD + backend/`。不要在 `client-data/` 写派生文件（含 CAD `.bak`、抽取 JSON）；不要把数据集或对象实例放进 `plugins/`。`dev-test/` 和 `cloud-dev/` 的编译产物和抽取输出不进 git。
 
 ## THCAD 开发前先查能力面
 
@@ -42,25 +43,27 @@
 
 ## 硬性约定
 
-- 不要修改、提交 `harness/` 里的任何文件。需要改行为就在 `plugins/` 写插件，用 `patches/` 挂进去。
-- 不要给 `deepseek-ai/deepseek-harness` 提 PR。上游目前不收外部 PR。
-- 开发时从 `harness/` 跑源码：`pnpm dsh web --patch <绝对路径的 overlay>`。插件 `name` 也要用绝对路径。
-- 升级上游用 submodule 钉 commit，先构建并确认插件仍可用，再提交 `harness` 指针。
+- 不要修改或提交 `pi/`、`harness/` 里的任何文件。新的 Agent、TUI 与 THCAD 编排能力只写在 `plugins/shenbian-pi/`，数据和对象实例仍不进插件。
+- Pi 扩展只使用文档公开入口、事件和 UI API。禁止 import `pi/packages/**/src` 或其他内部文件；Pi 核心包只声明为 `peerDependencies: "*"`，插件不得再安装或打包一份运行时。
+- 从仓库根运行 `scripts/bootstrap-pi.ps1`、`scripts/start-pi.ps1`、`scripts/verify-pi.ps1`。不要绕过项目 `.pi/settings.json` 另造一套启动配置。
+- Pi 上游只用 release tag 或完整 commit 固定。升级必须走 `scripts/update-pi.ps1 -Ref <tag-or-commit>`，通过官方全量构建、插件类型检查、CLI/TUI 和模型 smoke 后，才提交 `pi` gitlink 与兼容性改动。
+- `.pi/settings.json` 只登记可信的一方或已审计、已固定版本 package。`.pi/git/`、`.pi/npm/`、`.pi/runtime/` 等运行缓存不进 git；未知第三方 extension/package 不得自动批准。产品启动默认隔离用户全局 Pi Home，并关闭用户全局 skill 发现；个人调试只有显式传 `-UseUserPiHome`、`-UseUserSkills` 才分别合并这些资源。
 - 环境变量只认仓库根的 `.env` 和 `.env.example`。不要在 `plugins/`、`data/`、`harness/`、未来的前端/后端目录再放一份。Agent 直接读写 `.env`，不要因为怕泄露而回避或改口只动 example；密钥由维护者轮换。增删或改键名时两份必须同时改，键集合保持一致（`.env` 填真值，`.env.example` 留空或假值）。不要提交 `.env`。前端只暴露 `VITE_*`；密钥不加这个前缀。加载器（Vite `envDir`、dotenv、Compose `env_file`）指向仓库根，不要复制文件。
-- DSH 只读调用目录和 `$DSH_HOME` 的 `.env`，不往上找。当前从 `harness/` 启动时读不到仓库根 `.env`。若让 dsh 加载根 `.env`，文件里不能有 `DSH_*`、`DEEPSEEK_BASE_URL`、`DEEPSEEK_SEARCH_BASE_URL`、`BROWSER`、代理类键，否则拒启。生产用同一套键名，值由主机注入。
+- Pi 启动脚本把根 `.env` 注入当前子进程且不打印值。生产仍用同一套键名，由主机注入；不要把密钥写进 `.pi/settings.json`、主题或 extension 源码。
 - FastAPI 代码只放 `backend/`，使用 uv 和 `src/` 布局。领域模型不得依赖 FastAPI/SQLAlchemy/Redis/OSS SDK；`ontology/` 仍只放类型契约，客户数据导入仍只走 `data/pipelines/`。
 - 产品前端代码只放根目录 `frontend/`。生产运行时不得用 mock、fixture 或随机数据替代真实 API；测试替身只能存在于测试代码中。前端不直连 PostgreSQL/Redis/OSS，不读取 `client-data/`，也不把客户正文持久化到浏览器存储。
-- 产品主循环在本地 DeepSeek Harness Agent：插件组织任务并调用 THCAD 与 FastAPI。FastAPI 不代替 Agent，也不把“上传并对象化整张 DWG”设为本地 CAD 操作的前置条件。
+- 产品主循环在本地 Pi Agent：沈变 package 组织任务并调用 THCAD 与 FastAPI。FastAPI 不代替 Agent，也不把“上传并对象化整张 DWG”设为本地 CAD 操作的前置条件。
+- Pi extension 与 Agent 具有本机系统权限。仅在可信项目中运行一方 package；THCAD 写操作必须另设工作副本、预览、审批和复验边界，不能因 TUI 基座可运行就默认开放。
 
 ## 跟上游一起长
 
-上游是开发者预览，**没有插件 ABI / 磁盘格式承诺**（rc 之间会话存储都可能不兼容）。社区已经踩过：内核一升，再装一份 `@deepseek-ai/dsh-tools`、或按 row id 覆盖官方配置的插件会挂——轻则工具调度 Symbol 对不上整轮炸，重则一个 bundle 失败拖死整个 profile。
+把 Pi 核心内部、会话磁盘布局和未文档化实现都视为不稳定面。我们靠以下约束降低升级成本：
 
-我们靠这几条把兼容税压住，跟官方 seam 一起长，不跟内核抢实现：
-
-- 只走公开 seam：`ctx.*` 服务、文档里的事件、`defineTool` / `register`。禁止 import `@deepseek-ai/dsh-*` 内部文件；这些包一律 peer，版本对齐当前 `harness/`，插件里不得再装一份。
-- `patches/` 只追加我们自己的 loader 行。不要按 row id 覆盖官方配置——DSH patch 是整块替换，不是深合并。
-- 插件 `apply` 失败会让整个 profile 起不来。加载期不要抛；不要依赖 session / SQLite 的磁盘布局。
-- 升 `harness/` 只动 submodule 指针：先 build，再把 `plugins/` 挂上去跑通。坏了修插件，不要改 `harness/` 源码迁就。
+- 优先级固定为：公开 extension/theme/package seam → 官方 TUI 组件与 tool renderer → SDK/RPC 独立宿主 → 最小短期 fork。前一层能完成就不进入后一层。
+- extension 顶层只做注册，不在加载期启动 THCAD、网络或长生命周期进程；资源在 `session_start` 建立，在 `session_shutdown` 释放，失败时给出可恢复提示。
+- 自定义 TUI 使用 `setHeader`、`setFooter`、`setWidget`、`setStatus` 和公开组件，不复制官方 TUI 源码。未来 GUI 通过 SDK/RPC 嵌入，同样复用沈变业务 package，而不是把 GUI 逻辑塞进 Pi core。
+- 每次升级只移动 `pi` submodule 指针并同步 `scripts/pi-baseline.psd1`。审阅 release notes 后执行 build、verify、真实 PTY TUI 和最小模型调用；不通过就修外置 package 或回退 gitlink。
+- 若公开 seam 确实缺失，先写 ADR 说明业务必要性、兼容成本与退出条件，并优先向上游提出通用 seam。只有无法等待时才维护最小、可重放、短生命周期补丁，产品代码仍不得进入 `pi/`。
+- `harness/` 与 `patches/` 仅供既有迁移任务复现；不要再往这条旧路径增加能力。
 
 日常命令见 `README.md`。

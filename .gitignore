@@ -6,11 +6,16 @@ Desktop.ini
 .vscode/
 *.swp
 
-# Node (plugin packages under plugins/)
+# Node (Pi package and product frontend)
 node_modules/
 dist/
 lib/
 *.tsbuildinfo
+
+# Project-local Pi package caches (settings/resources remain tracked)
+.pi/git/
+.pi/npm/
+.pi/runtime/
 
 # Python / uv (backend and data pipelines)
 .venv/
@@ -48,6 +53,7 @@ dev-test/**/.vs/
 dev-test/**/out/
 dev-test/**/out-thcad/
 dev-test/**/out-thcad-selection/
+dev-test/**/out-thcad-11-12/
 dev-test/**/compare/
 dev-test/**/*.user
 dev-test/**/*.suo

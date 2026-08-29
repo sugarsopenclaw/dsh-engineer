@@ -1,109 +1,159 @@
 # dsh-engineer
 
-基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的二次开发仓库。
+面向沈变图纸审查的本地 Agent 工程。当前基座已经从 DeepSeek Harness 切换为 [Pi Coding Agent](https://github.com/earendil-works/pi)：保留官方 CLI/TUI，把品牌界面、业务命令、THCAD 工具和审图编排放在仓库自己的 Pi package 中。
 
-官方推荐方式：**不改上游源码，二次开发做成独立插件**。本仓库按这个原则拆开：
+核心原则是：**固定上游，不改上游；优先使用公开扩展面，升级靠可重复门禁。** DeepSeek Harness 相关目录暂留作迁移期兼容，不再承载新功能。
+
+## 架构
 
 | 路径 | 职责 |
 | --- | --- |
-| `harness/` | 上游源码，git submodule，只跟踪、不改 |
-| `plugins/` | 我们的插件包（`dsh.bundle`） |
-| `patches/` | 本地 `--patch` 叠加层，开发时挂载插件 |
-| `client-data/` | 客户原始资料（Source），不进 git |
-| `data/` | Data Layer：管线、登记、派生数据集 |
-| `ontology/` | Ontology：对象 / 链接 / 动作的类型定义 |
-| `backend/` | FastAPI 共享 API 与模型网关，供 Harness 工具按需调用 |
-| `frontend/` | 产品 Web 前端，只通过后端真实 API 使用业务数据 |
-| `specs/` | SDD 规格 |
-| `docs/` | 本仓库文档（调研、开发笔记）；规格仍写 `specs/` |
-| `other-projects/` | 参考项目。晓量冻结快照在本仓 `other-projects/xiaoliang/`（钉 `94720be`），不跟原仓同步；其余克隆仍只留本机 |
-| `dev-test/` | 本机实验 / PoC，不是产品层 |
-| `cloud-dev/` | 云开发工作区（Cloud Agent / 远程环境），不是产品层 |
-| `.env` / `.env.example` | 全仓库环境变量，只认根目录这一份 |
+| `pi/` | Pi 官方源码，git submodule，固定到已验证 release commit，只读 |
+| `.pi/` | 项目级 Pi 设置；默认隔离状态写入被忽略的 `.pi/runtime/` |
+| `plugins/shenbian-pi/` | 沈变 Pi package：TUI、命令，以及后续 THCAD 工具和 Agent 编排 |
+| `scripts/*-pi.ps1` | 安装、构建、启动、验证与上游升级门禁 |
+| `client-data/` | 客户原始资料，只收不改，不进 git |
+| `data/` | Data Layer：登记、管线、派生数据集 |
+| `ontology/` | 对象、属性、链接、动作的类型契约 |
+| `backend/` | Pi 工具按需调用的 FastAPI 共享 API、知识/数据分发和基础设施适配 |
+| `frontend/` | 产品 Web 前端，只通过 `backend/` 的真实 `/api/v1` 契约访问业务数据 |
+| `harness/` / `patches/` | DeepSeek Harness 迁移期遗留，不新增业务能力 |
+| `specs/` / `docs/` | SDD 规格与调研、开发文档 |
+| `other-projects/xiaoliang/` | 晓量冻结参考快照；只参考，不与原仓同步 |
+| `dev-test/` / `cloud-dev/` | 本机 PoC 与云开发工作区，不是产品层 |
 
-产品主循环是 `DSH Web → Harness Agent/沈变插件 → 本地 THCAD`。Agent 在需要共享知识、规则、模型能力或业务 CRUD 时调用 `backend/`；客户原文和已有 CAD 抽取数据继续作为插件与算法开发资料使用。不要在 `client-data/` 里加工文件。基础分层见 [`specs/001-platform-layers/spec.md`](specs/001-platform-layers/spec.md)，当前纵向切片见 [`specs/003-harness-deepseek-gateway/`](specs/003-harness-deepseek-gateway/)，DSH 可扩展范围与项目边界见 [`docs/dev/2026-08-26-DSH官方扩展面与沈变插件化边界.md`](docs/dev/2026-08-26-DSH官方扩展面与沈变插件化边界.md)。
+产品主循环是：
 
-上游目前不接受外部 PR；插件应作为独立包开发，发布时给 GitHub 仓库打上 `dsh-plugin` topic。
-
-## 日常
-
-```powershell
-# 第一次，或别人刚 clone 本仓库之后
-git submodule update --init --recursive
-Copy-Item .env.example .env   # 只认仓库根这一份；之后改键必须与 .env.example 同时改，不要提交 .env
-
-cd harness
-pnpm install
-pnpm run build
+```text
+Pi TUI（未来也可接 GUI）
+  → plugins/shenbian-pi
+  → 本地 THCAD + backend/
+  → 证据、问题、审批与交付结果
 ```
 
-从 `harness/` 启动的 `dsh` 不会自动读仓库根 `.env`。给 dsh 的键请写入当前 shell，或 `$DSH_HOME/.credentials.yaml`。我们自己的前端 / 后端 / 管线一律读根目录 `.env`。
+晓量当前是把 Pi SDK 嵌入 Electron GUI；这里第一阶段保留官方 TUI 并做公开扩展。两条路线可以共享 Pi 运行时和沈变业务能力，但不复制晓量的 GUI 壳层。
 
-当前项目通过 FastAPI 转发 Harness 的 DeepSeek 对话请求：
+## 第一次运行
+
+前置条件是 Git、PowerShell 和 Node.js `>= 22.19.0`。脚本会验证版本和上游固定点。
 
 ```powershell
-# 只启动 FastAPI（先自动执行 Alembic migration）；也可双击根目录 start-backend.cmd
+git submodule update --init pi
+
+# 仅当根目录还没有 .env 时执行；全仓只认根目录这一份
+Copy-Item .env.example .env
+
+# 可选：中国网络下只对当前 PowerShell 使用 npm 镜像
+$env:npm_config_registry = "https://registry.npmmirror.com"
+
+.\scripts\bootstrap-pi.ps1
+.\start-pi.cmd
+```
+
+`bootstrap-pi.ps1` 会按 `pi/package-lock.json` 安装依赖、构建官方 workspace、生成模型目录，再运行本项目兼容性验证。第一次打开 TUI 时 Pi 会要求确认项目信任；只对确定可信的本仓库批准。
+
+启动脚本在子进程内加载根 `.env`，只报告加载数量，不打印任何值。它默认把 `PI_CODING_AGENT_DIR` 指向被忽略的 `.pi/runtime/`，并用 `--no-skills` 关闭用户全局 skill 自动发现；若 `plugins/shenbian-pi/skills/` 存在，则只显式加载这个受控目录。这样可避免个人 package、设置、会话或 Agent Skills 让团队运行结果漂移。需要临时使用个人资源时可显式运行：
+
+```powershell
+# 使用个人 ~/.pi/agent 中的设置、package 与会话
+.\scripts\start-pi.ps1 -UseUserPiHome
+
+# 额外允许 ~/.agents/skills 等用户 skill 自动发现
+.\scripts\start-pi.ps1 -UseUserSkills
+
+# 两者都启用
+.\scripts\start-pi.ps1 -UseUserPiHome -UseUserSkills
+```
+
+个人扩展也拥有本机权限，不属于产品验证基线。确定要供团队使用的社区 package 应先审计源码，再以准确版本或 git ref 登记到项目 `.pi/settings.json`。不要把密钥写进设置或 extension 源码。
+
+## 当前可用的 Pi 二开
+
+- 沈变主题、中文 Header、阶段 widget 和运行状态；
+- `/shenbian-status`：查看当前模型、会话、项目与信任状态；
+- `/shenbian-ui`：在沈变界面与原生 Pi 界面之间切换；
+- 项目级模型范围固定为三项 DeepSeek 模型，默认 `deepseek-v4-flash`、`high` thinking；
+- Pi package 使用官方公开入口，Pi 核心依赖全部是 `peerDependencies: "*"`，不会带入第二份运行时。
+
+这一基座尚未伪装成已经具备 THCAD 审图工具。下一条纵向切片是只读 THCAD Bridge：从当前图纸上下文、有界实体查询到证据化 TUI 结果。
+
+## 验证
+
+日常静态与 CLI 验证：
+
+```powershell
+.\scripts\verify-pi.ps1
+```
+
+查看 DeepSeek 模型而不启动交互会话：
+
+```powershell
+.\scripts\start-pi.ps1 --approve --offline --list-models deepseek
+```
+
+做一次最小真实模型调用：
+
+```powershell
+.\scripts\start-pi.ps1 --approve --provider deepseek --model deepseek-v4-flash `
+  --thinking off --no-session --no-tools --print "只回复 PI_OK"
+```
+
+涉及 TUI API、按键、焦点或渲染的改动，还要实际运行 `start-pi.cmd`，检查 extension/theme 加载提示、`/shenbian-status`、`/shenbian-ui` 和退出清理。纯 `--print` 不能替代 PTY 验证。
+
+## 跟随 Pi 上游
+
+当前验证基线记录在 `scripts/pi-baseline.psd1`，上游固定在 `v0.84.4`。升级不跟踪浮动分支，也不自动提交：
+
+```powershell
+# 先确认根仓与 pi/ 中没有需要保留的临时修改，并阅读目标版本 release notes
+git status --short
+git -C pi status --short
+
+# 只接受 release tag 或完整 40 位 commit
+.\scripts\update-pi.ps1 -Ref vX.Y.Z
+
+# 审阅 gitlink、基线和必要的 package 兼容性改动
+git diff --submodule=log -- .gitmodules pi scripts/pi-baseline.psd1 plugins/shenbian-pi .pi
+```
+
+升级脚本执行以下门禁：拒绝脏 `pi/` → 获取并 detached checkout 目标 → 更新基线 → 安装锁定依赖 → 官方全量构建 → 沈变 package 类型检查 → CLI/TUI 配置验证。之后仍需人工跑一次真实 PTY 和最小 DeepSeek 请求，确认无误再提交。
+
+若升级失败，先修 `plugins/shenbian-pi/` 的公开 API 兼容性，或把干净的 `pi/` 切回脚本报告的旧 commit；不要在 `pi/` 里临时改源码。脚本不会替你 commit，因此失败不会自动进入历史。
+
+## 二开层级
+
+按以下顺序选择实现面，前一层够用就不进入后一层：
+
+1. Pi extension、command、tool、event、theme；
+2. 官方 TUI 组件、Header/Footer/Widget 和 tool renderer；
+3. 未来 GUI 使用 Pi SDK 或 RPC 嵌入运行时；
+4. 只有公开 seam 确实缺失且业务不能等待时，才写 ADR 并维护最小、短期 fork。
+
+进入第 4 层前必须说明：缺失的通用 seam、对上游提议、长期 rebase 成本、退出条件和替代方案。即使确需 fork，沈变业务代码仍留在外置 package，补丁只打开最小通用接缝。
+
+Pi extension、skill 与 Agent 拥有本机系统权限，Pi 本身不是权限沙箱。产品启动默认隔离用户全局 Pi Home 和 skill 发现，只加载项目明确登记的可信资源；THCAD 写操作必须另设工作副本、预览、审批和复验边界。
+
+详见 [`specs/009-pi-coding-agent-foundation/spec.md`](specs/009-pi-coding-agent-foundation/spec.md) 与 [`docs/dev/2026-08-29-Pi-Coding-Agent-上游友好二开方案.md`](docs/dev/2026-08-29-Pi-Coding-Agent-上游友好二开方案.md)。官方参考：[Pi 文档](https://pi.dev/docs/latest)、[Extensions](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md)、[Pi packages](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/packages.md)、[TUI](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/tui.md)。
+
+## 后端与 Web 前端
+
+Pi 基座不改变已有数据、Ontology、FastAPI 和 Web 前端边界。
+
+```powershell
+# FastAPI；也可双击 start-backend.cmd
 .\scripts\start-backend.ps1
 
-# 一键启动 FastAPI + DSH Web；也可以直接双击根目录 start-dev.cmd
-.\scripts\start-dev.ps1
-```
-
-`start-backend` 只启动后端，不启动 Harness、THCAD、Redis、OSS 或前端；它使用根 `.env`，执行数据库迁移后在前台运行 FastAPI。`start-dev` 会等待 FastAPI 健康后再启动 DSH Web。若 8000 端口上已有健康的本项目后端，它会直接复用；否则会自行启动，并在 DSH 退出时一并关闭。
-
-业务需求图谱前端的完整开发交接提示词见 [`docs/frontend/2026-08-27-业务需求图谱前端开发提示词.md`](docs/frontend/2026-08-27-业务需求图谱前端开发提示词.md)。
-
-前端本体在 `frontend/`（Vite + React + TS + pnpm，独立于 harness 的 workspace）：
-
-```powershell
-# 先启动后端（见上），再启动前端开发服务器
+# Web 前端
 cd frontend
 pnpm install
-pnpm dev        # http://localhost:5173，/api 代理到 http://127.0.0.1:8000
-pnpm lint; pnpm test --run; pnpm build
+pnpm dev
+pnpm lint
+pnpm test --run
+pnpm build
 ```
 
-原来的分步启动方式仍然可用：
+后端也可从 `backend/` 用 `uv sync`、`uv run shenbian-api` 启动。前端不得直连 PostgreSQL、Redis、OSS 或 `client-data/`；FastAPI 也不代替本地 Pi Agent 与 THCAD 操作主循环。
 
-```powershell
-# 终端 1
-cd backend
-uv sync
-uv run shenbian-api
+## Harness 遗留路径
 
-# 终端 2：脚本只给该 DSH 子进程设置 DEEPSEEK_BASE_URL，不改 harness 源码
-.\scripts\start-harness-via-backend.ps1
-```
-
-FastAPI 默认使用仓库根 `.env` 的 `DEEPSEEK_API_KEY` 调用 DeepSeek，并替换 DSH 请求携带的 Bearer。`DEEPSEEK_UPSTREAM_API_KEY` 可作为部署级覆盖；完整认证规则见 [`backend/README.md`](backend/README.md)。
-
-开发中用 `--patch` 挂本地插件（路径按官方要求用绝对路径）：
-
-```powershell
-cd harness
-pnpm dsh web --patch ..\patches\<your-overlay>.yml
-```
-
-不要在 `harness/` 里改文件、不要在 submodule 里 commit。需要改能力就写插件。
-
-## 同步上游
-
-`harness/` 跟踪 `master`。开发者预览阶段上游变动很快，建议按 commit 钉死，确认插件还能跑再升级：
-
-```powershell
-git submodule update --remote harness
-cd harness
-pnpm install
-pnpm run build
-cd ..
-git add harness
-git commit -m "chore: bump upstream deepseek-harness"
-```
-
-若 submodule 被误改：
-
-```powershell
-git -C harness status
-git -C harness restore .
-git submodule update --init harness
-```
+`harness/`、`patches/`、`start-dev.cmd`、`start-harness-via-backend.ps1` 和规格 003 暂时保留，用于复现与迁移现有 DeepSeek Harness 网关切片。新功能不要继续落到这条路径；待依赖清点完毕后再用独立规格移除，避免把迁移和 Pi 基座引入混成一次不可审阅的大改。

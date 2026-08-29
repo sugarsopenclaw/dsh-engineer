@@ -2,3 +2,6 @@
 	path = harness
 	url = git@github.com:deepseek-ai/deepseek-harness.git
 	branch = master
+[submodule "pi"]
+	path = pi
+	url = https://github.com/earendil-works/pi.git
