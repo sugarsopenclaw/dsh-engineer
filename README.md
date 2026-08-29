@@ -10,7 +10,7 @@
 | --- | --- |
 | `pi/` | Pi 官方源码，git submodule，固定到已验证 release commit，只读 |
 | `.pi/` | 项目级 Pi 设置；默认隔离状态写入被忽略的 `.pi/runtime/` |
-| `plugins/shenbian-pi/` | 沈变 Pi package：TUI、命令，以及后续 THCAD 工具和 Agent 编排 |
+| `plugins/shenbian-pi/` | 沈变 Pi package：TUI、THCAD 机械子代理、01–20 工具契约与证据投影 |
 | `scripts/*-pi.ps1` | 安装、构建、启动、验证与上游升级门禁 |
 | `client-data/` | 客户原始资料，只收不改，不进 git |
 | `data/` | Data Layer：登记、管线、派生数据集 |
@@ -47,6 +47,7 @@ Copy-Item .env.example .env
 $env:npm_config_registry = "https://registry.npmmirror.com"
 
 .\scripts\bootstrap-pi.ps1
+.\scripts\build-thcad-agent-bridge.ps1
 .\start-pi.cmd
 ```
 
@@ -72,10 +73,12 @@ $env:npm_config_registry = "https://registry.npmmirror.com"
 - 沈变主题、中文 Header、阶段 widget 和运行状态；
 - `/shenbian-status`：查看当前模型、会话、项目与信任状态；
 - `/shenbian-ui`：在沈变界面与原生 Pi 界面之间切换；
+- `/thcad-doctor`：只读检查独立 .NET Host、活动 THCAD 与当前图；
+- `delegate_thcad_mechanical`：主 Agent 将自包含图纸任务交给 fresh 机械子 Agent，child 只使用 THCAD 01–20 和有界 artifact 查询；
 - 项目级模型范围固定为三项 DeepSeek 模型，默认 `deepseek-v4-flash`、`high` thinking；
 - Pi package 使用官方公开入口，Pi 核心依赖全部是 `peerDependencies: "*"`，不会带入第二份运行时。
 
-这一基座尚未伪装成已经具备 THCAD 审图工具。下一条纵向切片是只读 THCAD Bridge：从当前图纸上下文、有界实体查询到证据化 TUI 结果。
+THCAD 链路采用“COM 控制面 + 进程内 .NET 数据/计算面”：PowerShell 只附着 `thcad.exe` 并发送命令，01–20 始终在 CAD 主线程读取当前 Database；主 Agent 只收到 evidence path，不接收 child transcript 或整图 JSON。当前不开放保存、删除标注或其他 DWG 写操作。
 
 ## 验证
 
@@ -83,6 +86,7 @@ $env:npm_config_registry = "https://registry.npmmirror.com"
 
 ```powershell
 .\scripts\verify-pi.ps1
+.\scripts\test-thcad-pi-integration.ps1
 ```
 
 查看 DeepSeek 模型而不启动交互会话：
@@ -98,7 +102,7 @@ $env:npm_config_registry = "https://registry.npmmirror.com"
   --thinking off --no-session --no-tools --print "只回复 PI_OK"
 ```
 
-涉及 TUI API、按键、焦点或渲染的改动，还要实际运行 `start-pi.cmd`，检查 extension/theme 加载提示、`/shenbian-status`、`/shenbian-ui` 和退出清理。纯 `--print` 不能替代 PTY 验证。
+涉及 TUI API、按键、焦点或渲染的改动，还要实际运行 `start-pi.cmd`，检查 extension/theme 加载提示、`/shenbian-status`、`/shenbian-ui` 和退出清理。THCAD 链路先在空闲图纸上执行 `/thcad-doctor`，再向主 Agent 提出一个窄任务；纯 `--print` 不能替代 PTY 验证。
 
 ## 跟随 Pi 上游
 

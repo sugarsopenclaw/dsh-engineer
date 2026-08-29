@@ -44,7 +44,7 @@ function applyProductUi(ctx: ExtensionContext): void {
 		[
 			theme.fg(
 				"dim",
-				"阶段：Pi/TUI 基线已加载 · THCAD 审图工具将在下一规格接入",
+				"阶段：THCAD 机械子代理已接入 · /thcad-doctor 检查本机链路",
 			),
 		],
 		{ placement: "belowEditor" },

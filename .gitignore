@@ -50,6 +50,8 @@ data/datasets/
 dev-test/**/bin/
 dev-test/**/obj/
 dev-test/**/.vs/
+local-dev/**/bin/
+local-dev/**/obj/
 dev-test/**/out/
 dev-test/**/out-thcad/
 dev-test/**/out-thcad-selection/

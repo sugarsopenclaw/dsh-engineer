@@ -47,7 +47,7 @@ if ($plugin.keywords -notcontains "pi-package") {
 if ($plugin.pi.extensions -notcontains "./extensions" -or $plugin.pi.themes -notcontains "./themes") {
     throw "Shenbian package resource manifest is incomplete."
 }
-foreach ($peer in @("@earendil-works/pi-coding-agent", "@earendil-works/pi-tui")) {
+foreach ($peer in @("@earendil-works/pi-ai", "@earendil-works/pi-coding-agent", "@earendil-works/pi-tui", "typebox")) {
     $peerProperty = $plugin.peerDependencies.PSObject.Properties[$peer]
     if ($null -eq $peerProperty -or $peerProperty.Value -ne "*") {
         throw "$peer must be a non-bundled peer dependency."
