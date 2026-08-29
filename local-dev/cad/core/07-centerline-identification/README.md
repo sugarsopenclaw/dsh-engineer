@@ -37,6 +37,19 @@ Core 不引用 THCAD、Teigha、BricsCAD、COM、文件系统或 JSON，也不�
 
 当前轴向容差为 0.5°，集中在 `CenterlineIdentificationConfig.DirectionAxisToleranceDegrees`。角度值不会因分类而被舍入。直线继续提供 `SignedDistance(...)` 和 `ReflectPoint(...)`。
 
+## 中心线不等于对称轴
+
+文字或线型只能证明“图纸把这条几何声明为中心线”，不能证明指定对象的轮廓关于它镜像对称。当前分析因此统一输出 `symmetry_evaluation_status: not_evaluated`，不再从中心线身份直接推出对称性。
+
+`FindLabeledReferenceAxisRelations()` 会在同一坐标空间内，对文字语义不同、方向平行且切向范围重叠的具名直线中心线建立关系，并保留：
+
+- `alignment_status`：`coincident` 或 `parallel_offset`；
+- `signed_normal_offset`：从前一条线沿其稳定方向左法向移动到后一条线的有符号距离；
+- `absolute_normal_offset`、方向差和切向重叠长度；
+- `symmetry_evaluation_status: not_evaluated`，提醒调用方仍需在明确的对象/视图范围内验证轮廓镜像关系。
+
+这个关系表达的是“两个设计基准是否重合”。如果后续独立的轮廓验证证明其中一条是对称轴，`signed_normal_offset` 就是从声明中心线平移到该对称轴所需的量；验证前不能把 `parallel_offset` 直接解释为对象不对称。
+
 ## 中心形态
 
 `CenterlineShapeClassifier` 在同一坐标空间内，按端点重合与切向连续把 Line/Arc 组装为中心路径，并输出：
@@ -96,7 +109,7 @@ Core 不引用 THCAD、Teigha、BricsCAD、COM、文件系统或 JSON，也不�
 
 - `器身中心线` Leader `37783` → Line `4B297`；
 - `油箱中心线` Leader `377B2` → Line `36AA8`；
-- 两条线都同时由文字与样式命中，Y 方向相距 30。
+- 两条线都同时由文字与样式命中；具名参考轴关系为 `36AA8`（油箱）→ `4B297`（器身），左法向有符号偏移 `+30`、切向重叠 `5656`；轮廓对称性仍为 `not_evaluated`。
 
 这些数字只用于七张样图的回归，不代表其他项目也采用相同画法。
 
@@ -104,7 +117,7 @@ Core 不引用 THCAD、Teigha、BricsCAD、COM、文件系统或 JSON，也不�
 
 THCAD Adapter 整图抽取时仍统一写：
 
-- `centerline-identification.json`：全部中心几何、角度、形态、交点和查询所需坐标；
+- `centerline-identification.json`：全部中心几何、角度、形态、交点、具名参考轴偏移和查询所需坐标；
 - `centerline-identification.md`：同一结果的 LLM 友好视图。
 
 离线回归：
@@ -122,5 +135,7 @@ THCAD Adapter 整图抽取时仍统一写：
 - 当前求交使用同一 owner 空间的二维 XY 投影；七图均为机械二维图。不同 Z 高程或非 +Z 法向的三维图纸需要扩展。
 - Spline 现有抽取只保存控制点，不能据此给出精确样条交点，因此 Spline 会分类和计长，但暂不参加交点计算。
 - 当前文字正查处理 TH Leader 自身 `custom.explode` 中的文字及第一个顶点；独立文字与独立引线需要新样图后补充。
+- 具名平行参考轴关系只比较文字语义不同且线段投影重叠的直线，避免把不同视图中重复出现的同名“器身中心线”互相配对；它不是轮廓对称检测器。
+- 真正判定 `coincident_with_symmetry_axis`、`offset_from_symmetry_axis` 或 `asymmetric`，还需要先确定对象/视图范围，再把轮廓、孔系等非标注几何交给独立的镜像匹配能力。
 
-后续函数工具可以直接包装 `Identify`、`FindByLabel`、`FindInCoordinateSpace`、`FindShapesByType`、`FindIntersectionsNear`、`CenterlineIntersection.Around`、`SignedDistance`、`ReflectPoint`、`RadialDistance` 和 `PolarAngleDegrees`，无需复制算法。
+后续函数工具可以直接包装 `Identify`、`FindByLabel`、`FindInCoordinateSpace`、`FindLabeledReferenceAxisRelations`、`FindShapesByType`、`FindIntersectionsNear`、`CenterlineIntersection.Around`、`SignedDistance`、`ReflectPoint`、`RadialDistance` 和 `PolarAngleDegrees`，无需复制算法。

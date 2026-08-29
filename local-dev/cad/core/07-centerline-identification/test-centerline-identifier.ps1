@@ -248,12 +248,19 @@ foreach ($drawingId in $expected.Keys) {
 
     $json = $document.ToMap() | ConvertTo-Json -Depth 30 -Compress
     Assert-Contains '"analysis_type":"centerline_identification"' $json "$drawingId JSON"
+    Assert-Contains '"identifier_version":"3"' $json "$drawingId JSON version"
     Assert-Contains '"straight_direction_counts":' $json "$drawingId JSON directions"
     Assert-Contains '"intersections":' $json "$drawingId JSON intersections"
     Assert-Contains '"shapes":' $json "$drawingId JSON shapes"
+    Assert-Contains '"symmetry_evaluation_status":"not_evaluated"' $json `
+        "$drawingId JSON symmetry boundary"
+    Assert-Contains '"labeled_reference_axis_relations":' $json `
+        "$drawingId JSON labeled reference-axis relations"
     $markdown = $document.ToMarkdown()
     Assert-Contains '# 中心线与中心几何识别' $markdown "$drawingId Markdown heading"
     Assert-Contains '## 中心几何交点（视觉锚点）' $markdown "$drawingId Markdown intersections"
+    Assert-Contains '## 具名平行参考轴关系' $markdown `
+        "$drawingId Markdown labeled reference-axis relations"
 
     $rows += [pscustomobject]@{
         Drawing = $drawingId
@@ -322,6 +329,18 @@ $bodyBinding = @($body[0].LabelBindings | Where-Object LeaderHandle -eq "37783")
 $tankBinding = @($tank[0].LabelBindings | Where-Object LeaderHandle -eq "377B2")[0]
 Assert-Near 30 ($bodyBinding.GeometryPointY - $tankBinding.GeometryPointY) 0.000001 `
     "screenshot body/tank 30 offset"
+$bodyTankRelations = @($upper.FindLabeledReferenceAxisRelations() | Where-Object {
+    $_.FromHandle -eq "36AA8" -and $_.ToHandle -eq "4B297"
+})
+Assert-Equal 1 $bodyTankRelations.Count "screenshot body/tank reference-axis relation"
+Assert-Equal "parallel_offset" $bodyTankRelations[0].AlignmentStatus `
+    "screenshot body/tank alignment status"
+Assert-Equal "not_evaluated" $bodyTankRelations[0].SymmetryEvaluationStatus `
+    "screenshot body/tank symmetry status"
+Assert-Near 30 $bodyTankRelations[0].SignedNormalOffset 0.000001 `
+    "screenshot tank-to-body signed normal offset"
+Assert-Near 5656 $bodyTankRelations[0].TangentOverlap 0.000001 `
+    "screenshot body/tank tangent overlap"
 
 # Synthetic geometry: horizontal, vertical and angled axes meet at one visual anchor;
 # a line crosses a circle twice; Line + quarter Arc + Line forms one rounded path;
@@ -421,4 +440,4 @@ $intersectionTypeTotals.GetEnumerator() | Sort-Object Name | Format-Table -AutoS
 Write-Host "INTERSECTION GEOMETRY SETS"
 $intersectionGeometryTotals.GetEnumerator() | Sort-Object Name | Format-Table -AutoSize
 Write-Host "TOTAL shapes=$totalShapes intersections=$totalIntersections horizontal=$totalHorizontal vertical=$totalVertical angled=$totalAngled"
-Write-Host "PASS: curved center geometry, straight-line angles, shape assembly, exact intersections, and intersection neighborhoods verified."
+Write-Host "PASS: center geometry, labeled reference-axis offsets, explicit symmetry boundary, intersections, and neighborhoods verified."

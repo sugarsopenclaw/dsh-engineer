@@ -87,6 +87,54 @@
     <Compile Include="..\..\..\local-dev\cad\core\07-centerline-identification\CenterlineShapeClassifier.cs">
       <Link>Core\CenterlineShapeClassifier.cs</Link>
     </Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\08-annotation-identification\AnnotationIdentifier.cs">
+      <Link>Core\AnnotationIdentifier.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\09-dimension-topology\DimensionTopologyAnalyzer.cs">
+      <Link>Core\DimensionTopologyAnalyzer.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\10-engineering-line-semantics\EngineeringLineSemanticAnalyzer.cs">
+      <Link>Core\EngineeringLineSemanticAnalyzer.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\11-block-instance-coordinate-facts\BlockInstanceCoordinateAnalyzer.cs">
+      <Link>Core\BlockInstanceCoordinateAnalyzer.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\12-planar-topology-kernel\PlanarTopologyAnalyzer.cs">
+      <Link>Core\PlanarTopologyAnalyzer.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\13-engineering-view-regions\EngineeringViewRegionAnalyzer.cs">
+      <Link>Core\EngineeringViewRegionAnalyzer.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\14-representation-correspondence\RepresentationCorrespondenceAnalyzer.cs">
+      <Link>Core\RepresentationCorrespondenceAnalyzer.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\15-representation-identity-resolution\RepresentationIdentityResolver.cs">
+      <Link>Core\RepresentationIdentityResolver.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\16-manufacturing-profile-features\ManufacturingProfileAnalyzer.cs">
+      <Link>Core\ManufacturingProfileAnalyzer.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\17-mechanical-interface-adjacency\MechanicalInterfaceAdjacencyAnalyzer.cs">
+      <Link>Core\MechanicalInterfaceAdjacencyAnalyzer.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\18-dimension-geometry-binding\DimensionGeometryBindingAnalyzer.cs">
+      <Link>Core\DimensionGeometryBindingAnalyzer.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\19-semantic-drawing-diff\SemanticDrawingDiffAnalyzer.cs">
+      <Link>Core\SemanticDrawingDiffAnalyzer.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\19-semantic-drawing-diff\SemanticDrawingSnapshotBuilder.cs">
+      <Link>Core\SemanticDrawingSnapshotBuilder.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\20-cross-drawing-interface-graph\CrossDrawingInterfaceGraphModels.cs">
+      <Link>Core\CrossDrawingInterfaceGraphModels.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\20-cross-drawing-interface-graph\CrossDrawingProjectInputBuilder.cs">
+      <Link>Core\CrossDrawingProjectInputBuilder.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\20-cross-drawing-interface-graph\CrossDrawingInterfaceGraphAnalyzer.cs">
+      <Link>Core\CrossDrawingInterfaceGraphAnalyzer.cs</Link>
+    </Compile>
     <Compile Include="JsonUtil.cs" />
     <Compile Include="PluginApp.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

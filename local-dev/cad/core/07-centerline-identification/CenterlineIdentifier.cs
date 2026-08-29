@@ -607,6 +607,60 @@ namespace Shb.Cad.Core
             return new[] { 2.0 * projectedX - x, 2.0 * projectedY - y };
         }
 
+        internal bool TryMeasureParallelOffsetTo(
+            CenterlineRecord other,
+            double angularToleranceDegrees,
+            double overlapTolerance,
+            out double signedNormalOffset,
+            out double tangentOverlap,
+            out double angleDifferenceDegrees)
+        {
+            signedNormalOffset = 0;
+            tangentOverlap = 0;
+            angleDifferenceDegrees = 0;
+            if (other == null
+                || !IsStraightLine
+                || !other.IsStraightLine
+                || !string.Equals(
+                    OwnerScope,
+                    other.OwnerScope,
+                    StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(
+                    OwnerBlockName,
+                    other.OwnerBlockName,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            double absoluteDot = Math.Abs(unitX * other.unitX + unitY * other.unitY);
+            absoluteDot = Math.Max(0.0, Math.Min(1.0, absoluteDot));
+            angleDifferenceDegrees = Math.Acos(absoluteDot) * 180.0 / Math.PI;
+            if (angleDifferenceDegrees > angularToleranceDegrees)
+            {
+                return false;
+            }
+
+            double otherStartProjection =
+                (other.Primitive.StartX - stableStartX) * unitX
+                + (other.Primitive.StartY - stableStartY) * unitY;
+            double otherEndProjection =
+                (other.Primitive.EndX - stableStartX) * unitX
+                + (other.Primitive.EndY - stableStartY) * unitY;
+            double otherMinimum = Math.Min(otherStartProjection, otherEndProjection);
+            double otherMaximum = Math.Max(otherStartProjection, otherEndProjection);
+            tangentOverlap = Math.Min(Length, otherMaximum) - Math.Max(0.0, otherMinimum);
+            if (tangentOverlap <= overlapTolerance)
+            {
+                return false;
+            }
+
+            double otherMidpointX = (other.Primitive.StartX + other.Primitive.EndX) * 0.5;
+            double otherMidpointY = (other.Primitive.StartY + other.Primitive.EndY) * 0.5;
+            signedNormalOffset = SignedDistance(otherMidpointX, otherMidpointY);
+            return true;
+        }
+
         public double RadialDistance(double x, double y)
         {
             RequireRadialGeometry();
@@ -815,6 +869,100 @@ namespace Shb.Cad.Core
         }
     }
 
+    public sealed class CenterlineReferenceAxisRelation
+    {
+        internal CenterlineReferenceAxisRelation(
+            string id,
+            CenterlineRecord from,
+            CenterlineRecord to,
+            double signedNormalOffset,
+            double tangentOverlap,
+            double angleDifferenceDegrees,
+            double coincidenceTolerance)
+        {
+            Id = id ?? "";
+            OwnerScope = from.OwnerScope;
+            OwnerBlockName = from.OwnerBlockName;
+            FromCenterGeometryId = from.Id;
+            FromHandle = from.Handle;
+            FromLabels = LabelTexts(from.LabelBindings);
+            ToCenterGeometryId = to.Id;
+            ToHandle = to.Handle;
+            ToLabels = LabelTexts(to.LabelBindings);
+            SignedNormalOffset = signedNormalOffset;
+            AbsoluteNormalOffset = Math.Abs(signedNormalOffset);
+            TangentOverlap = tangentOverlap;
+            AngleDifferenceDegrees = angleDifferenceDegrees;
+            AlignmentStatus = AbsoluteNormalOffset <= coincidenceTolerance
+                ? "coincident"
+                : "parallel_offset";
+        }
+
+        public string Id { get; private set; }
+        public string OwnerScope { get; private set; }
+        public string OwnerBlockName { get; private set; }
+        public string FromCenterGeometryId { get; private set; }
+        public string FromHandle { get; private set; }
+        public IList<string> FromLabels { get; private set; }
+        public string ToCenterGeometryId { get; private set; }
+        public string ToHandle { get; private set; }
+        public IList<string> ToLabels { get; private set; }
+        public double SignedNormalOffset { get; private set; }
+        public double AbsoluteNormalOffset { get; private set; }
+        public double TangentOverlap { get; private set; }
+        public double AngleDifferenceDegrees { get; private set; }
+        public string AlignmentStatus { get; private set; }
+        public string SymmetryEvaluationStatus { get { return "not_evaluated"; } }
+
+        internal Dictionary<string, object> ToMap()
+        {
+            return CenterlineMaps.Map(
+                "id", Id,
+                "owner_scope", OwnerScope,
+                "owner_block_name", OwnerBlockName,
+                "coordinate_space", (OwnerScope ?? "") + ":" + (OwnerBlockName ?? ""),
+                "from_center_geometry_id", FromCenterGeometryId,
+                "from_handle", FromHandle,
+                "from_labels", FromLabels,
+                "to_center_geometry_id", ToCenterGeometryId,
+                "to_handle", ToHandle,
+                "to_labels", ToLabels,
+                "alignment_status", AlignmentStatus,
+                "signed_normal_offset", SignedNormalOffset,
+                "absolute_normal_offset", AbsoluteNormalOffset,
+                "positive_offset_side", "left_of_from_stable_direction",
+                "angle_difference_degrees", AngleDifferenceDegrees,
+                "tangent_overlap", TangentOverlap,
+                "symmetry_evaluation_status", SymmetryEvaluationStatus);
+        }
+
+        static IList<string> LabelTexts(IList<CenterlineLabelBinding> bindings)
+        {
+            var result = new List<string>();
+            foreach (CenterlineLabelBinding binding in bindings)
+            {
+                string text = binding == null ? "" : binding.Text;
+                if (!string.IsNullOrEmpty(text) && !Contains(result, text))
+                {
+                    result.Add(text);
+                }
+            }
+            return result;
+        }
+
+        static bool Contains(IList<string> values, string value)
+        {
+            foreach (string existing in values)
+            {
+                if (string.Equals(existing, value, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
     public sealed class CenterlineCoordinateSpaceSummary
     {
         internal CenterlineCoordinateSpaceSummary(string ownerScope, string ownerBlockName)
@@ -849,9 +997,17 @@ namespace Shb.Cad.Core
 
     public sealed class CenterlineIdentificationDocument
     {
-        internal CenterlineIdentificationDocument(string drawingId)
+        readonly double parallelAxisAngularToleranceDegrees;
+        readonly double geometryTolerance;
+
+        internal CenterlineIdentificationDocument(
+            string drawingId,
+            double parallelAxisAngularToleranceDegrees,
+            double geometryTolerance)
         {
             DrawingId = drawingId ?? "";
+            this.parallelAxisAngularToleranceDegrees = parallelAxisAngularToleranceDegrees;
+            this.geometryTolerance = geometryTolerance;
             Centerlines = new List<CenterlineRecord>();
             Shapes = new List<CenterlineShapeRecord>();
             Intersections = new List<CenterlineIntersection>();
@@ -916,6 +1072,78 @@ namespace Shb.Cad.Core
                 }
             }
             return result;
+        }
+
+        public IList<CenterlineReferenceAxisRelation> FindLabeledReferenceAxisRelations()
+        {
+            var result = new List<CenterlineReferenceAxisRelation>();
+            for (int fromIndex = 0; fromIndex < Centerlines.Count; fromIndex++)
+            {
+                CenterlineRecord from = Centerlines[fromIndex];
+                if (!from.IsStraightLine || !from.MatchedByText)
+                {
+                    continue;
+                }
+                for (int toIndex = fromIndex + 1; toIndex < Centerlines.Count; toIndex++)
+                {
+                    CenterlineRecord to = Centerlines[toIndex];
+                    if (!to.IsStraightLine || !to.MatchedByText)
+                    {
+                        continue;
+                    }
+                    if (HaveSameLabelMeaning(from, to))
+                    {
+                        continue;
+                    }
+                    double signedNormalOffset;
+                    double tangentOverlap;
+                    double angleDifferenceDegrees;
+                    if (!from.TryMeasureParallelOffsetTo(
+                        to,
+                        parallelAxisAngularToleranceDegrees,
+                        geometryTolerance,
+                        out signedNormalOffset,
+                        out tangentOverlap,
+                        out angleDifferenceDegrees))
+                    {
+                        continue;
+                    }
+                    result.Add(new CenterlineReferenceAxisRelation(
+                        "centerline-reference-axis-relation-"
+                            + (result.Count + 1).ToString(CultureInfo.InvariantCulture),
+                        from,
+                        to,
+                        signedNormalOffset,
+                        tangentOverlap,
+                        angleDifferenceDegrees,
+                        geometryTolerance));
+                }
+            }
+            return result;
+        }
+
+        static bool HaveSameLabelMeaning(CenterlineRecord left, CenterlineRecord right)
+        {
+            if (left.LabelBindings.Count == 0 || right.LabelBindings.Count == 0)
+            {
+                return false;
+            }
+            string expected = left.LabelBindings[0].Text ?? "";
+            foreach (CenterlineLabelBinding binding in left.LabelBindings)
+            {
+                if (!string.Equals(binding.Text, expected, StringComparison.Ordinal))
+                {
+                    return false;
+                }
+            }
+            foreach (CenterlineLabelBinding binding in right.LabelBindings)
+            {
+                if (!string.Equals(binding.Text, expected, StringComparison.Ordinal))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         public IList<CenterlineShapeRecord> FindShapesByType(string shapeType)
@@ -1008,6 +1236,8 @@ namespace Shb.Cad.Core
 
         public Dictionary<string, object> ToMap()
         {
+            IList<CenterlineReferenceAxisRelation> axisRelations =
+                FindLabeledReferenceAxisRelations();
             var centerlines = new List<Dictionary<string, object>>();
             foreach (CenterlineRecord centerline in Centerlines)
             {
@@ -1028,11 +1258,16 @@ namespace Shb.Cad.Core
             {
                 spaces.Add(space.ToMap());
             }
+            var relationMaps = new List<Dictionary<string, object>>();
+            foreach (CenterlineReferenceAxisRelation relation in axisRelations)
+            {
+                relationMaps.Add(relation.ToMap());
+            }
             return CenterlineMaps.Map(
                 "schema_version", "1",
                 "analysis_type", "centerline_identification",
                 "identifier", "centerline_identifier",
-                "identifier_version", "2",
+                "identifier_version", "3",
                 "drawing_id", DrawingId,
                 "center_geometry_count", Centerlines.Count,
                 "text_matched_count", TextMatchedCount,
@@ -1047,6 +1282,9 @@ namespace Shb.Cad.Core
                 "block_definition_count", BlockDefinitionCount,
                 "shape_count", Shapes.Count,
                 "intersection_count", Intersections.Count,
+                "symmetry_evaluation_status", "not_evaluated",
+                "labeled_reference_axis_relation_count", axisRelations.Count,
+                "labeled_reference_axis_relations", relationMaps,
                 "coordinate_spaces", spaces,
                 "shapes", shapes,
                 "intersections", intersections,
@@ -1055,6 +1293,8 @@ namespace Shb.Cad.Core
 
         public string ToMarkdown()
         {
+            IList<CenterlineReferenceAxisRelation> axisRelations =
+                FindLabeledReferenceAxisRelations();
             var markdown = new StringBuilder();
             markdown.AppendLine("# 中心线与中心几何识别");
             markdown.AppendLine();
@@ -1088,6 +1328,9 @@ namespace Shb.Cad.Core
             markdown.Append(" 个；中心几何交点 ");
             markdown.Append(Intersections.Count.ToString(CultureInfo.InvariantCulture));
             markdown.AppendLine(" 个。");
+            markdown.Append("- 具名平行参考轴关系 ");
+            markdown.Append(axisRelations.Count.ToString(CultureInfo.InvariantCulture));
+            markdown.AppendLine(" 个；轮廓对称性未在本分析中判定。");
 
             markdown.AppendLine();
             markdown.AppendLine("## 中心形态");
@@ -1165,6 +1408,42 @@ namespace Shb.Cad.Core
             if (!hasLabeled)
             {
                 markdown.AppendLine("- 无文字正查命中。");
+            }
+
+            markdown.AppendLine();
+            markdown.AppendLine("## 具名平行参考轴关系");
+            markdown.AppendLine();
+            markdown.AppendLine(
+                "> 这里只记录两条已标注中心线之间的方向、重叠和有符号法向偏移；"
+                + "`symmetry_evaluation_status=not_evaluated`，不能据此把任一中心线直接称为轮廓对称轴。");
+            markdown.AppendLine();
+            if (axisRelations.Count == 0)
+            {
+                markdown.AppendLine("- 未发现切向范围重叠的具名平行中心线。");
+            }
+            foreach (CenterlineReferenceAxisRelation relation in axisRelations)
+            {
+                markdown.Append("- `");
+                markdown.Append(EscapeInline(relation.FromHandle));
+                markdown.Append("`（`");
+                markdown.Append(EscapeInline(JoinInline(relation.FromLabels)));
+                markdown.Append("`）→ `");
+                markdown.Append(EscapeInline(relation.ToHandle));
+                markdown.Append("`（`");
+                markdown.Append(EscapeInline(JoinInline(relation.ToLabels)));
+                markdown.Append("`）：沿前者稳定方向左法向偏移 ");
+                if (relation.SignedNormalOffset >= 0)
+                {
+                    markdown.Append('+');
+                }
+                markdown.Append(Format(relation.SignedNormalOffset));
+                markdown.Append("，绝对偏移 ");
+                markdown.Append(Format(relation.AbsoluteNormalOffset));
+                markdown.Append("，切向重叠 ");
+                markdown.Append(Format(relation.TangentOverlap));
+                markdown.Append("，状态 `");
+                markdown.Append(relation.AlignmentStatus);
+                markdown.AppendLine("`。");
             }
 
             markdown.AppendLine();
@@ -1537,7 +1816,10 @@ namespace Shb.Cad.Core
             MergeInto(union, byStyle);
             MergeInto(union, byText);
 
-            var document = new CenterlineIdentificationDocument(drawingId);
+            var document = new CenterlineIdentificationDocument(
+                drawingId,
+                config.DirectionAxisToleranceDegrees,
+                config.GeometryTolerance);
             List<CenterlineRecord> records = Sorted(union.Values);
             for (int index = 0; index < records.Count; index++)
             {

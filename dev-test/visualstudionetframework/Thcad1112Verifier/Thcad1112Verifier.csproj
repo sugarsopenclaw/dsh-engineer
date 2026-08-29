@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
+    <ProjectGuid>{BC116530-630E-4408-B1C1-625D5C8CDB5D}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Shb.Thcad.Verifier1112</RootNamespace>
+    <AssemblyName>Shb.Thcad.Verifier1112</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <PlatformTarget>x64</PlatformTarget>
+    <Deterministic>true</Deterministic>
+    <ThcadDir Condition=" '$(ThcadDir)' == '' ">D:\THSOFT\THCAD V24_Mechanical2D\THCAD</ThcadDir>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <OutputPath>bin\x64\Release\</OutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="TD_Mgd"><HintPath>$(ThcadDir)\TD_Mgd.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="BrxMgd"><HintPath>$(ThcadDir)\BrxMgd.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="VerifierCommands.cs" />
+    <Compile Include="..\ThcadExtractor\JsonUtil.cs"><Link>JsonUtil.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\adapters\thcad\01-full-entity-extraction\DrawingExtractor.cs"><Link>DrawingExtractor.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\adapters\thcad\01-full-entity-extraction\XuhaoAnnotationCoordinateExtractor.cs"><Link>XuhaoAnnotationCoordinateExtractor.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\02-drawing-frame-detection\DrawingFrameDetector.cs"><Link>Core\DrawingFrameDetector.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\03-drawing-zone-detection\DrawingZoneDetector.cs"><Link>Core\DrawingZoneDetector.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\04-mechanical-bom-knowledge\MechanicalBomKnowledgeBuilder.cs"><Link>Core\MechanicalBomKnowledgeBuilder.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\05-technical-requirements-extraction\TechnicalRequirementsExtractor.cs"><Link>Core\TechnicalRequirementsExtractor.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\06-layer-analysis\CadLayerAnalyzer.cs"><Link>Core\CadLayerAnalyzer.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\07-centerline-identification\CenterlineIdentifier.cs"><Link>Core\CenterlineIdentifier.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\07-centerline-identification\CenterlineShapeClassifier.cs"><Link>Core\CenterlineShapeClassifier.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\08-annotation-identification\AnnotationIdentifier.cs"><Link>Core\AnnotationIdentifier.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\09-dimension-topology\DimensionTopologyAnalyzer.cs"><Link>Core\DimensionTopologyAnalyzer.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\10-engineering-line-semantics\EngineeringLineSemanticAnalyzer.cs"><Link>Core\EngineeringLineSemanticAnalyzer.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\11-block-instance-coordinate-facts\BlockInstanceCoordinateAnalyzer.cs"><Link>Core\BlockInstanceCoordinateAnalyzer.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\12-planar-topology-kernel\PlanarTopologyAnalyzer.cs"><Link>Core\PlanarTopologyAnalyzer.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\13-engineering-view-regions\EngineeringViewRegionAnalyzer.cs"><Link>Core\EngineeringViewRegionAnalyzer.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\14-representation-correspondence\RepresentationCorrespondenceAnalyzer.cs"><Link>Core\RepresentationCorrespondenceAnalyzer.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\15-representation-identity-resolution\RepresentationIdentityResolver.cs"><Link>Core\RepresentationIdentityResolver.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\16-manufacturing-profile-features\ManufacturingProfileAnalyzer.cs"><Link>Core\ManufacturingProfileAnalyzer.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\17-mechanical-interface-adjacency\MechanicalInterfaceAdjacencyAnalyzer.cs"><Link>Core\MechanicalInterfaceAdjacencyAnalyzer.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\18-dimension-geometry-binding\DimensionGeometryBindingAnalyzer.cs"><Link>Core\DimensionGeometryBindingAnalyzer.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\19-semantic-drawing-diff\SemanticDrawingDiffAnalyzer.cs"><Link>Core\SemanticDrawingDiffAnalyzer.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\19-semantic-drawing-diff\SemanticDrawingSnapshotBuilder.cs"><Link>Core\SemanticDrawingSnapshotBuilder.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\20-cross-drawing-interface-graph\CrossDrawingInterfaceGraphModels.cs"><Link>Core\CrossDrawingInterfaceGraphModels.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\20-cross-drawing-interface-graph\CrossDrawingProjectInputBuilder.cs"><Link>Core\CrossDrawingProjectInputBuilder.cs</Link></Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\20-cross-drawing-interface-graph\CrossDrawingInterfaceGraphAnalyzer.cs"><Link>Core\CrossDrawingInterfaceGraphAnalyzer.cs</Link></Compile>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

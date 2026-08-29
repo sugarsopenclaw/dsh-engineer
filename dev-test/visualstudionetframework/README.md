@@ -41,6 +41,24 @@ cd D:\dev\dsh-engineer\dev-test\visualstudionetframework
 .\trigger-thcad-batch.ps1   # 对运行中的 THCAD SendCommand: NETLOAD + SHBEXTRACTALL
 ```
 
+11–20 共用一个独立命名的只读压力回归插件（命令名因兼容仍保留 `1112`），避免正式抽取 DLL 已被 CLR 锁定时覆盖程序集：
+
+```powershell
+.\trigger-thcad-11-12-verifier.ps1 -Scope One    # 最小样图
+.\trigger-thcad-11-12-verifier.ps1 -Scope Medium # 中等样图
+.\trigger-thcad-11-12-verifier.ps1 -Scope Large1 # 709.1_1 单图
+.\trigger-thcad-11-12-verifier.ps1 -Scope Large2 # 709.1_2 单图
+.\trigger-thcad-11-12-verifier.ps1 -Scope All    # 七图旁数据库回归
+```
+
+产物在 `out-thcad-11-12/`，日志为 `_verify-log.txt`。它只旁读源 DWG，但仍在 THCAD 进程内运行；运行前先保存当前编辑图。2026-08-29 曾定位并修复通用反射创建 `HyperLinkCollection` 原生包装器导致的连续旁数据库终结器崩溃；修复后已在新 THCAD 进程完成最小图单图回归，最终连续七图仍待复验，详见 `local-dev/cad/validation-and-risk-notes.md`。
+
+若只验证最新版 12–20 Core，可在 THCAD 未启动时重放上述目录中已保存的 09 尺寸拓扑和 11 世界坐标事实；它还会读取已保存的图框、文字、BOM、技术要求和标题栏证据，输出 13–20 的每图派生 JSON、19 自差分不变量、20 项目图及总摘要。它不重新读取 DWG，不能替代宿主复验：
+
+```powershell
+.\..\..\local-dev\cad\core\12-planar-topology-kernel\replay-saved-instance-facts.ps1
+```
+
 ### 抓取当前框选实体
 
 先在活动图纸中框选，再运行：
@@ -58,7 +76,7 @@ cd D:\dev\dsh-engineer\dev-test\visualstudionetframework
 
 命令结束后会恢复同一选择集。块参照目前按一个顶层实体记录，不自动展开成块定义内的子实体。
 
-可复用能力源码已按依赖边界整理到 `local-dev/cad/`：全量实体抽取位于 THCAD Adapter，图框检测、图框分区检测、机械明细表知识化、技术要求提取、图层分析和中心线识别位于宿主无关 Core。当前插件通过 MSBuild linked file 编译这些唯一源码，不在 `dev-test` 复制实现。整图抽取另写：
+可复用能力源码已按依赖边界整理到 `local-dev/cad/`：全量实体抽取位于 THCAD Adapter，02–20 的识别、拓扑、scope、关系、身份约束、轮廓、接口邻接、尺寸—几何绑定、语义差分和跨图项目关系分析位于宿主无关 Core。当前插件通过 MSBuild linked file 编译这些唯一源码，不在 `dev-test` 复制实现。整图抽取另写：
 
 - `drawing-frames.json`、`drawing-zones.json`：图框及字母数字分区证据；
 - `bom-knowledge.json`：机械明细表八列、结构化行、句柄证据、每行对应的图面 `TH_XuHaoEntity` 序号标注、标注指向侧/序号侧坐标及序号质量报告；
@@ -68,6 +86,22 @@ cd D:\dev\dsh-engineer\dev-test\visualstudionetframework
 - `layer-analysis.md`：面向人和 LLM 的图层清单及主要实体类型。
 - `centerline-identification.json`：文字/样式并集后的 Line、Arc、Circle、Polyline、Spline，直线角度、中心形态、交点视觉锚点及所属坐标空间；
 - `centerline-identification.md`：面向人和 LLM 的方向、形态、交点、带文字结果和完整中心几何清单。
+- `annotation-identification.json`：全图尺寸、引线、序号、粗糙度、基准、符号箭头及字母方向标记的分类、文字、几何定义、证据和成组移除候选句柄；
+- `annotation-identification.md`：面向人和 LLM 的标注分类摘要、重叠口径和删除边界。
+- `dimension-topology.json`：线性尺寸的局部站位图、连续链、共基准剖面、闭合式、派生距离和参考轴偏置；
+- `dimension-topology.md`：面向人和 LLM 的尺寸链、闭合残差与偏心摘要。
+- `engineering-line-semantics.json`：全部颜色/线型/线宽画像、未知样式清单、图线角色、连通闭环、包络关系、重复拓扑和参考轴对称评估；
+- `engineering-line-semantics.md`：面向人和 LLM 的工程图线角色、开放词汇与偏置对称摘要。
+- `block-instance-coordinate-facts.json/.md`：definition/occurrence、世界坐标、镜像与有效样式事实；
+- `planar-topology.json/.md`：切节点 arrangement、连通分量、DCEL 面、Euler 对账与诊断；
+- `engineering-view-regions.json/.md`：纸张结构、文档区、视图候选、局部几何及完整证据回链；
+- `representation-correspondence.json/.md`：重复几何和正投影候选，并显式区分同型与同一对象。
+- `representation-identity-resolution.json/.md`：可追溯身份断言、保守物理对象簇、可能同一对象组、同型组及硬约束冲突；14 的几何关系不会直接合并对象。
+- `manufacturing-profile-features.json/.md`：视图内闭合轮廓、内嵌边界、共享边/包含关系、重复特征、开放拓扑和按 15 对象簇建立的不融合摘要；圆形候选不会直接写成孔。
+- `mechanical-interface-adjacency.json/.md`：内嵌接口特征、同轴/对齐/重复模式、共享边分级、多源重合边、开放端近接及对象簇摘要；二维关系不会直接写成配合、连接或物理接触。
+- `dimension-geometry-binding.json/.md`：尺寸 occurrence 的世界坐标定义点、结构锚点候选、轮廓/接口/对象回链、实体/显示/几何量值核对，以及显式 `DIMLFAC` 和重复显示比例候选；残差不直接写成图纸错误。
+- `semantic-drawing-snapshot.json/.md`：当前版本的跨快照稳定输入，保存图纸身份、04/05/08/11/13/16/17/18 语义元素、源 handle、关系、状态和预算；单次抽取不生成无基线的版本差分。
+- `cross-drawing-observation.json/.md`：20 的单图项目输入，保存标题栏身份、BOM/文字/外参引用、接口签名、局部坐标和绑定尺寸；多图项目关系由离线汇聚器或 Agent 另行生成，单图不会伪造跨文件结论。
 
 重新编译 DLL 后，当前 THCAD 进程中已经 `NETLOAD` 的旧程序集通常无法真正卸载。需要先保存要保留的图纸状态，退出并重启 THCAD，再加载新 DLL；仅重复执行 `NETLOAD` 不应当作可靠热更新。
 
