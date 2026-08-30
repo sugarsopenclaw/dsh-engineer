@@ -34,6 +34,11 @@ export const projectGraphScript = path.join(
 );
 export const projectGraphRoot = path.join(bridgeRoot, "project-graph");
 export const evidenceRoot = path.join(repositoryRoot, ".pi", "runtime", "thcad-evidence");
+export const reviewRoot = path.join(repositoryRoot, ".pi", "runtime", "thcad-reviews");
+export const reviewRunsRoot = path.join(reviewRoot, "runs");
+export const reviewObjectsRoot = path.join(reviewRoot, "objects", "sha256");
+export const reviewCacheRoot = path.join(reviewRoot, "cache");
+export const reviewExportsRoot = path.join(reviewRoot, "exports");
 
 async function existingFile(candidate: string): Promise<string | undefined> {
 	try {

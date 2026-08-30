@@ -20,7 +20,7 @@
 
 - `pi/` 保持上游零修改，接入只使用公开 extension、tool 和非交互 CLI seam。
 - 主 Agent 不直接获得原子 CAD 工具，只能委派一项自包含机械取证任务。
-- 子 Agent 使用 fresh `--no-session` Pi 进程，不继承父 transcript；工具严格限定为三个 THCAD 工具。
+- 子 Agent 使用 fresh、唯一 `--session-dir` / `--session-id` Pi 进程，不继承父 transcript；原生 child Session 仅为本地 review 留档，工具严格限定为三个 THCAD 工具。
 - COM 只附着 `BricscadApp.AcadApplication`，验证宿主为 `thcad.exe`，只负责加载插件与发送命令；实体读取和 01–20 分析必须在 THCAD 内的 .NET 命令执行。
 - .NET Host 使用独立程序集名，避免与已经加载的实验抽取 DLL 冲突；01–20 源码用 MSBuild linked files 复用，不复制实现。
 - 默认操作只读。唯一界面动作是按明确请求设置选择集和缩放，必须报告找到/缺失句柄及窗口变化；不得保存、关闭或修改 DWG。

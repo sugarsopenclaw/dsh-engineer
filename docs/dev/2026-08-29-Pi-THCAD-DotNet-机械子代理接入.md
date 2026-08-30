@@ -67,7 +67,7 @@ Bridge 输出：
 3. 可先输入 `/thcad-doctor` 验证 DLL、作业目录和活动 THCAD。
 4. 对主 Agent 说：`让 THCAD 机械子代理检查当前图的尺寸链与器身中心线偏置，只报告确定性证据和限制。`
 5. 主 Agent 应调用 `delegate_thcad_mechanical`；child 通常依次调用 `thcad_session status`、必要时 `refresh_analysis`、再查询 07/09/18。
-6. 完成后主工具只返回 `.pi/runtime/thcad-evidence/<run-id>/evidence.md`，主 Agent读取它并形成最终回答。
+6. 完成后主工具只向主上下文返回 `.pi/runtime/thcad-reviews/runs/<run-id>/evidence.md` 与 review ref，主 Agent读取 evidence 并形成最终回答；完整 raw 数据不注入主上下文。
 
 定位动作示例：`让机械子代理找到尺寸 1710 对应证据，并在 THCAD 中定位相关句柄。` 只有任务明确要求“定位/显示”时 child 才应调用 `locate_handles`。
 
@@ -77,3 +77,4 @@ Bridge 输出：
 - 当前作业队列由 Pi 侧串行化，适合单机单 THCAD；多 CAD 实例和跨项目公平队列留给后续产品化。
 - 20 项目图只汇聚当前 Bridge artifact 根中已经抽取的 observation；没有提供目标图不等于企业文件缺失。
 - evidence pack 是子代理证据，不是审图结论；最终业务判断仍由主 Agent结合规则侧完成。
+- 每次委派保存 fresh child 原生 Session、JSON event stream、宿主工具轨迹、父 Session 快照和 01–20 内容寻址快照；详见 `docs/dev/2026-08-30-Pi-THCAD-运行留档与训练候选.md`。

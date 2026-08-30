@@ -74,11 +74,20 @@ $env:npm_config_registry = "https://registry.npmmirror.com"
 - `/shenbian-status`：查看当前模型、会话、项目与信任状态；
 - `/shenbian-ui`：在沈变界面与原生 Pi 界面之间切换；
 - `/thcad-doctor`：只读检查独立 .NET Host、活动 THCAD 与当前图；
+- `/thcad-reviews`：查看最近 THCAD 运行包，或用 `/thcad-reviews verify <run-id>` 校验；
 - `delegate_thcad_mechanical`：主 Agent 将自包含图纸任务交给 fresh 机械子 Agent，child 只使用 THCAD 01–20 和有界 artifact 查询；
 - 项目级模型范围固定为三项 DeepSeek 模型，默认 `deepseek-v4-flash`、`high` thinking；
 - Pi package 使用官方公开入口，Pi 核心依赖全部是 `peerDependencies: "*"`，不会带入第二份运行时。
 
-THCAD 链路采用“COM 控制面 + 进程内 .NET 数据/计算面”：PowerShell 只附着 `thcad.exe` 并发送命令，01–20 始终在 CAD 主线程读取当前 Database；主 Agent 只收到 evidence path，不接收 child transcript 或整图 JSON。当前不开放保存、删除标注或其他 DWG 写操作。
+THCAD 链路采用“COM 控制面 + 进程内 .NET 数据/计算面”：PowerShell 只附着 `thcad.exe` 并发送命令，01–20 始终在 CAD 主线程读取当前 Database；主 Agent 上下文只收到有界 evidence path，不接收 child transcript 或整图 JSON。完整 child Session、raw events、父 Session 快照和内容寻址 artifact 只写本机 `.pi/runtime/thcad-reviews/`，供 review 与后续人工筛选训练数据。当前不开放保存、删除标注或其他 DWG 写操作。
+
+本地 review 命令：
+
+```powershell
+.\scripts\thcad-review.ps1 list 10
+.\scripts\thcad-review.ps1 verify <run-id>
+.\scripts\thcad-review.ps1 export-candidates
+```
 
 ## 验证
 
@@ -144,7 +153,11 @@ Pi extension、skill 与 Agent 拥有本机系统权限，Pi 本身不是权限�
 Pi 基座不改变已有数据、Ontology、FastAPI 和 Web 前端边界。
 
 ```powershell
-# FastAPI；也可双击 start-backend.cmd
+# 业务需求图谱一键启动（后端迁移 + FastAPI + Vite 前端）；也可双击 start-graph.cmd
+# 已运行的后端会被复用；Ctrl+C 退出前端时只会收掉由它拉起的后端。
+.\scripts\start-graph.ps1
+
+# 只起 FastAPI；也可双击 start-backend.cmd
 .\scripts\start-backend.ps1
 
 # Web 前端

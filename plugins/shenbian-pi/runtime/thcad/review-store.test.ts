@@ -1,0 +1,161 @@
+import assert from "node:assert/strict";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import test from "node:test";
+
+import { exportReviewCandidates } from "./review-dataset.ts";
+import { ThcadReviewStore } from "./review-store.ts";
+import { buildEvidenceContent } from "./subagent-runner.ts";
+
+async function startRun(store: ThcadReviewStore, runId: string): Promise<void> {
+	await store.beginRun({
+		runId,
+		task: "只读取证测试",
+		childSystemPrompt: "system",
+		childModel: "fixture/model",
+		childThinkingLevel: "off",
+		cwd: process.cwd(),
+		parent: { sessionId: "parent", prompt: "检查当前图" },
+	});
+	await store.recordChildResult(runId, {
+		status: "completed",
+		startedAtUtc: "2026-08-30T00:00:00.000Z",
+		finishedAtUtc: "2026-08-30T00:00:01.000Z",
+		durationMs: 1000,
+		exitCode: 0,
+		model: "fixture/model",
+		stopReason: "stop",
+		toolCallCount: 1,
+		turns: 1,
+		usage: {},
+	});
+	await store.writeEvidence(runId, "# evidence\n");
+}
+
+test("review CAS preserves overwritten artifacts and deduplicates unchanged generations", async () => {
+	const root = await mkdtemp(path.join(os.tmpdir(), "shenbian-thcad-review-"));
+	try {
+		const bridge = path.join(root, "bridge");
+		const reviews = path.join(root, "reviews");
+		const artifacts = path.join(bridge, "artifacts", "sample");
+		const stateDirectory = path.join(bridge, "state");
+		await Promise.all([
+			mkdir(artifacts, { recursive: true }),
+			mkdir(stateDirectory, { recursive: true }),
+		]);
+		const source = path.join(artifacts, "dimension-topology.json");
+		const state = path.join(stateDirectory, "current-analysis.json");
+		await writeFile(source, JSON.stringify({ equation: "1710=825+885", generation: 1 }));
+		await writeFile(state, JSON.stringify({
+			analysis_id: "analysis-1",
+			artifact_directory: "artifacts/sample",
+			artifacts: { "9": "artifacts/sample/dimension-topology.json" },
+		}));
+
+		const store = new ThcadReviewStore({ root: reviews, bridgeRoot: bridge });
+		await startRun(store, "thcad-test-one");
+		const request = JSON.parse(
+			await readFile(path.join(store.runDirectory("thcad-test-one"), "request.json"), "utf8"),
+		) as { provenance: { node_version?: string; integration_worktree_dirty?: boolean } };
+		assert.match(request.provenance.node_version ?? "", /^v\d+/);
+		assert.equal(typeof request.provenance.integration_worktree_dirty, "boolean");
+		const first = await store.snapshotArtifacts("thcad-test-one");
+		const firstArtifact = first.files.find((item) => item.logical_path === "analysis/dimension-topology.json");
+		assert.ok(firstArtifact);
+		await store.finalizeParent("thcad-test-one", {
+			status: "completed",
+			finishedAtUtc: "2026-08-30T00:00:02.000Z",
+			finalMessage: { role: "assistant", content: [{ type: "text", text: "结论一" }] },
+		});
+
+		await writeFile(source, JSON.stringify({ equation: "1710=825+885", generation: 200 }));
+		await writeFile(state, JSON.stringify({
+			analysis_id: "analysis-2",
+			artifact_directory: "artifacts/sample",
+			artifacts: { "9": "artifacts/sample/dimension-topology.json" },
+		}));
+		await startRun(store, "thcad-test-two");
+		const second = await store.snapshotArtifacts("thcad-test-two");
+		const secondArtifact = second.files.find((item) => item.logical_path === "analysis/dimension-topology.json");
+		assert.ok(secondArtifact);
+		assert.notEqual(secondArtifact.sha256, firstArtifact.sha256);
+
+		const preserved = await readFile(path.join(reviews, firstArtifact.object_path), "utf8");
+		assert.match(preserved, /"generation":1/);
+
+		await startRun(store, "thcad-test-three");
+		const third = await store.snapshotArtifacts("thcad-test-three");
+		const thirdArtifact = third.files.find((item) => item.logical_path === "analysis/dimension-topology.json");
+		assert.equal(thirdArtifact?.sha256, secondArtifact.sha256);
+		assert.equal(third.unique_object_bytes_added, 0);
+
+		const verification = await store.verifyRun("thcad-test-one");
+		assert.equal(verification.ok, true, verification.problems.join("\n"));
+		assert.ok(verification.bundle_files_checked >= 5);
+		assert.ok(verification.artifact_objects_checked >= 2);
+
+		const exportPath = path.join(root, "candidates.jsonl");
+		const exported = await exportReviewCandidates(exportPath, store);
+		assert.equal(exported.sample_count, 1);
+		assert.equal(exported.training_eligible, false);
+		const candidate = JSON.parse((await readFile(exportPath, "utf8")).trim()) as {
+			review: { label: string; training_eligible: boolean };
+			input: { parent_user_prompt: string };
+			output: { parent_final_text: string };
+		};
+		assert.deepEqual(candidate.review, {
+			label: "unreviewed",
+			training_eligible: false,
+			contains_customer_data: true,
+			requires_human_curation: true,
+		});
+		assert.equal(candidate.input.parent_user_prompt, "检查当前图");
+		assert.equal(candidate.output.parent_final_text, "结论一");
+
+		await writeFile(path.join(store.runDirectory("thcad-test-one"), "evidence.md"), "# tampered\n");
+		const tampered = await store.verifyRun("thcad-test-one");
+		assert.equal(tampered.ok, false);
+		assert.ok(tampered.problems.some((item) => item.includes("BUNDLE_")));
+	} finally {
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
+test("review run ids cannot escape the local runs root", async () => {
+	const root = await mkdtemp(path.join(os.tmpdir(), "shenbian-thcad-review-path-"));
+	try {
+		const store = new ThcadReviewStore({ root: path.join(root, "reviews"), bridgeRoot: path.join(root, "bridge") });
+		assert.throws(() => store.runDirectory("../outside"), /INVALID_REVIEW_RUN_ID/);
+	} finally {
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
+test("host evidence retains actual tool results when the child summary is wrong", () => {
+	const evidence = buildEvidenceContent(
+		"只读取 status",
+		"artifacts/dangling-report.json",
+		[{
+			sequence: 1,
+			tool_call_id: "call-1",
+			tool_name: "thcad_session",
+			args: { action: "status" },
+			result: {
+				role: "toolResult",
+				content: [{ type: "text", text: JSON.stringify({
+					ok: true,
+					data: {
+						active_document: { name: "sample.dwg", dbmod: 21 },
+						capability_ids: Array.from({ length: 20 }, (_, index) => index + 1),
+					},
+				}) }],
+				isError: false,
+			},
+		}],
+	);
+	assert.match(evidence, /宿主保全的实际工具轨迹/);
+	assert.match(evidence, /sample\.dwg/);
+	assert.match(evidence, /dbmod/);
+	assert.match(evidence, /dangling-report\.json/);
+});

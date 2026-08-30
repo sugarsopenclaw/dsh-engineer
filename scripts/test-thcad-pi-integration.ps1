@@ -12,7 +12,9 @@ if ($LASTEXITCODE -ne 0) { throw "AgentBridge build failed: $LASTEXITCODE" }
 if ($LASTEXITCODE -ne 0) { throw "Pi verification failed: $LASTEXITCODE" }
 
 $tsx = Join-Path $repositoryRoot 'pi\node_modules\.bin\tsx.cmd'
-& $tsx --test (Join-Path $repositoryRoot 'plugins\shenbian-pi\runtime\thcad\artifact-store.test.ts')
+& $tsx --test `
+    (Join-Path $repositoryRoot 'plugins\shenbian-pi\runtime\thcad\artifact-store.test.ts') `
+    (Join-Path $repositoryRoot 'plugins\shenbian-pi\runtime\thcad\review-store.test.ts')
 if ($LASTEXITCODE -ne 0) { throw "THCAD artifact tests failed: $LASTEXITCODE" }
 
 if ($LiveStatus) {
