@@ -24,6 +24,7 @@ const legacyBridgeDll = path.join(
 	"Shb.Thcad.AgentBridge.dll",
 );
 export const invokeBridgeScript = path.join(repositoryRoot, "scripts", "invoke-thcad-agent-bridge.ps1");
+export const plotFrameOverviewScript = path.join(repositoryRoot, "scripts", "plot-thcad-frame-overview.ps1");
 export const projectGraphScript = path.join(
 	repositoryRoot,
 	"local-dev",

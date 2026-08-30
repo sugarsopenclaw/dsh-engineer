@@ -51,8 +51,15 @@ export interface BeginReviewInput {
 	childSystemPrompt: string;
 	childModel?: string;
 	childThinkingLevel?: string;
+	childRole?: "mechanical" | "vision";
 	cwd: string;
 	parent?: ParentReviewContext;
+}
+
+export interface ChildInputSnapshotEntry extends ArtifactSnapshotEntry {
+	role: string;
+	media_type?: string;
+	metadata?: unknown;
 }
 
 export interface ChildReviewResult {
@@ -290,6 +297,7 @@ export class ThcadReviewStore {
 			task: input.task,
 			cwd_ref: toProjectRef(input.cwd),
 			child: {
+				role: input.childRole ?? "mechanical",
 				model: input.childModel,
 				thinking_level: input.childThinkingLevel,
 				session_mode: "fresh_persisted",
@@ -389,6 +397,47 @@ export class ThcadReviewStore {
 		const target = path.join(this.runDirectory(runId), "evidence.md");
 		await writeExclusive(target, content);
 		return toProjectRef(target);
+	}
+
+	async snapshotChildInput(runId: string, input: {
+		source: string;
+		logicalPath: string;
+		role: string;
+		mediaType?: string;
+		metadata?: unknown;
+	}): Promise<ChildInputSnapshotEntry> {
+		if (
+			!input.logicalPath
+			|| path.isAbsolute(input.logicalPath)
+			|| input.logicalPath.split(/[\\/]/).includes("..")
+		) throw new Error("INVALID_CHILD_INPUT_LOGICAL_PATH");
+		const stored = await this.storeFile(input.source);
+		const entry: ChildInputSnapshotEntry = {
+			logical_path: input.logicalPath.replaceAll("\\", "/"),
+			source_ref: toProjectRef(input.source),
+			bytes: stored.bytes,
+			sha256: stored.sha256,
+			object_path: normalizedRelative(this.root, stored.objectPath),
+			object_ref: stored.objectRef,
+			source_fingerprint: stored.sourceFingerprint,
+			role: input.role,
+			media_type: input.mediaType,
+			metadata: input.metadata,
+		};
+		await writeJsonExclusive(path.join(this.runDirectory(runId), "child-inputs.json"), {
+			schema_version: REVIEW_SCHEMA_VERSION,
+			run_id: runId,
+			created_at_utc: utcNow(),
+			files: [entry],
+			unique_object_bytes_added: stored.addedBytes,
+		});
+		await this.appendLifecycle(runId, "child_input_snapshotted", {
+			role: input.role,
+			bytes: stored.bytes,
+			sha256: stored.sha256,
+			unique_object_bytes_added: stored.addedBytes,
+		});
+		return entry;
 	}
 
 	async snapshotArtifacts(runId: string): Promise<ArtifactSnapshotManifest> {
@@ -642,6 +691,30 @@ export class ThcadReviewStore {
 			}
 		} catch (error) {
 			problems.push(`REQUEST_IMAGE_MANIFEST_FAILED: ${String(error)}`);
+		}
+
+		try {
+			const inputs = await this.readOptionalJson(path.join(runDirectory, "child-inputs.json"));
+			const files = Array.isArray(inputs?.files) ? inputs.files : [];
+			for (const raw of files) {
+				if (!raw || typeof raw !== "object") continue;
+				const item = raw as JsonRecord;
+				const digest = typeof item.sha256 === "string" ? item.sha256 : "";
+				if (!digest || checkedObjects.has(digest) || typeof item.object_path !== "string") continue;
+				checkedObjects.add(digest);
+				try {
+					const objectPath = resolveInside(this.root, item.object_path);
+					const metadata = await stat(objectPath);
+					const actual = await sha256File(objectPath);
+					artifactObjectsChecked += 1;
+					if (metadata.size !== Number(item.bytes)) problems.push(`CHILD_INPUT_SIZE_MISMATCH: ${digest}`);
+					if (actual !== digest) problems.push(`CHILD_INPUT_HASH_MISMATCH: ${digest}`);
+				} catch (error) {
+					problems.push(`CHILD_INPUT_FAILED ${digest}: ${String(error)}`);
+				}
+			}
+		} catch (error) {
+			problems.push(`CHILD_INPUT_MANIFEST_FAILED: ${String(error)}`);
 		}
 
 		return {

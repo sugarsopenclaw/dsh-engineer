@@ -2,6 +2,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { Type } from "typebox";
 
 import { runThcadSubagent } from "../runtime/thcad/subagent-runner.ts";
+import { runThcadVisualOverviewSubagent } from "../runtime/thcad/visual-subagent-runner.ts";
 import { ThcadBridgeClient } from "../runtime/thcad/bridge-client.ts";
 import { bridgeRoot, toProjectRef } from "../runtime/thcad/paths.ts";
 import {
@@ -24,7 +25,7 @@ function serializeCadWork<T>(work: () => Promise<T>): Promise<T> {
 }
 
 export default function thcadMechanicalExtension(pi: ExtensionAPI): void {
-	if (process.env.SHENBIAN_PI_ROLE === "thcad-mechanical") return;
+	if (process.env.SHENBIAN_PI_ROLE?.startsWith("thcad-")) return;
 	const reviewStore = new ThcadReviewStore();
 	const finalizedRuns = new Set<string>();
 	let activeParentRun: ActiveParentRun | undefined;
@@ -152,6 +153,78 @@ export default function thcadMechanicalExtension(pi: ExtensionAPI): void {
 					child_session_ref: result.childSessionRef,
 					artifact_manifest_ref: result.artifactManifestRef,
 					artifact_refs: [result.evidenceRef, result.reviewRef],
+				},
+				usage: result.usage,
+			};
+		},
+	});
+
+	pi.registerTool({
+		name: "delegate_thcad_visual_overview",
+		label: "THCAD Visual Overview Subagent",
+		description: [
+			"按当前 THCAD 的 capability 02 确定性图框生成一张整图 PNG，并委派给隔离的 DeepSeek 视觉子 Agent 判断宏观清晰度。",
+			"本工具只回答图像是否足以做整图概览/导航、是否需要后续局部出图；不读取精确尺寸，不形成审图结论。",
+			"出图通道只附着 thcad.exe，保存并恢复视图、布局与 DBMOD；视觉 child 无任何工具、无父上下文，固定使用 deepseek-v4-flash-vision-exp。",
+			"完成后先读取 host 写入的 evidence.md，再把确定性出图元数据与视觉候选判断分开表达。",
+		].join("\n"),
+		promptSnippet: "Plot a capability-02 frame and delegate one-image legibility assessment to DeepSeek vision",
+		promptGuidelines: [
+			"Use delegate_thcad_visual_overview when the user asks for a visual overview or whether the whole THCAD sheet is visually readable.",
+			"Treat its legibility assessment as model-derived evidence, while frame bbox, DBMOD, image hash and dimensions are deterministic host facts.",
+			"Do not claim that an overview_only image can support exact dimension, BOM, or technical-requirement reading; request later detail captures instead.",
+		],
+		parameters: Type.Object({
+			frame_id: Type.Optional(Type.String({ pattern: "^frame-[1-9][0-9]*$", maxLength: 32 })),
+		}, { additionalProperties: false }),
+		async execute(toolCallId, params, signal, onUpdate, ctx) {
+			if (signal?.aborted) throw new Error("SUBAGENT_CANCELLED");
+			onUpdate?.({ content: [{ type: "text", text: "THCAD 视觉概览子代理已排队…" }], details: { stage: "queued" } });
+			const runId = createReviewRunId();
+			activeParentRun?.runIds.add(runId);
+			const result = await serializeCadWork(() => runThcadVisualOverviewSubagent({
+				runId,
+				cwd: ctx.cwd,
+				frameId: params.frame_id,
+				signal,
+				onProgress: (text) => onUpdate?.({ content: [{ type: "text", text }], details: { stage: "running" } }),
+				parent: {
+					sessionId: ctx.sessionManager.getSessionId(),
+					sessionFile: ctx.sessionManager.getSessionFile(),
+					toolCallId,
+					prompt: activeParentRun?.prompt,
+					systemPrompt: activeParentRun?.systemPrompt,
+					model: ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : undefined,
+					thinkingLevel: ctx.thinkingLevel,
+					images: activeParentRun?.images,
+				},
+			}));
+			return {
+				content: [{
+					type: "text",
+					text: [
+						"THCAD visual overview evidence pack saved.",
+						`Verdict: ${result.assessment.verdict} (confidence=${result.assessment.confidence})`,
+						`Overview image: ${result.imageRef}`,
+						`Evidence: ${result.evidenceRef}`,
+						`Immutable review bundle: ${result.reviewRef} (${result.reviewStatus})`,
+						"Read the evidence before answering; keep deterministic plot facts separate from the vision-model assessment.",
+					].join("\n"),
+				}],
+				details: {
+					child_run_id: result.runId,
+					status: "completed",
+					model: result.model,
+					duration_ms: result.durationMs,
+					turns: result.turns,
+					usage: result.usage,
+					verdict: result.assessment.verdict,
+					confidence: result.assessment.confidence,
+					needs_detail_views: result.assessment.needs_detail_views,
+					review_status: result.reviewStatus,
+					child_session_ref: result.childSessionRef,
+					artifact_manifest_ref: result.artifactManifestRef,
+					artifact_refs: [result.imageRef, result.evidenceRef, result.reviewRef],
 				},
 				usage: result.usage,
 			};

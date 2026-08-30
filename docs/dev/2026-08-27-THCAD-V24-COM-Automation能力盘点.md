@@ -830,7 +830,18 @@ THCadToolKit 激活结果：
 - `BricscadDb.Interop.IAcadDictionaries` — 方法：`Add`, `Delete`, `Erase`, `GetEnumerator`, `GetExtensionDictionary`, `GetXData`, `Item`, `SetXData`；属性：`Application{get}`, `Count{get}`, `Database{get}`, `Document{get}`, `Handle{get}`, `HasExtensionDictionary{get}`, `ObjectID{get}`, `ObjectID32{get}`, `ObjectName{get}`, `OwnerID{get}`, `OwnerID32{get}`
 - `THCADPickUpEngine.Interop.IPickUpEngine___v0` — 方法：`AddFile`, `DoPickUp`, `DoPickUpOne`, `RemoveAllFiles`, `SetIniFilePath`；属性：`CheckInvalidFiels{get}`, `DataSourceID{set}`, `FailedPickFile{get}`, `FailedPickFileInfo{get}`, `InvalidFile{get}`, `LastError{get}`, `PickFailedFiles{get}`, `TableName{get}`
 
-## 7. 边界
+## 7. 2026-08-30 视觉出图运行时补充
+
+为 Pi 视觉概览验证了以下组合链路：
+
+- `BricscadApp.AcadApplication` 可附着当前宿主，并由 HWND 对应进程核验为 `thcad.exe`；
+- COM 可读取/恢复 `ActiveLayout`、`TILEMODE`、`VIEWCTR`、`VIEWSIZE`、`DBMOD`，并调用 `ZoomWindow` / `ZoomCenter`；
+- `SendCommand` 调用当前命令面的 `PNGOUT`，能按 capability 02 frame window 生成 PNG；
+- 样图输出 1372×798、403855 字节，DBMOD `21→21`，已通过 PNG 签名、SHA-256、墨迹率和 content bbox 校验。
+
+同时确认：类型库中的 `IAcadPlot.PlotToFile` 和 plot configuration 元数据存在，但当前运行时设备列表没有 raster PC3（也没有 `PublishToWeb PNG.pc3`），不能据此声称本机 PlotToFile→PNG 可达。因此产品链记录为 `thcad_pngout_frame_window`，不是 PC3 plot。复现实现在 `scripts/plot-thcad-frame-overview.ps1`，探索记录见 [`2026-08-30-Pi-THCAD-视觉概览与晓量能力取舍.md`](2026-08-30-Pi-THCAD-视觉概览与晓量能力取舍.md)。
+
+## 8. 边界
 
 - 本篇覆盖已注册 COM 类型库和 ProgID，不覆盖没有类型库的私有 IDispatch、LISP 函数、命令表或原生 C++ ABI；
 - 类型库成员存在不保证 THCAD 当前版本、当前许可证、当前图纸或某个专业对象都支持；

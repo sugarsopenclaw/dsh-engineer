@@ -8,13 +8,18 @@ import { exportReviewCandidates } from "./review-dataset.ts";
 import { ThcadReviewStore } from "./review-store.ts";
 import { buildEvidenceContent } from "./subagent-runner.ts";
 
-async function startRun(store: ThcadReviewStore, runId: string): Promise<void> {
+async function startRun(
+	store: ThcadReviewStore,
+	runId: string,
+	childRole: "mechanical" | "vision" = "mechanical",
+): Promise<void> {
 	await store.beginRun({
 		runId,
 		task: "只读取证测试",
 		childSystemPrompt: "system",
 		childModel: "fixture/model",
 		childThinkingLevel: "off",
+		childRole,
 		cwd: process.cwd(),
 		parent: { sessionId: "parent", prompt: "检查当前图" },
 	});
@@ -45,8 +50,10 @@ test("review CAS preserves overwritten artifacts and deduplicates unchanged gene
 			mkdir(stateDirectory, { recursive: true }),
 		]);
 		const source = path.join(artifacts, "dimension-topology.json");
+		const childImage = path.join(root, "frame-overview.png");
 		const state = path.join(stateDirectory, "current-analysis.json");
 		await writeFile(source, JSON.stringify({ equation: "1710=825+885", generation: 1 }));
+		await writeFile(childImage, Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3, 4]));
 		await writeFile(state, JSON.stringify({
 			analysis_id: "analysis-1",
 			artifact_directory: "artifacts/sample",
@@ -54,12 +61,25 @@ test("review CAS preserves overwritten artifacts and deduplicates unchanged gene
 		}));
 
 		const store = new ThcadReviewStore({ root: reviews, bridgeRoot: bridge });
-		await startRun(store, "thcad-test-one");
+		await startRun(store, "thcad-test-one", "vision");
 		const request = JSON.parse(
 			await readFile(path.join(store.runDirectory("thcad-test-one"), "request.json"), "utf8"),
 		) as { provenance: { node_version?: string; integration_worktree_dirty?: boolean } };
 		assert.match(request.provenance.node_version ?? "", /^v\d+/);
 		assert.equal(typeof request.provenance.integration_worktree_dirty, "boolean");
+		const childInput = await store.snapshotChildInput("thcad-test-one", {
+			source: childImage,
+			logicalPath: "visual/frame-overview.png",
+			role: "vision_user_image",
+			mediaType: "image/png",
+			metadata: { frame_id: "frame-1" },
+		});
+		assert.equal(childInput.role, "vision_user_image");
+		assert.match(childInput.sha256, /^[a-f0-9]{64}$/);
+		await writeFile(
+			path.join(store.runDirectory("thcad-test-one"), "visual-assessment.json"),
+			JSON.stringify({ assessment: { verdict: "overview_only" } }),
+		);
 		const first = await store.snapshotArtifacts("thcad-test-one");
 		const firstArtifact = first.files.find((item) => item.logical_path === "analysis/dimension-topology.json");
 		assert.ok(firstArtifact);
@@ -100,10 +120,12 @@ test("review CAS preserves overwritten artifacts and deduplicates unchanged gene
 		assert.equal(exported.sample_count, 1);
 		assert.equal(exported.training_eligible, false);
 		const candidate = JSON.parse((await readFile(exportPath, "utf8")).trim()) as {
+			source: string;
 			review: { label: string; training_eligible: boolean };
-			input: { parent_user_prompt: string };
-			output: { parent_final_text: string };
+			input: { parent_user_prompt: string; child_inputs: Array<{ role: string }> };
+			output: { parent_final_text: string; visual_assessment: { assessment: { verdict: string } } };
 		};
+		assert.equal(candidate.source, "pi_thcad_visual_review");
 		assert.deepEqual(candidate.review, {
 			label: "unreviewed",
 			training_eligible: false,
@@ -111,7 +133,9 @@ test("review CAS preserves overwritten artifacts and deduplicates unchanged gene
 			requires_human_curation: true,
 		});
 		assert.equal(candidate.input.parent_user_prompt, "检查当前图");
+		assert.equal(candidate.input.child_inputs[0]?.role, "vision_user_image");
 		assert.equal(candidate.output.parent_final_text, "结论一");
+		assert.equal(candidate.output.visual_assessment.assessment.verdict, "overview_only");
 
 		await writeFile(path.join(store.runDirectory("thcad-test-one"), "evidence.md"), "# tampered\n");
 		const tampered = await store.verifyRun("thcad-test-one");

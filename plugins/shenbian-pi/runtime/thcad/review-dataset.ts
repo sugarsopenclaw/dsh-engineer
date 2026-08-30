@@ -60,6 +60,8 @@ export async function exportReviewCandidates(
 		const request = await optionalJson(path.join(runDirectory, "request.json"));
 		const child = await optionalJson(path.join(runDirectory, "child-result.json"));
 		const artifacts = await optionalJson(path.join(runDirectory, "artifact-manifest.json"));
+		const childInputs = await optionalJson(path.join(runDirectory, "child-inputs.json"));
+		const visualAssessment = await optionalJson(path.join(runDirectory, "visual-assessment.json"));
 		const parent = await optionalJson(path.join(runDirectory, "parent-result.json"));
 		const reviewManifestText = await optionalText(path.join(runDirectory, "review-manifest.json"));
 		const evidence = await optionalText(path.join(runDirectory, "evidence.md"));
@@ -70,13 +72,16 @@ export async function exportReviewCandidates(
 		const parentRequest = request.parent && typeof request.parent === "object"
 			? request.parent as JsonRecord
 			: {};
+		const childRequest = request.child && typeof request.child === "object"
+			? request.child as JsonRecord
+			: {};
 		const analysisState = artifacts?.analysis_state && typeof artifacts.analysis_state === "object"
 			? artifacts.analysis_state as JsonRecord
 			: {};
 		records.push(JSON.stringify({
 			schema_version: 1,
 			sample_id: summary.run_id,
-			source: "pi_thcad_mechanical_review",
+			source: childRequest.role === "vision" ? "pi_thcad_visual_review" : "pi_thcad_mechanical_review",
 			review: {
 				label: "unreviewed",
 				training_eligible: false,
@@ -86,11 +91,13 @@ export async function exportReviewCandidates(
 			input: {
 				parent_user_prompt: parentRequest.prompt,
 				parent_images: parentRequest.images,
+				child_inputs: childInputs?.files,
 				delegated_task: request.task,
 			},
 			output: {
 				parent_final_text: parent.final_text,
 				child_evidence: evidence,
+				visual_assessment: visualAssessment,
 			},
 			execution: {
 				parent_model: parent.model ?? parentRequest.model,

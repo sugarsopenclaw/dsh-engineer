@@ -28,6 +28,7 @@ THCAD/Teigha 的文档、Editor 和 Database 对线程与文档上下文敏感�
 主 Agent 只看到：
 
 - `delegate_thcad_mechanical({ task })`：把自包含的机械图纸取证任务交给子 Agent。
+- `delegate_thcad_visual_overview({ frame_id? })`：复用 02 图框导出一张整图，交给固定 DeepSeek Vision child 做宏观清晰度门禁。
 
 子 Agent 只看到：
 
@@ -70,6 +71,8 @@ Bridge 输出：
 6. 完成后主工具只向主上下文返回 `.pi/runtime/thcad-reviews/runs/<run-id>/evidence.md` 与 review ref，主 Agent读取 evidence 并形成最终回答；完整 raw 数据不注入主上下文。
 
 定位动作示例：`让机械子代理找到尺寸 1710 对应证据，并在 THCAD 中定位相关句柄。` 只有任务明确要求“定位/显示”时 child 才应调用 `locate_handles`。
+
+视觉示例：`对当前 THCAD 图纸生成整图视觉概览，判断是否看得清。` 主 Agent 应调用视觉委派工具并读取 evidence。视觉 child 没有任何 CAD 工具，不能输出精确尺寸或审图结论；实现和晓量能力取舍见 [`2026-08-30-Pi-THCAD-视觉概览与晓量能力取舍.md`](2026-08-30-Pi-THCAD-视觉概览与晓量能力取舍.md)。
 
 ## 已知边界
 

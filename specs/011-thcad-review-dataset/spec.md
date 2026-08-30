@@ -4,7 +4,7 @@
 
 ## 目标
 
-每次 `delegate_thcad_mechanical` 都生成唯一、不可覆盖的本地 review bundle，使一次现场任务的输入、主/子 Agent 输出、工具轨迹、确定性证据和当次 01–20 原始产物可以按同一 `run_id` 复核，并可在人工筛选后导出为微调候选数据。
+每次 THCAD 机械或视觉委派都生成唯一、不可覆盖的本地 review bundle，使一次现场任务的输入、主/子 Agent 输出、工具轨迹、视觉输入、确定性证据和当次 01–20 原始产物可以按同一 `run_id` 复核，并可在人工筛选后导出为微调候选数据。
 
 ## 数据布局
 
@@ -18,6 +18,8 @@
     child-stderr.log
     child-session/*.jsonl
     child-result.json
+    child-inputs.json            # 视觉 child 实际收到的图片及 CAS 引用
+    visual-assessment.json       # 存在时的结构化视觉判断
     evidence.md
     artifact-manifest.json
     parent-result.json
@@ -36,6 +38,7 @@
 - 大文件用 SHA-256 内容寻址对象库存一份，run manifest 记录逻辑路径、源引用、字节数、SHA-256 和对象引用。
 - 保存父任务原始提示、系统提示、模型/思考等级、父 Session 标识、最终消息及当时的父 Session JSONL 快照。
 - 父提示含图片时，图片字节写入同一 SHA-256 对象库，request/export 只保留 MIME、大小、哈希和对象引用。
+- 子代理运行时生成的视觉输入也必须在调用模型前写入同一对象库；保存角色、MIME、出图 provenance、DBMOD、尺寸与哈希，并纳入完整性校验和候选导出。
 - 保存 Git HEAD、相关集成路径脏状态、Pi/插件/Node 版本及 current Bridge deployment DLL 哈希。
 - bundle 最终清单对 bundle 内文件逐一计算 SHA-256；提供离线完整性验证。
 - 失败、取消和缺失 artifact 也要形成 partial run，不得因为没有最终答案而丢失现场。
