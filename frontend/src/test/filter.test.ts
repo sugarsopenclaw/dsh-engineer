@@ -6,10 +6,11 @@ import {
   isFilterActive,
   nodeMatchesFilters,
 } from "../graph/filter";
-import type { RuntimeGraph, RuntimeGraphNode } from "../graph/runtime";
+import type { RuntimeGraph, RuntimeRequirementNode } from "../graph/runtime";
 
-function makeNode(overrides: Partial<RuntimeGraphNode> = {}): RuntimeGraphNode {
+function makeNode(overrides: Partial<RuntimeRequirementNode> = {}): RuntimeRequirementNode {
   return {
+    nodeKind: "business_requirement",
     id: "BR-X",
     label: "节点",
     description: null,
@@ -79,6 +80,13 @@ describe("filterGraph", () => {
     const result = filterGraph(graph, { ...EMPTY_FILTERS, atomicOnly: false, searchText: "BR-" });
     expect(result.nodes).toHaveLength(3);
     expect(result.links).toHaveLength(3);
+  });
+
+  it("图层开关：关闭业务需求层后需求节点全部隐藏", () => {
+    const result = filterGraph(graph, { ...EMPTY_FILTERS, showBusinessRequirements: false });
+    expect(result.nodes).toHaveLength(0);
+    expect(result.links).toHaveLength(0);
+    expect(isFilterActive({ ...EMPTY_FILTERS, showBusinessRequirements: false })).toBe(true);
   });
 });
 

@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import Depends, Request
 
 from shenbian_api.application.business_requirements import BusinessRequirementsQueryService
+from shenbian_api.application.cad_capabilities import CadCapabilitiesQueryService
 from shenbian_api.application.model_gateway import DeepSeekModelGateway
 from shenbian_api.application.queries import DataCatalogQueryService, OntologyQueryService
 from shenbian_api.application.readiness import ReadinessService
@@ -30,6 +31,10 @@ def get_business_requirements_service(request: Request) -> BusinessRequirementsQ
     return request.app.state.business_requirements_service
 
 
+def get_cad_capabilities_service(request: Request) -> CadCapabilitiesQueryService:
+    return request.app.state.cad_capabilities_service
+
+
 OntologyServiceDep = Annotated[OntologyQueryService, Depends(get_ontology_service)]
 CatalogServiceDep = Annotated[DataCatalogQueryService, Depends(get_catalog_service)]
 ReadinessServiceDep = Annotated[ReadinessService, Depends(get_readiness_service)]
@@ -37,4 +42,8 @@ DeepSeekGatewayDep = Annotated[DeepSeekModelGateway, Depends(get_deepseek_gatewa
 BusinessRequirementsServiceDep = Annotated[
     BusinessRequirementsQueryService,
     Depends(get_business_requirements_service),
+]
+CadCapabilitiesServiceDep = Annotated[
+    CadCapabilitiesQueryService,
+    Depends(get_cad_capabilities_service),
 ]

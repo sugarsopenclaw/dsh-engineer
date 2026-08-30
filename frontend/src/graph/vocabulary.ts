@@ -1,7 +1,4 @@
-import type {
-  RequirementOriginKind,
-  RequirementRelationKind,
-} from "../api/types";
+import type { RequirementOriginKind } from "../api/types";
 
 /**
  * 展示语义字典。
@@ -38,8 +35,69 @@ export function nodeColor(originKind: RequirementOriginKind, rank: number): stri
   return ORIGIN_KIND_META[originKind]?.color ?? "#94a3b8";
 }
 
+/* ------------------------------------------------------------------ */
+/* CAD 能力原子：按 surface 着色。取值是开放字符串，未知值回退灰色，    */
+/* 不在前端维护自称完整的枚举。                                        */
+/* ------------------------------------------------------------------ */
+
+const SURFACE_META: Record<string, { label: string; color: string }> = {
+  dotnet: { label: ".NET", color: "#22d3ee" },
+  com: { label: "COM", color: "#fb923c" },
+  lisp: { label: "LISP", color: "#a3e635" },
+  command: { label: "命令", color: "#f472b6" },
+  native: { label: "原生", color: "#94a3b8" },
+};
+
+const FALLBACK_SURFACE = { label: "未知面", color: "#64748b" };
+
+export function surfaceMeta(surface: string): { label: string; color: string } {
+  return SURFACE_META[surface] ?? { ...FALLBACK_SURFACE, label: surface };
+}
+
+export const ATOM_KIND_LABELS: Record<string, string> = {
+  method: "方法",
+  constructor: "构造函数",
+  property_get: "属性读取",
+  property_set: "属性写入",
+  field_read: "字段读取",
+  field_write: "字段写入",
+  command: "命令",
+  macro: "宏",
+  lisp_function: "LISP 函数",
+  native_export: "原生导出",
+  progid_activation: "ProgID 激活",
+  event_subscribe: "事件订阅",
+  event_unsubscribe: "事件退订",
+};
+
+export const CLASSIFICATION_STATUS_LABELS: Record<string, string> = {
+  classified: "已分类",
+  deferred: "延后分类",
+  failed: "分类失败",
+  pending: "待分类",
+};
+
+export const OPERATION_KIND_LABELS: Record<string, string> = {
+  invoke: "调用",
+  read: "读取",
+  edit: "编辑",
+  create: "创建",
+  delete: "删除",
+  compute: "计算",
+  transform: "变换",
+  lifecycle: "生命周期",
+  event: "事件",
+  save: "保存",
+  import: "导入",
+  export: "导出",
+  select: "选择",
+  display: "显示",
+  unknown: "未分类操作",
+};
+
+// relationKind 是开放字符串：当前只有需求关系，未来可接收跨层关系，未知值回退原文。
 export const RELATION_KIND_META: Record<
-  RequirementRelationKind,
+  string,
   { label: string; color: string }
 > = {
   contains_requirement: { label: "包含", color: "rgba(148, 163, 184, 0.55)" },

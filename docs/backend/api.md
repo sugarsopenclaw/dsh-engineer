@@ -2,10 +2,10 @@
 
 `shenbian-api`（`backend/`）为本地 DeepSeek Harness Agent 提供共享读取接口与 DeepSeek 模型网关。本文档按当前实现列出全部 HTTP 接口；规格仍以 `specs/` 为准。
 
-业务需求图谱的完整前端联调契约见 [`business-requirements-graph-api.md`](business-requirements-graph-api.md)。
+业务需求图谱的完整前端联调契约见 [`business-requirements-graph-api.md`](business-requirements-graph-api.md)，CAD 原子能力目录契约见 [`cad-capabilities-api.md`](cad-capabilities-api.md)。
 
 - 服务标题：沈变 Harness Agent API
-- 版本：`0.2.0`
+- 版本：`0.3.0`
 - 默认监听：`http://127.0.0.1:8000`
 - 业务前缀：`/api/v1`
 - 交互式文档：启动后访问 [`/docs`](http://127.0.0.1:8000/docs)（OpenAPI）
@@ -25,7 +25,7 @@ uv run shenbian-api
 | --- | --- |
 | 协议 | HTTP/1.1，JSON 默认 `application/json; charset=utf-8` |
 | 路径 | 业务接口一律在 `/api/v1` 下 |
-| 鉴权 | 健康检查、Ontology、数据目录和业务需求图谱在当前本机/受控内网部署中**不鉴权**。模型网关需要 `Authorization: Bearer <token>`，见 [模型网关鉴权](#模型网关鉴权) |
+| 鉴权 | 健康检查、Ontology、数据目录、业务需求图谱和 CAD 原子能力目录在当前本机/受控内网部署中**不鉴权**。模型网关需要 `Authorization: Bearer <token>`，见 [模型网关鉴权](#模型网关鉴权) |
 | 请求体上限 | 仅模型网关限制，默认 48 MiB（`DEEPSEEK_GATEWAY_MAX_REQUEST_BYTES`，`50331648`） |
 | 成功 | `2xx`，响应体为对应模型 JSON；流式接口原样转发上游字节 |
 | 失败 | 见各接口错误表。模型网关自有错误统一为下方结构；上游业务错误（如 429）原样透传 |
@@ -57,10 +57,14 @@ uv run shenbian-api
 | `GET` | `/api/v1/data-catalog` | 否 | 已登记数据集目录 |
 | `GET` | `/api/v1/business-requirements/graph` | 否 | PostgreSQL 业务需求图谱及 2D/3D 坐标 |
 | `GET` | `/api/v1/business-requirements/{requirement_id}` | 否 | 需求、证据、范围、验收条件和待确认项详情 |
+| `GET` | `/api/v1/cad-capabilities/atoms` | 否 | 分页查询 CAD 原子能力及属性筛选 |
+| `GET` | `/api/v1/cad-capabilities/graph-atoms` | 否 | NDJSON 批量返回筛选后的图谱最小投影 |
+| `GET` | `/api/v1/cad-capabilities/atoms/{atom_id}` | 否 | 查询单个原子的完整技术事实与分类属性 |
+| `GET` | `/api/v1/cad-capabilities/facets` | 否 | 查询技术面、宿主、操作类型等筛选项计数 |
 | `POST` | `/api/v1/llm/deepseek/chat/completions` | Bearer | DeepSeek Chat Completions 透明转发 |
 | `POST` | `/api/v1/llm/deepseek/anthropic/v1/messages` | Bearer | DeepSeek Anthropic Messages 透明转发（Harness Web Search） |
 
-当前业务需求对象实例只提供上述只读查询；尚未提供写入 CRUD、图纸上传或图元读写接口。
+当前业务需求和 CAD 能力对象实例只提供上述只读查询；尚未提供写入 CRUD、图纸上传或图元读写接口。
 
 ---
 
@@ -262,15 +266,15 @@ Host: 127.0.0.1:8000
 
 ### `GET /api/v1/data-catalog`
 
-**响应** `200`（当前登记 5 个数据集：raw 3、staging 1、curated 1）
+**响应** `200`（当前登记 8 个数据集：raw 3、staging 2、curated 3）
 
 ```json
 {
-  "dataset_count": 5,
+  "dataset_count": 8,
   "by_stage": {
-    "curated": 1,
+    "curated": 3,
     "raw": 3,
-    "staging": 1
+    "staging": 2
   },
   "datasets": [
     {
@@ -312,6 +316,9 @@ Host: 127.0.0.1:8000
 | --- | --- | --- |
 | `shenbian.client_requirements.raw.v1` | `raw` | 需求与调研原文 |
 | `shenbian.client_requirements.curated.v1` | `curated` | 可追溯的业务需求实体、关系、范围和图谱视图 |
+| `cad.capabilities.staging.v1` | `staging` | THCAD V24 与 AutoCAD 2024 的宿主隔离原子能力扫描与 enrichment |
+| `cad.capabilities.curated.v1` | `curated` | 仅含 THCAD V24 的历史原子能力快照 |
+| `cad.capabilities.curated.v2` | `curated` | THCAD V24 与 AutoCAD 2024 的综合原子对象数据集（默认） |
 | `shenbian.general_knowledge.raw.v1` | `raw` | 标准类知识资料 |
 | `shenbian.thcad_extraction.staging.v1` | `staging` | THCAD 抽取旁数据库事实 |
 | `shenbian.transformer_drawings.raw.v1` | `raw` | 变压器二维 CAD 原始交付 |
@@ -498,4 +505,5 @@ anthropic-version: 2023-06-01
 | [`backend/README.md`](../../backend/README.md) | 启动、Harness 接入、视觉链路 |
 | [`specs/003-harness-deepseek-gateway/spec.md`](../../specs/003-harness-deepseek-gateway/spec.md) | 模型网关规格 |
 | [`ontology/shenbian/v1/ontology.yaml`](../../ontology/shenbian/v1/ontology.yaml) | Ontology 源 |
+| [`ontology/cad_capabilities/v1/ontology.yaml`](../../ontology/cad_capabilities/v1/ontology.yaml) | CAD 原子能力对象类型契约 |
 | [`data/catalog/`](../../data/catalog/) | 数据集登记 YAML |

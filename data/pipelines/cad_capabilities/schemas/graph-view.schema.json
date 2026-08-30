@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dsh-engineer.local/schemas/cad-capabilities/graph-view.schema.json",
+  "title": "CAD capability GraphView and layout position",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "record_kind", "view_id", "view_kind", "label"],
+      "properties": {
+        "schema_version": { "const": "1.0" },
+        "record_kind": { "const": "graph_view" },
+        "view_id": { "type": "string", "minLength": 1 },
+        "view_kind": { "enum": ["surface", "semantic", "logic-affinity"] },
+        "label": { "type": "string", "minLength": 1 }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "view_id",
+        "node_id",
+        "inventory_id",
+        "x",
+        "y",
+        "z",
+        "seed"
+      ],
+      "properties": {
+        "schema_version": { "const": "1.0" },
+        "record_kind": { "const": "graph_layout_position" },
+        "view_id": { "type": "string", "minLength": 1 },
+        "node_id": { "type": "string", "minLength": 1 },
+        "inventory_id": { "type": "string", "minLength": 1 },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "z": { "type": "number" },
+        "seed": { "type": "string", "minLength": 1 }
+      }
+    }
+  ]
+}

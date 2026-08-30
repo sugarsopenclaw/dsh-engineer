@@ -1,8 +1,16 @@
 import type {
   BusinessRequirementGraphEdgeDto,
   BusinessRequirementGraphNodeDto,
+  CapabilityAtomSummaryDto,
+  CapabilityGraphAtomDto,
 } from "../api/types";
-import type { RuntimeGraph, RuntimeGraphLink, RuntimeGraphNode } from "./runtime";
+import type {
+  RuntimeCapabilityAtomNode,
+  RuntimeGraph,
+  RuntimeGraphLink,
+  RuntimeGraphNode,
+  RuntimeRequirementNode,
+} from "./runtime";
 
 /**
  * DTO → 运行时对象。
@@ -10,8 +18,9 @@ import type { RuntimeGraph, RuntimeGraphLink, RuntimeGraphNode } from "./runtime
  * - 仅当 position.locked=true 时写 fx/fy/fz（力导向库中 fx/fy/fz 表示“钉死”）；
  * - 返回新对象，绝不复用 DTO 引用，防止图库 mutate 污染 react-query 缓存。
  */
-export function adaptNode(dto: BusinessRequirementGraphNodeDto): RuntimeGraphNode {
-  const node: RuntimeGraphNode = {
+export function adaptNode(dto: BusinessRequirementGraphNodeDto): RuntimeRequirementNode {
+  const node: RuntimeRequirementNode = {
+    nodeKind: "business_requirement",
     id: dto.id,
     label: dto.label,
     description: dto.description,
@@ -51,6 +60,42 @@ export function adaptEdge(dto: BusinessRequirementGraphEdgeDto): RuntimeGraphLin
   };
 }
 
+/**
+ * 能力原子（摘要或 graph-atoms 最小投影）→ 运行时节点。
+ * 坐标由调用方（暂存区布局）给出：后端当前不提供原子坐标，暂存区位置无任何业务含义。
+ * 投影不含签名/摘要等字段时留空，完整信息以点击后 /atoms/{atom_id} 详情为准。
+ */
+export function adaptCapabilityAtom(
+  dto: CapabilityGraphAtomDto,
+  position: { x: number; y: number; z: number },
+): RuntimeCapabilityAtomNode {
+  const summaryFields = dto as Partial<CapabilityAtomSummaryDto>;
+  return {
+    nodeKind: "capability_atom",
+    id: dto.atom_id,
+    label: dto.member_name,
+    description: summaryFields.summary ?? null,
+    surface: dto.surface,
+    atomKind: dto.atom_kind,
+    classificationStatus: dto.classification_status,
+    operationKinds: dto.operation_kinds,
+    observedHostIds: dto.observed_host_ids,
+    domainTags: dto.domain_tags,
+    memberName: dto.member_name,
+    memberSignature: summaryFields.member_signature ?? null,
+    declaringSymbolFullName: dto.declaring_symbol_full_name,
+    returnType: summaryFields.return_type ?? null,
+    isStatic: summaryFields.is_static,
+    summary: summaryFields.summary ?? null,
+    classificationConfidence: summaryFields.classification_confidence ?? null,
+    x: position.x,
+    y: position.y,
+    z: position.z,
+    radius: 0,
+    positionLocked: false,
+  };
+}
+
 export function adaptGraph(
   nodes: BusinessRequirementGraphNodeDto[],
   edges: BusinessRequirementGraphEdgeDto[],
@@ -64,3 +109,13 @@ export function adaptGraph(
       .map(adaptEdge),
   };
 }
+
+/** 合并两个图层为同一张图； links 原样拼接，跨层边留给后端未来提供。 */
+export function mergeGraphs(...graphs: RuntimeGraph[]): RuntimeGraph {
+  return {
+    nodes: graphs.flatMap((g) => g.nodes),
+    links: graphs.flatMap((g) => g.links),
+  };
+}
+
+export type { RuntimeGraphNode };

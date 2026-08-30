@@ -10,6 +10,8 @@ interface ToolbarProps {
   onSearchTextChange: (text: string) => void;
   filtersOpen: boolean;
   onToggleFilters: () => void;
+  capabilityPanelOpen: boolean;
+  onToggleCapabilityPanel: () => void;
   onResetView: () => void;
   themeMode: ThemeMode;
   onToggleThemeMode: () => void;
@@ -31,6 +33,8 @@ export function Toolbar(props: ToolbarProps) {
     onSearchTextChange,
     filtersOpen,
     onToggleFilters,
+    capabilityPanelOpen,
+    onToggleCapabilityPanel,
     onResetView,
     themeMode,
     onToggleThemeMode,
@@ -79,6 +83,13 @@ export function Toolbar(props: ToolbarProps) {
           onClick={onToggleFilters}
         >
           筛选
+        </button>
+        <button
+          type="button"
+          className={capabilityPanelOpen ? "tool-btn is-active" : "tool-btn"}
+          onClick={onToggleCapabilityPanel}
+        >
+          能力原子
         </button>
         <button type="button" className="tool-btn" onClick={onResetView}>
           重置视角

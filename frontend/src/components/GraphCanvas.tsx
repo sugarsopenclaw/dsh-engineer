@@ -21,9 +21,14 @@ import {
   type LinkObject as FG3DLinkObject,
 } from "react-force-graph-3d";
 import type { GraphDimensions } from "../api/types";
-import type { RuntimeGraph, RuntimeGraphLink, RuntimeGraphNode } from "../graph/runtime";
+import type {
+  GraphNodeKind,
+  RuntimeGraph,
+  RuntimeGraphLink,
+  RuntimeGraphNode,
+} from "../graph/runtime";
 import { linkEndpointId } from "../graph/filter";
-import { nodeColor, RELATION_KIND_META } from "../graph/vocabulary";
+import { nodeColor, RELATION_KIND_META, surfaceMeta } from "../graph/vocabulary";
 import { CANVAS_PALETTES, type ThemeMode } from "../theme";
 
 // three.js 体积大，3D 引擎按需懒加载；类型上仍对齐原组件签名（含 ref 转发）。
@@ -44,7 +49,7 @@ interface GraphCanvasProps {
   highlightNodeIds: Set<string>;
   highlightLinkIds: Set<string>;
   selectedNodeId: string | null;
-  onNodeClick: (nodeId: string) => void;
+  onNodeClick: (nodeId: string, nodeKind: GraphNodeKind) => void;
   onNodeHover: (nodeId: string | null) => void;
 }
 
@@ -57,6 +62,17 @@ function withAlpha(hex: string, alpha: number): string {
   const g = parseInt(value.slice(2, 4), 16);
   const b = parseInt(value.slice(4, 6), 16);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/** 节点基础色：需求按来源贴近度，能力原子按技术面。 */
+function baseNodeColor(node: FGNode): string {
+  if (node.nodeKind === "capability_atom") return surfaceMeta(node.surface).color;
+  return nodeColor(node.originKind, node.sourceProximityRank);
+}
+
+function nodeSize(node: FGNode): number {
+  if (node.nodeKind === "capability_atom") return 3.4;
+  return node.sourceProximityRank === 0 ? 7 : node.atomic ? 3.2 : 4.6;
 }
 
 /**
@@ -101,6 +117,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(
     }, []);
 
     const hasHighlight = highlightNodeIds.size > 0;
+
+    // 大量节点时 3D 降低球体分辨率（draw call 数量不变，但三角形数降一个量级）。
+    const lowRes3D = graph.nodes.length > 4_000;
 
     const resetView = useCallback(() => {
       if (dimensions === 2) {
@@ -153,7 +172,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(
 
     const nodeVisibilityColor = useCallback(
       (node: FGNode): string => {
-        const base = nodeColor(node.originKind, node.sourceProximityRank);
+        const base = baseNodeColor(node);
         if (!hasHighlight) return base;
         return highlightNodeIds.has(node.id)
           ? base
@@ -179,14 +198,19 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(
 
     const paintNode2D = useCallback(
       (node: FGNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
-        const size = node.sourceProximityRank === 0 ? 7 : node.atomic ? 3.2 : 4.6;
+        const size = nodeSize(node);
         const isSelected = node.id === selectedNodeId;
         const isHighlighted = highlightNodeIds.has(node.id);
         const dimmed = hasHighlight && !isHighlighted;
         const color = nodeVisibilityColor(node);
 
+        // 需求画圆点，能力原子画方块，形状区分图层（不依赖颜色这一唯一通道）。
         ctx.beginPath();
-        ctx.arc(node.x, node.y, size, 0, 2 * Math.PI);
+        if (node.nodeKind === "capability_atom") {
+          ctx.rect(node.x - size, node.y - size, size * 2, size * 2);
+        } else {
+          ctx.arc(node.x, node.y, size, 0, 2 * Math.PI);
+        }
         ctx.fillStyle = color;
         ctx.fill();
 
@@ -199,7 +223,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(
         }
 
         // 待确认需求用虚线外环标记（这是业务字段，不是坐标语义）。
-        if (node.needsConfirmation) {
+        if (node.nodeKind === "business_requirement" && node.needsConfirmation) {
           ctx.beginPath();
           ctx.setLineDash([2, 2]);
           ctx.arc(node.x, node.y, size + 1.8, 0, 2 * Math.PI);
@@ -211,9 +235,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(
           ctx.setLineDash([]);
         }
 
-        // 缩放足够近、或处于高亮/选中、或是一级及以上节点时绘制标签。
+        // 缩放足够近、或处于高亮/选中、或是一级及以上需求节点时绘制标签。
         const showLabel =
-          globalScale > 1.35 || isSelected || isHighlighted || node.derivedMinDepth <= 1;
+          globalScale > 1.35 ||
+          isSelected ||
+          isHighlighted ||
+          (node.nodeKind === "business_requirement" && node.derivedMinDepth <= 1);
         if (showLabel && !dimmed) {
           const fontSize = Math.max(11 / globalScale, 2.6);
           ctx.font = `${isSelected ? "600 " : ""}${fontSize}px "Segoe UI", "Microsoft YaHei", sans-serif`;
@@ -230,7 +257,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(
 
     const paintPointerArea2D = useCallback(
       (node: FGNode, color: string, ctx: CanvasRenderingContext2D) => {
-        const size = node.sourceProximityRank === 0 ? 9 : 6;
+        const size = node.nodeKind === "capability_atom" ? 6 : node.sourceProximityRank === 0 ? 9 : 6;
         ctx.beginPath();
         ctx.arc(node.x, node.y, size, 0, 2 * Math.PI);
         ctx.fillStyle = color;
@@ -257,8 +284,13 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(
     );
 
     const nodeLabel = useCallback(
-      (node: FGNode) =>
-        `${node.id} · ${node.label}${node.needsConfirmation ? "（待确认）" : ""}`,
+      (node: FGNode) => {
+        if (node.nodeKind === "capability_atom") {
+          const host = node.declaringSymbolFullName ? ` · ${node.declaringSymbolFullName}` : "";
+          return `${node.memberName}（${surfaceMeta(node.surface).label}${host}）`;
+        }
+        return `${node.id} · ${node.label}${node.needsConfirmation ? "（待确认）" : ""}`;
+      },
       [],
     );
 
@@ -269,7 +301,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(
     );
 
     const handleNodeClick = useCallback(
-      (node: FGNode) => onNodeClick(node.id),
+      (node: FGNode) => onNodeClick(node.id, node.nodeKind),
       [onNodeClick],
     );
     const handleNodeHover = useCallback(
@@ -280,7 +312,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(
     return (
       <div ref={containerRef} className="graph-canvas">
         {dimensions === 2 ? (
-          <ForceGraph2D
+          <ForceGraph2D<FGNode, FGLink>
             ref={fg2dRef as never}
             {...commonGraphProps}
             backgroundColor={palette.background}
@@ -298,14 +330,14 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(
           <Suspense
             fallback={<div className="graph-placeholder">正在加载 3D 引擎…</div>}
           >
-            <ForceGraph3D
+            <ForceGraph3D<FGNode, FGLink>
               ref={fg3dRef as never}
               {...commonGraphProps}
               backgroundColor={palette.background}
               nodeColor={nodeVisibilityColor}
-              nodeVal={(node: FGNode) => (node.sourceProximityRank === 0 ? 16 : node.atomic ? 4 : 7)}
+              nodeVal={(node: FGNode) => (node.nodeKind === "capability_atom" ? 4 : node.sourceProximityRank === 0 ? 16 : node.atomic ? 4 : 7)}
               nodeOpacity={0.95}
-              nodeResolution={16}
+              nodeResolution={lowRes3D ? 6 : 16}
               nodeLabel={nodeLabel}
               linkColor={linkColor}
               linkWidth={linkWidth}

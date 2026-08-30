@@ -14,6 +14,13 @@ from shenbian_api.domain.business_requirements import (
     BusinessRequirementDetailData,
     BusinessRequirementsGraphSnapshot,
 )
+from shenbian_api.domain.cad_capabilities import (
+    CapabilityAtomDetailData,
+    CapabilityAtomFilters,
+    CapabilityAtomPageData,
+    CapabilityFacetsData,
+    CapabilityGraphAtomStreamData,
+)
 
 
 class HealthyProbe(DependencyProbe):
@@ -111,6 +118,37 @@ class NoopBusinessRequirementsReader:
         return None
 
 
+class NoopCadCapabilitiesReader:
+    async def list_atoms(
+        self,
+        dataset_id: str,
+        filters: CapabilityAtomFilters,
+        limit: int,
+        offset: int,
+    ) -> CapabilityAtomPageData:
+        raise AssertionError(
+            f"unexpected capability list query: {dataset_id}/{filters}/{limit}/{offset}"
+        )
+
+    async def get_atom(self, dataset_id: str, atom_id: str) -> CapabilityAtomDetailData:
+        raise AssertionError(f"unexpected capability detail query: {dataset_id}/{atom_id}")
+
+    async def get_facets(self, dataset_id: str) -> CapabilityFacetsData:
+        raise AssertionError(f"unexpected capability facets query: {dataset_id}")
+
+    async def prepare_graph_atom_stream(
+        self,
+        dataset_id: str,
+        filters: CapabilityAtomFilters,
+    ) -> CapabilityGraphAtomStreamData:
+        raise AssertionError(
+            f"unexpected capability graph-atoms query: {dataset_id}/{filters}"
+        )
+
+    async def close(self) -> None:
+        return None
+
+
 @pytest.fixture
 def settings() -> Settings:
     return Settings(
@@ -139,6 +177,7 @@ def client(settings: Settings, deepseek_gateway: FakeDeepSeekGateway) -> TestCli
         probes=[HealthyProbe("postgresql"), HealthyProbe("redis"), HealthyProbe("oss")],
         deepseek_gateway=deepseek_gateway,
         business_requirements_reader=NoopBusinessRequirementsReader(),
+        cad_capabilities_reader=NoopCadCapabilitiesReader(),
     )
     with TestClient(app) as test_client:
         yield test_client

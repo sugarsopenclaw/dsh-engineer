@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dsh-engineer.local/schemas/cad-capabilities/capability-relation.schema.json",
+  "title": "CAD capability candidate relation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "relation_id",
+    "kind",
+    "status",
+    "confidence",
+    "basis",
+    "producer"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "relation_id": { "type": "string", "minLength": 1 },
+    "kind": {
+      "enum": ["IMPLEMENTS", "LOGIC_USES_CAPABILITY"]
+    },
+    "status": { "enum": ["proposed", "verified", "rejected"] },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "basis": { "type": "string", "minLength": 1 },
+    "producer": { "type": "string", "minLength": 1 },
+    "semantic_capability_id": {
+      "type": "string",
+      "pattern": "^sem:[a-z0-9._-]+$"
+    },
+    "atom_id": {
+      "type": "string",
+      "pattern": "^cap:(com|dotnet|lisp|command|native):[a-f0-9]{24}$"
+    },
+    "inventory_id": { "type": "string", "minLength": 1 },
+    "logic_id": {
+      "type": "string",
+      "pattern": "^cad-0[1-7]$"
+    },
+    "logic_source_ref": { "type": "string", "minLength": 1 },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "ref", "claim"],
+        "properties": {
+          "kind": {
+            "enum": [
+              "member_name",
+              "signature",
+              "source_code",
+              "documentation",
+              "runtime_probe",
+              "human_review"
+            ]
+          },
+          "ref": { "type": "string", "minLength": 1 },
+          "claim": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "IMPLEMENTS" } } },
+      "then": {
+        "required": ["semantic_capability_id", "atom_id", "inventory_id", "evidence"]
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "LOGIC_USES_CAPABILITY" } } },
+      "then": {
+        "required": ["logic_id", "logic_source_ref", "evidence"]
+      }
+    }
+  ]
+}

@@ -25,7 +25,7 @@
 - **R7** 批处理工具必须能从多个 enrichment part 文件计算进度、输出下一批尚未处理的原子，并在中断后继续；单 Agent 串行处理时不依赖可变的队列服务。
 - **R8** 完整性校验必须检查 JSON、必填字段、稳定 ID、原子唯一性、enrichment 唯一性、未知 ID、manifest 总数、按类型计数和原子文件 SHA-256。
 - **R9** 完成条件为 `pending=0` 且 `raw_total=classified+deferred+failed`。`deferred` 和 `failed` 仍需保留原因，不能静默跳过。
-- **R10** 原始技术原子不得因跨 COM/.NET/LISP 功能相似而删除。后续通过 `IMPLEMENTS semantic_capability` 或候选等价关系连接。
+- **R10** 原始技术原子不得因跨 COM/.NET/LISP 功能相似而删除。后续通过 `IMPLEMENTS semantic_capability` 或候选等价关系连接。关系模型见 [`semantic-capability.md`](semantic-capability.md)。
 - **R11** JSONL 产物写入 `data/datasets/staging/cad-capabilities/`，属于可再生产物且不进 Git；导出器、schema、校验代码和规格进 Git。
 - **R12** 在首批 JSONL 经人工抽查并确认前，不建立 PostgreSQL capability 实例表，不提供图谱 API，也不将推测语义物化为正式 Ontology 事实。
 

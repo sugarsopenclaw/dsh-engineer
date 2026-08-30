@@ -1,0 +1,29 @@
+schema_version: "1.0"
+id: cad.capabilities.curated.v1
+stage: curated
+status: reproducible_local
+description: THCAD V24 的 COM、.NET、LISP、Command/CUI 与原生 PE 原子能力及其分类属性。
+source:
+  kind: derived_dataset
+  import_path: data/datasets/curated/cad-capabilities/v1
+upstream_dataset_ids:
+  - cad.capabilities.staging.v1
+pipeline: data/pipelines/cad_capabilities/build_curated.py
+format: jsonl
+tables:
+  - capability_inventories
+  - capability_atoms
+governance:
+  sensitivity: internal_technical_metadata
+  immutable: true
+  git_tracked: false
+  ontology_ready: true
+observed:
+  host_ids:
+    - thcad-v24
+  surfaces:
+    - com
+    - dotnet
+    - lisp
+    - command
+    - native

@@ -1,0 +1,21 @@
+schema_version: "1.0"
+id: cad.capabilities.staging.v1
+stage: staging
+status: reproducible_local
+description: 由 THCAD V24 与 AutoCAD 2024 的类型库、程序集、LISP/CUI、当前会话和 PE 导出表确定性生成的宿主隔离原子能力库存。
+source:
+  kind: local_capability_scan
+  path: data/datasets/staging/cad-capabilities
+pipeline: data/pipelines/cad_capabilities/README.md
+format: jsonl
+media_types:
+  - application/x-ndjson
+governance:
+  sensitivity: internal_technical_metadata
+  immutable: true
+  git_tracked: false
+observed:
+  host_ids:
+    - thcad-v24
+    - autocad-2024
+  bounded_completeness: true

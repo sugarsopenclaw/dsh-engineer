@@ -18,7 +18,7 @@ def create_postgres_engine(
     *,
     pool_size: int = 5,
     max_overflow: int = 5,
-    connect_timeout_seconds: int = 5,
+    connect_timeout_seconds: int = 20,
     command_timeout_seconds: int = 30,
 ) -> AsyncEngine:
     return create_async_engine(

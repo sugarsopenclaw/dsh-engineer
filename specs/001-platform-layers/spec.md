@@ -9,9 +9,9 @@ Ontology 不直接吃原始文件。Foundry 的拆法是：
 1. **Source** — 源系统 / 客户交付物
 2. **Data Layer** — 数据集 + 管线（可复现的表）
 3. **Ontology** — 把数据集映射成对象 / 链接 / 动作
-4. **Application** — Workshop、AIP、以及我们这边的 DSH 插件
+4. **Application** — Workshop、AIP、以及我们这边的 Pi package
 
-本仓库已经有 `plugins/`（应用层）和 `client-data/`（源）。缺的是 Data Layer 和 Ontology 的位置与边界。
+本仓库已经有 `plugins/`（应用层）和 `client-data/`（源）。应用层当前由 `plugins/shenbian-pi/` 通过 Pi 公开扩展面承载；Data Layer 和 Ontology 仍保持各自独立边界。
 
 ## 目标
 
@@ -22,7 +22,7 @@ Ontology 不直接吃原始文件。Foundry 的拆法是：
 - **R1** 客户原文只进 `client-data/`。落地后视为不可变 drop：不重命名、不就地清洗、不在该目录写派生文件。
 - **R2** Data Layer 放在根目录 `data/`。Ontology 和插件只消费这里登记过的数据集，不直接遍历 `client-data/`。
 - **R3** Ontology 放在根目录 `ontology/`。这里只放类型定义（对象 / 属性 / 链接 / 动作），不放对象实例、不放图纸二进制。
-- **R4** Agent 能力仍只写在 `plugins/`，通过公开 seam 读 ontology、查 data。数据集和对象模型都不是插件。
+- **R4** Agent 能力仍只写在 `plugins/`，通过 Pi 公开 extension/tool/event/TUI seam 读 ontology、查 data。数据集和对象模型都不是插件，上游 `pi/` 不承载产品代码。
 - **R5** 客户原文和 Data Layer 产物不进 git。进 git 的是：规格、管线代码、数据集登记、ontology 类型定义。
 - **R6** 一次客户交付对应 `client-data/` 下的一个 drop 目录；Data Layer 用登记文件记下路径、格式和校验，而不是靠扫盘发现。
 

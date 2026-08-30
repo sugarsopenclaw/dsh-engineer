@@ -1,6 +1,15 @@
-import type { RuntimeGraph, RuntimeGraphLink, RuntimeGraphNode } from "./runtime";
+import type {
+  RuntimeGraph,
+  RuntimeGraphLink,
+  RuntimeGraphNode,
+  RuntimeRequirementNode,
+} from "./runtime";
 
-/** 前端本地筛选条件（数据量小，契约要求筛选在前端完成）。 */
+/**
+ * 前端本地筛选条件（业务需求层数据量小，契约要求筛选在前端完成）。
+ * 需求专属筛选只作用于 business_requirement 节点；
+ * 能力原子图层只受图层开关控制，不被需求筛选误伤。
+ */
 export interface GraphFilters {
   searchText: string;
   originKinds: Set<string>;
@@ -8,6 +17,10 @@ export interface GraphFilters {
   atomicOnly: boolean;
   customerVisibleOnly: boolean;
   needsConfirmationOnly: boolean;
+  /** 图层开关：业务需求层。 */
+  showBusinessRequirements: boolean;
+  /** 图层开关：CAD 能力原子层。 */
+  showCapabilityAtoms: boolean;
 }
 
 export const EMPTY_FILTERS: GraphFilters = {
@@ -17,6 +30,8 @@ export const EMPTY_FILTERS: GraphFilters = {
   atomicOnly: false,
   customerVisibleOnly: false,
   needsConfirmationOnly: false,
+  showBusinessRequirements: true,
+  showCapabilityAtoms: true,
 };
 
 export function isFilterActive(filters: GraphFilters): boolean {
@@ -26,12 +41,15 @@ export function isFilterActive(filters: GraphFilters): boolean {
     filters.requirementKinds.size > 0 ||
     filters.atomicOnly ||
     filters.customerVisibleOnly ||
-    filters.needsConfirmationOnly
+    filters.needsConfirmationOnly ||
+    !filters.showBusinessRequirements ||
+    !filters.showCapabilityAtoms
   );
 }
 
+/** 需求专属筛选，仅匹配 business_requirement 节点。 */
 export function nodeMatchesFilters(
-  node: RuntimeGraphNode,
+  node: RuntimeRequirementNode,
   filters: GraphFilters,
 ): boolean {
   if (filters.atomicOnly && !node.atomic) return false;
@@ -54,12 +72,21 @@ export function nodeMatchesFilters(
   return true;
 }
 
+/** 节点在当前筛选下图层内可见。 */
+export function nodeVisible(node: RuntimeGraphNode, filters: GraphFilters): boolean {
+  if (node.nodeKind === "capability_atom") {
+    return filters.showCapabilityAtoms;
+  }
+  if (!filters.showBusinessRequirements) return false;
+  return nodeMatchesFilters(node, filters);
+}
+
 /**
  * 过滤后的子图：节点按筛选保留，边只保留两端都在结果中的，绝不保留悬空边。
  */
 export function filterGraph(graph: RuntimeGraph, filters: GraphFilters): RuntimeGraph {
   if (!isFilterActive(filters)) return graph;
-  const nodes = graph.nodes.filter((n) => nodeMatchesFilters(n, filters));
+  const nodes = graph.nodes.filter((n) => nodeVisible(n, filters));
   const visibleIds = new Set(nodes.map((n) => n.id));
   const links = graph.links.filter(
     (l) => visibleIds.has(linkEndpointId(l.source)) && visibleIds.has(linkEndpointId(l.target)),

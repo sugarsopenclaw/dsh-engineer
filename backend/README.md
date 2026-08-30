@@ -39,7 +39,7 @@ cd backend
 uv run alembic upgrade head
 ```
 
-业务需求实例位于 `ontology` schema；表结构由后端迁移管理，客户数据只由 [`data/pipelines/shenbian_client_requirements/`](../data/pipelines/shenbian_client_requirements/) 导入，API 启动时不会偷偷重建或重灌数据。
+业务需求和 CAD 原子能力实例位于 `ontology` schema；表结构由后端迁移管理。客户需求只由 [`data/pipelines/shenbian_client_requirements/`](../data/pipelines/shenbian_client_requirements/) 导入，能力目录只由 [`data/pipelines/cad_capabilities/`](../data/pipelines/cad_capabilities/) 导入，API 启动时不会偷偷重建或重灌数据。
 
 当前 Harness 模型链路：
 
@@ -55,9 +55,13 @@ uv run alembic upgrade head
 - `GET /api/v1/data-catalog`
 - `GET /api/v1/business-requirements/graph`
 - `GET /api/v1/business-requirements/{requirement_id}`
+- `GET /api/v1/cad-capabilities/atoms`
+- `GET /api/v1/cad-capabilities/graph-atoms`
+- `GET /api/v1/cad-capabilities/atoms/{atom_id}`
+- `GET /api/v1/cad-capabilities/facets`
 - `GET /docs`
 
-业务需求图谱接口的参数、响应类型、坐标语义和前端联调顺序见 [`docs/backend/business-requirements-graph-api.md`](../docs/backend/business-requirements-graph-api.md)。
+业务需求图谱接口的参数、响应类型、坐标语义和前端联调顺序见 [`docs/backend/business-requirements-graph-api.md`](../docs/backend/business-requirements-graph-api.md)。CAD 原子能力接口见 [`docs/backend/cad-capabilities-api.md`](../docs/backend/cad-capabilities-api.md)。
 
 ## 验证
 

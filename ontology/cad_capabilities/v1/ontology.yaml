@@ -1,0 +1,57 @@
+schema_version: "1.0"
+namespace: cad.capabilities
+display_name: CAD 原子能力 Ontology
+description: >-
+  将确定性扫描得到的 CAD 技术原子及其分类属性映射为可查询对象。
+  当前对象实例来自 cad.capabilities.curated.v2；宿主观测不等于厂商归属或运行时可用性证明。
+backing_dataset_id: cad.capabilities.curated.v2
+
+object_types:
+  - id: capability_inventory
+    display_name: 能力库存快照
+    identity_property: inventory_id
+    backing_table: capability_inventories
+    properties:
+      - inventory_id
+      - surface
+      - observed_host_id
+      - captured_at
+      - extractor
+      - source_artifacts
+      - atoms_sha256
+      - counts
+      - classification_counts
+
+  - id: capability_atom
+    display_name: 原子能力
+    identity_property: atom_id
+    backing_table: capability_atoms
+    properties:
+      - atom_id
+      - inventory_id
+      - canonical_key
+      - surface
+      - atom_kind
+      - observed_host_ids
+      - source_artifact
+      - declaring_symbol
+      - member
+      - provenance
+      - surface_metadata
+      - classification_status
+      - operation_kinds
+      - domain_tags
+      - summary
+      - classification_confidence
+      - semantic_candidates
+      - evidence
+      - processor
+      - processed_at
+      - notes
+
+link_types:
+  - id: capability_atom_in_inventory
+    from: capability_atom
+    to: capability_inventory
+
+action_types: []

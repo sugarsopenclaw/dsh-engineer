@@ -46,6 +46,30 @@ export function FilterPanel(props: FilterPanelProps) {
       </section>
 
       <section>
+        <h3>图层</h3>
+        <label className="check-row">
+          <input
+            type="checkbox"
+            checked={filters.showBusinessRequirements}
+            onChange={(e) =>
+              onChange({ ...filters, showBusinessRequirements: e.target.checked })
+            }
+          />
+          <span>业务需求层</span>
+        </label>
+        <label className="check-row">
+          <input
+            type="checkbox"
+            checked={filters.showCapabilityAtoms}
+            onChange={(e) =>
+              onChange({ ...filters, showCapabilityAtoms: e.target.checked })
+            }
+          />
+          <span>能力原子层</span>
+        </label>
+      </section>
+
+      <section>
         <h3>来源贴近度</h3>
         {Object.entries(ORIGIN_KIND_META).map(([kind, meta]) => (
           <label key={kind} className="check-row">
@@ -124,6 +148,8 @@ export function FilterPanel(props: FilterPanelProps) {
             atomicOnly: false,
             customerVisibleOnly: false,
             needsConfirmationOnly: false,
+            showBusinessRequirements: true,
+            showCapabilityAtoms: true,
           })
         }
       >

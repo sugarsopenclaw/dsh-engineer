@@ -203,9 +203,27 @@ def _edge_from_row(row: Mapping[str, Any]) -> BusinessRequirementGraphEdge:
     )
 
 
+class _GraphSnapshotCacheEntry:
+    """单个 (dataset, view) 的图快照；dataset content_sha256 变化即整体重建。
+
+    数据库是远程链路（实测 RTT 数百毫秒且波动），冷查询要多次往返并搬运
+    全量节点/边数据，可能超过连接超时导致 503。快照把这笔成本摊到
+    “每个数据集版本一次”，之后每次请求只跑一条毫秒级元数据校验查询。
+    """
+
+    __slots__ = ("content_sha256", "snapshot")
+
+    def __init__(
+        self, content_sha256: str, snapshot: BusinessRequirementsGraphSnapshot
+    ) -> None:
+        self.content_sha256 = content_sha256
+        self.snapshot = snapshot
+
+
 class PostgresBusinessRequirementsReader:
     def __init__(self, settings: Settings) -> None:
         self._engine: AsyncEngine = create_postgres_engine(settings.database_url.get_secret_value())
+        self._graph_snapshots: dict[tuple[str, str], _GraphSnapshotCacheEntry] = {}
 
     async def _read_connection(self) -> AsyncConnection:
         connection = await self._engine.connect()
@@ -229,11 +247,11 @@ class PostgresBusinessRequirementsReader:
         if transaction is not None and transaction.is_active:
             try:
                 await transaction.rollback()
-            except SQLAlchemyError as exc:
+            except (SQLAlchemyError, TimeoutError, OSError) as exc:
                 logger.error("business requirements rollback failed: %s", type(exc).__name__)
         try:
             await connection.close()
-        except SQLAlchemyError as exc:
+        except (SQLAlchemyError, TimeoutError, OSError) as exc:
             logger.error("business requirements connection close failed: %s", type(exc).__name__)
 
     async def get_graph(
@@ -277,6 +295,11 @@ class PostgresBusinessRequirementsReader:
             if metadata_row["graph_view_id"] is None:
                 raise GraphViewNotFoundError(f"Graph view {view_id} was not found.")
 
+            cache_key = (metadata_row["dataset_id"], metadata_row["graph_view_id"])
+            cached = self._graph_snapshots.get(cache_key)
+            if cached is not None and cached.content_sha256 == metadata_row["content_sha256"]:
+                return cached.snapshot
+
             parameters = {
                 "dataset_id": dataset_id,
                 "view_id": view_id,
@@ -284,7 +307,7 @@ class PostgresBusinessRequirementsReader:
             }
             node_rows = (await connection.execute(NODE_QUERY, parameters)).mappings().all()
             edge_rows = (await connection.execute(EDGE_QUERY, parameters)).mappings().all()
-            return BusinessRequirementsGraphSnapshot(
+            snapshot = BusinessRequirementsGraphSnapshot(
                 dataset=DatasetRecord(
                     dataset_id=metadata_row["dataset_id"],
                     schema_version=metadata_row["schema_version"],
@@ -301,6 +324,17 @@ class PostgresBusinessRequirementsReader:
                 nodes=[_node_from_row(row) for row in node_rows],
                 edges=[_edge_from_row(row) for row in edge_rows],
             )
+            self._graph_snapshots[cache_key] = _GraphSnapshotCacheEntry(
+                content_sha256=metadata_row["content_sha256"],
+                snapshot=snapshot,
+            )
+            logger.info(
+                "business requirements graph snapshot rebuilt: dataset=%s view=%s rows=%d",
+                metadata_row["dataset_id"],
+                metadata_row["graph_view_id"],
+                len(snapshot.nodes),
+            )
+            return snapshot
         except BusinessRequirementsQueryError:
             raise
         except (SQLAlchemyError, TimeoutError, ValidationError, TypeError, ValueError) as exc:

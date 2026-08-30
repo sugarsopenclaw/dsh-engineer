@@ -1,6 +1,13 @@
 from fastapi import APIRouter
 
-from shenbian_api.api.routes import business_requirements, catalog, health, model_gateway, ontology
+from shenbian_api.api.routes import (
+    business_requirements,
+    cad_capabilities,
+    catalog,
+    health,
+    model_gateway,
+    ontology,
+)
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(health.router, prefix="/health", tags=["health"])
@@ -10,6 +17,11 @@ api_router.include_router(
     business_requirements.router,
     prefix="/business-requirements",
     tags=["business-requirements"],
+)
+api_router.include_router(
+    cad_capabilities.router,
+    prefix="/cad-capabilities",
+    tags=["cad-capabilities"],
 )
 api_router.include_router(
     model_gateway.router,

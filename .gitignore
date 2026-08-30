@@ -60,6 +60,7 @@ dev-test/**/compare/
 dev-test/**/*.user
 dev-test/**/*.suo
 dev-test/**/scripts/*.scr
+dev-test/**/.tmp-*
 
 # Cloud-dev scratch — keep source, drop runtime leftovers
 cloud-dev/**/out/

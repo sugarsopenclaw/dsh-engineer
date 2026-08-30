@@ -68,9 +68,15 @@ def test_data_catalog_lists_registered_sources(client: TestClient) -> None:
     response = client.get("/api/v1/data-catalog")
     assert response.status_code == 200
     payload = response.json()
-    assert payload["dataset_count"] == 5
-    assert payload["by_stage"] == {"curated": 1, "raw": 3, "staging": 1}
+    assert payload["dataset_count"] == 8
+    assert payload["by_stage"] == {"curated": 3, "raw": 3, "staging": 2}
     assert "shenbian.client_requirements.curated.v1" in {
+        dataset["id"] for dataset in payload["datasets"]
+    }
+    assert "cad.capabilities.curated.v1" in {
+        dataset["id"] for dataset in payload["datasets"]
+    }
+    assert "cad.capabilities.curated.v2" in {
         dataset["id"] for dataset in payload["datasets"]
     }
     assert all(dataset["governance"]["immutable"] for dataset in payload["datasets"])

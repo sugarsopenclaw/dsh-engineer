@@ -1,6 +1,8 @@
 import { useEffect } from "react";
-import { useBusinessRequirementDetail } from "../api/hooks";
+import { useBusinessRequirementDetail, useCapabilityAtomDetail } from "../api/hooks";
 import type { BusinessRequirementGraphEdgeDto } from "../api/types";
+import type { GraphNodeKind } from "../graph/runtime";
+import { CapabilityDetailBody } from "./CapabilityDetail";
 import {
   CRITERION_STATUS_LABELS,
   EVIDENCE_KIND_LABELS,
@@ -12,11 +14,16 @@ import {
   translate,
 } from "../graph/vocabulary";
 
+export interface NodeSelection {
+  id: string;
+  kind: GraphNodeKind;
+}
+
 interface DetailDrawerProps {
-  /** 选中的需求 ID；null 时抽屉关闭，也不发起详情请求。 */
-  requirementId: string | null;
+  /** 选中的节点；null 时抽屉关闭，也不发起详情请求。 */
+  selection: NodeSelection | null;
   onClose: () => void;
-  /** 点击上下游关系中的节点时切换选中。 */
+  /** 点击上下游关系中的节点时切换选中（仅业务需求有上下游关系）。 */
   onNavigate: (requirementId: string) => void;
 }
 
@@ -63,22 +70,66 @@ function RelationList(props: {
 /**
  * 右侧详情抽屉。仅在点击节点后请求详情接口；
  * verbatim_text 属于客户资料，只在这里（用户主动打开后）展示，不写入 URL 或浏览器存储。
+ * 业务需求与能力原子共用同一抽屉，按节点类型路由到各自详情视图。
  */
 export function DetailDrawer(props: DetailDrawerProps) {
-  const { requirementId, onClose, onNavigate } = props;
-  const detailQuery = useBusinessRequirementDetail(requirementId);
+  const { selection, onClose, onNavigate } = props;
+  const isRequirement = selection?.kind === "business_requirement";
+  const requirementQuery = useBusinessRequirementDetail(
+    isRequirement && selection ? selection.id : null,
+  );
+  const capabilityQuery = useCapabilityAtomDetail(
+    !isRequirement && selection ? selection.id : null,
+  );
 
   // Escape 关闭抽屉。
   useEffect(() => {
-    if (requirementId === null) return;
+    if (selection === null) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [requirementId, onClose]);
+  }, [selection, onClose]);
 
-  if (requirementId === null) return null;
+  if (selection === null) return null;
+
+  if (!isRequirement) {
+    return (
+      <aside className="drawer" aria-label="能力原子详情">
+        <header className="drawer__header">
+          <div>
+            <span className="drawer__id">{selection.id}</span>
+            <h2>
+              {capabilityQuery.data ? capabilityQuery.data.atom.member_name : "加载中…"}
+            </h2>
+          </div>
+          <button type="button" className="drawer__close" onClick={onClose} aria-label="关闭详情">
+            ×
+          </button>
+        </header>
+        {capabilityQuery.isPending ? (
+          <p className="drawer__status">正在加载详情…</p>
+        ) : capabilityQuery.isError ? (
+          <div className="drawer__status drawer__status--error">
+            <p>详情加载失败：{capabilityQuery.error.message}</p>
+            <button
+              type="button"
+              className="tool-btn"
+              onClick={() => void capabilityQuery.refetch()}
+            >
+              重试
+            </button>
+          </div>
+        ) : (
+          <CapabilityDetailBody atom={capabilityQuery.data.atom} />
+        )}
+      </aside>
+    );
+  }
+
+  const detailQuery = requirementQuery;
+  const requirementId = selection.id;
 
   return (
     <aside className="drawer" aria-label="需求详情">

@@ -1,10 +1,17 @@
-import { ORIGIN_KIND_META, RELATION_KIND_META, ROOT_NODE_COLOR } from "../graph/vocabulary";
+import {
+  ORIGIN_KIND_META,
+  RELATION_KIND_META,
+  ROOT_NODE_COLOR,
+  surfaceMeta,
+} from "../graph/vocabulary";
 
 /**
  * 图例：只解释契约明确的语义。
  * 坐标含义：越靠近原点，越贴近客户原始需求表达；角度和 Z 高度暂无业务含义。
+ * 能力原子按技术面着色、方块形状；暂存区位置无业务含义（后端尚未提供原子坐标）。
  */
-export function Legend() {
+export function Legend(props: { capabilitySurfaces: string[] }) {
+  const { capabilitySurfaces } = props;
   return (
     <div className="legend" aria-label="图例">
       <p className="legend__title">越靠近中心，越贴近客户原始需求</p>
@@ -32,6 +39,23 @@ export function Legend() {
           </li>
         ))}
       </ul>
+      {capabilitySurfaces.length > 0 ? (
+        <>
+          <p className="legend__title legend__title--sub">能力原子（按技术面，方块）</p>
+          <ul>
+            {capabilitySurfaces.map((surface) => {
+              const meta = surfaceMeta(surface);
+              return (
+                <li key={surface}>
+                  <span className="square" style={{ backgroundColor: meta.color }} />
+                  {meta.label}
+                </li>
+              );
+            })}
+            <li className="legend__note">暂存区位置无业务含义</li>
+          </ul>
+        </>
+      ) : null}
     </div>
   );
 }

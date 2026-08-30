@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dsh-engineer.local/schemas/cad-capabilities/semantic-capability.schema.json",
+  "title": "CAD semantic capability",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "semantic_capability_id",
+    "label",
+    "description",
+    "operation_kinds",
+    "producer"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "semantic_capability_id": {
+      "type": "string",
+      "pattern": "^sem:[a-z0-9._-]+$"
+    },
+    "label": { "type": "string", "minLength": 1 },
+    "description": { "type": "string", "minLength": 1 },
+    "operation_kinds": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "producer": { "type": "string", "minLength": 1 }
+  }
+}
