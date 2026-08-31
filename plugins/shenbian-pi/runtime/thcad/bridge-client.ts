@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 
@@ -15,7 +15,16 @@ import {
 const execFileAsync = promisify(execFile);
 const PROTOCOL_VERSION = 1;
 
-export type BridgeOperation = "status" | "extract_current" | "locate_handles";
+export type BridgeOperation =
+	| "status"
+	| "extract_current"
+	| "locate_handles"
+	| "scan_texts"
+	| "open_document"
+	| "activate_document"
+	| "close_document"
+	| "save_document_as"
+	| "save_document";
 
 interface BridgeEnvelope {
 	protocol_version: number;
@@ -89,6 +98,7 @@ export class ThcadBridgeClient {
 		await Promise.all([mkdir(pendingDirectory, { recursive: true }), mkdir(responseDirectory, { recursive: true })]);
 
 		const requestPath = path.join(pendingDirectory, `${requestId}.json`);
+		const responsePath = path.join(responseDirectory, `${requestId}.json`);
 		const temporaryPath = `${requestPath}.tmp-${randomUUID()}`;
 		const request = {
 			protocol_version: PROTOCOL_VERSION,
@@ -97,8 +107,13 @@ export class ThcadBridgeClient {
 			created_at_utc: new Date().toISOString(),
 			params,
 		};
-		await writeFile(temporaryPath, `${JSON.stringify(request)}\n`, { encoding: "utf8", mode: 0o600 });
-		await rename(temporaryPath, requestPath);
+		try {
+			await writeFile(temporaryPath, `${JSON.stringify(request)}\n`, { encoding: "utf8", mode: 0o600 });
+			await rename(temporaryPath, requestPath);
+		} catch (error) {
+			await rm(temporaryPath, { force: true }).catch(() => undefined);
+			throw error;
+		}
 
 		const timeoutSeconds = Math.max(1, Math.min(options.timeoutSeconds ?? 300, 1800));
 		const powerShell = path.join(
@@ -135,15 +150,24 @@ export class ThcadBridgeClient {
 				},
 			);
 		} catch (error) {
-			throw stableProcessError(error);
+			// Reclaim only this invocation's unclaimed request. If THCAD already
+			// moved it to running, the exact request may finish once, but it cannot
+			// be discovered and replayed by a later command.
+			await rm(requestPath, { force: true }).catch(() => undefined);
+			try {
+				await access(responsePath);
+			} catch {
+				throw stableProcessError(error);
+			}
 		}
 
 		let response: BridgeEnvelope;
 		try {
 			response = JSON.parse(
-				await readFile(path.join(responseDirectory, `${requestId}.json`), "utf8"),
+				await readFile(responsePath, "utf8"),
 			) as BridgeEnvelope;
 		} catch (error) {
+			await rm(requestPath, { force: true }).catch(() => undefined);
 			throw new ThcadBridgeError("INVALID_BRIDGE_RESPONSE", String(error));
 		}
 

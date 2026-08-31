@@ -28,11 +28,12 @@ export const THCAD_CAPABILITIES: readonly ThcadCapability[] = [
 	{ id: 18, name: "尺寸—几何绑定", artifact: "dimension-geometry-binding.json", markdown: "dimension-geometry-binding.md", businessUse: "把尺寸定义点绑定到结构并核对显示值、测量值和结构跨度", reportPrefixes: ["dimension_geometry_"] },
 	{ id: 19, name: "语义图纸差分", artifact: "semantic-drawing-snapshot.json", markdown: "semantic-drawing-snapshot.md", businessUse: "构建可比较语义快照，供版本变化、同步和 issue 生命周期分析", reportPrefixes: ["semantic_drawing_snapshot_"] },
 	{ id: 20, name: "跨图工程接口图", artifact: "cross-drawing-observation.json", markdown: "cross-drawing-observation.md", businessUse: "生成单图跨图 observation，并对图集汇聚引用、身份和接口比较", reportPrefixes: ["cross_drawing_"] },
+	{ id: 21, name: "BOM 实例覆盖对账", artifact: "bom-instance-coverage.json", markdown: "bom-instance-coverage.md", businessUse: "按序号锚定块定义，枚举同定义实例并对账全部序号指向，输出未指向候选而不判 BOM 错误", reportPrefixes: ["bom_instance_coverage_"] },
 ] as const;
 
 export function getCapability(id: number): ThcadCapability {
 	const capability = THCAD_CAPABILITIES.find((item) => item.id === id);
-	if (!capability) throw new Error(`INVALID_CAPABILITY: expected 1-20, got ${id}`);
+	if (!capability) throw new Error(`INVALID_CAPABILITY: expected 1-21, got ${id}`);
 	return capability;
 }
 

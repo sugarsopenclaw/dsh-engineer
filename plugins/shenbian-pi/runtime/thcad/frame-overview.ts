@@ -177,7 +177,7 @@ export async function captureFrameOverview(options: {
 			&& options.expectedDocument.toLocaleLowerCase() !== activeName.toLocaleLowerCase()
 		) throw new ThcadBridgeError("DOCUMENT_CHANGED", `Active document is ${activeName}.`);
 		if (!analysisMatches(status)) {
-			options.onProgress?.("现有 02 图框代次与活动图不一致，正在只读刷新 01–20…");
+			options.onProgress?.("现有 02 图框代次与活动图不一致，正在只读刷新 01–21…");
 			await bridge.invoke(
 				"extract_current",
 				{ expected_document: activeName },

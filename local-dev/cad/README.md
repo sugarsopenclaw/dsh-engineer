@@ -187,6 +187,15 @@ JSON 或某一个 API 面没有某项，不等于 THCAD 拿不到它；先查总
 - 只有结构化引用精确命中标题栏才支持构件—图纸身份；接口还要求明确上下文、唯一候选和多项相容签名。纯几何相似、引线近接、未证明比例和缺少目标文件均不会被升级成强结论。
 - 七图保存事实得到 179 条有代号构件引用和 13,568 个接口引用；样本集内没有 BOM 代号命中另一张标题栏，因此正确输出 133 个去重的集合缺口候选、0 个接口比较，没有凭相似几何乱连。
 
+## 21 · BOM 实例覆盖对账
+
+- 类型：宿主无关 Core 的 BOM 序号覆盖账本与同定义实例复核候选能力。
+- 唯一实现：[`core/21-bom-instance-coverage/BomInstanceCoverageAnalyzer.cs`](core/21-bom-instance-coverage/BomInstanceCoverageAnalyzer.cs)。
+- 输入：04 的 BOM 行、序号段与全部指向端，11 的块引用 definition handle、世界变换和叶子 occurrence，13 的工程/文档区域；输出序号段锚点、同定义实例、`pointed / pointed_by_other_item / unpointed_candidate / in_documentation_region` 分类、逐视图计数及 BOM 数量原文。
+- MINSERT 单元格、嵌套和镜像插入分别计数；散线锚点明确为 `not_matchable_loose_geometry`。匿名块按 handle 匹配，动态块只按当前有效 definition 分组并保留限制诊断。
+- `unpointed_candidate` 不是漏标或 BOM 错误结论；多视图重复、对称画法和示意表达都可能合法，21 不跨视图合并物理身份，也不拿 BOM 数量直接裁决。
+- 2026-08-30 对当前 dirty 会话 `5TBC.384.A110050.1_1.DWG` 真机抽取：35 个序号段中 19 个可按块定义对账，12 个落在散线、4 个超过锚定距离；逐段账本合计 135 个 `unpointed_candidate`、2 个 `pointed_by_other_item`，无明细截断，耗时约 905 ms。序号 19/20/21 段锚定到同一匿名 definition 的唯一实例，结果为 1 项 `pointed`、0 项未指向。上述数字只记录该样本和会话态，不设为回归真值。
+
 ## 暂不单独编号
 
 - 框选读取：是 01 的 Host 输入方式，不是业务算法。

@@ -156,6 +156,46 @@ test("review run ids cannot escape the local runs root", async () => {
 	}
 });
 
+test("review store snapshots all paired BOM images and topology in one immutable manifest", async () => {
+	const root = await mkdtemp(path.join(os.tmpdir(), "shenbian-thcad-review-paired-"));
+	try {
+		const store = new ThcadReviewStore({ root: path.join(root, "reviews"), bridgeRoot: path.join(root, "bridge") });
+		await startRun(store, "thcad-test-paired", "mechanical");
+		const full = path.join(root, "full.png");
+		const clean = path.join(root, "clean.png");
+		const sidecar = path.join(root, "sidecar.json");
+		await Promise.all([
+			writeFile(full, Buffer.from("full-image")),
+			writeFile(clean, Buffer.from("clean-image")),
+			writeFile(sidecar, JSON.stringify({ group_id: "group-1" })),
+		]);
+		const entries = await store.snapshotChildInputs("thcad-test-paired", [
+			{ source: full, logicalPath: "groups/group-1/component-full.png", role: "bom_component_full_image" },
+			{ source: clean, logicalPath: "groups/group-1/component-clean.png", role: "bom_component_clean_image" },
+			{ source: sidecar, logicalPath: "groups/group-1/evidence-sidecar.json", role: "bom_component_deterministic_sidecar" },
+		]);
+		assert.equal(entries.length, 3);
+		assert.deepEqual(entries.map((item) => item.role), [
+			"bom_component_full_image",
+			"bom_component_clean_image",
+			"bom_component_deterministic_sidecar",
+		]);
+		const manifest = JSON.parse(
+			await readFile(path.join(store.runDirectory("thcad-test-paired"), "child-inputs.json"), "utf8"),
+		) as { files: unknown[] };
+		assert.equal(manifest.files.length, 3);
+		await assert.rejects(
+			store.snapshotChildInputs("thcad-test-paired", [
+				{ source: full, logicalPath: "duplicate", role: "one" },
+				{ source: clean, logicalPath: "duplicate", role: "two" },
+			]),
+			/DUPLICATE_CHILD_INPUT_LOGICAL_PATH/,
+		);
+	} finally {
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
 test("host evidence retains actual tool results when the child summary is wrong", () => {
 	const evidence = buildEvidenceContent(
 		"只读取 status",
@@ -171,7 +211,7 @@ test("host evidence retains actual tool results when the child summary is wrong"
 					ok: true,
 					data: {
 						active_document: { name: "sample.dwg", dbmod: 21 },
-						capability_ids: Array.from({ length: 20 }, (_, index) => index + 1),
+						capability_ids: Array.from({ length: 21 }, (_, index) => index + 1),
 					},
 				}) }],
 				isError: false,

@@ -76,7 +76,7 @@ cd D:\dev\dsh-engineer\dev-test\visualstudionetframework
 
 命令结束后会恢复同一选择集。块参照目前按一个顶层实体记录，不自动展开成块定义内的子实体。
 
-可复用能力源码已按依赖边界整理到 `local-dev/cad/`：全量实体抽取位于 THCAD Adapter，02–20 的识别、拓扑、scope、关系、身份约束、轮廓、接口邻接、尺寸—几何绑定、语义差分和跨图项目关系分析位于宿主无关 Core。当前插件通过 MSBuild linked file 编译这些唯一源码，不在 `dev-test` 复制实现。整图抽取另写：
+可复用能力源码已按依赖边界整理到 `local-dev/cad/`：全量实体抽取位于 THCAD Adapter，02–21 的识别、拓扑、scope、关系、身份约束、轮廓、接口邻接、尺寸—几何绑定、语义差分、跨图项目关系和 BOM 实例覆盖分析位于宿主无关 Core。当前插件通过 MSBuild linked file 编译这些唯一源码，不在 `dev-test` 复制实现。整图抽取另写：
 
 - `drawing-frames.json`、`drawing-zones.json`：图框及字母数字分区证据；
 - `bom-knowledge.json`：机械明细表八列、结构化行、句柄证据、每行对应的图面 `TH_XuHaoEntity` 序号标注、标注指向侧/序号侧坐标及序号质量报告；
@@ -102,6 +102,7 @@ cd D:\dev\dsh-engineer\dev-test\visualstudionetframework
 - `dimension-geometry-binding.json/.md`：尺寸 occurrence 的世界坐标定义点、结构锚点候选、轮廓/接口/对象回链、实体/显示/几何量值核对，以及显式 `DIMLFAC` 和重复显示比例候选；残差不直接写成图纸错误。
 - `semantic-drawing-snapshot.json/.md`：当前版本的跨快照稳定输入，保存图纸身份、04/05/08/11/13/16/17/18 语义元素、源 handle、关系、状态和预算；单次抽取不生成无基线的版本差分。
 - `cross-drawing-observation.json/.md`：20 的单图项目输入，保存标题栏身份、BOM/文字/外参引用、接口签名、局部坐标和绑定尺寸；多图项目关系由离线汇聚器或 Agent 另行生成，单图不会伪造跨文件结论。
+- `bom-instance-coverage.json/.md`：21 的逐序号段同定义块实例覆盖账本，保留本段/其他序号指向、未指向候选、文档区排除、逐视图计数和 BOM 数量原文；候选不直接等同漏标或 BOM 错误。
 
 重新编译 DLL 后，当前 THCAD 进程中已经 `NETLOAD` 的旧程序集通常无法真正卸载。需要先保存要保留的图纸状态，退出并重启 THCAD，再加载新 DLL；仅重复执行 `NETLOAD` 不应当作可靠热更新。
 

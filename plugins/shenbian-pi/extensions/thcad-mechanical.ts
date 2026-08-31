@@ -3,30 +3,28 @@ import { Type } from "typebox";
 
 import { runThcadSubagent } from "../runtime/thcad/subagent-runner.ts";
 import { runThcadVisualOverviewSubagent } from "../runtime/thcad/visual-subagent-runner.ts";
+import { runThcadBomCloseReadingSubagent } from "../runtime/thcad/bom-visual-subagent-runner.ts";
 import { ThcadBridgeClient } from "../runtime/thcad/bridge-client.ts";
+import { serializeCadWork } from "../runtime/thcad/cad-queue.ts";
 import { bridgeRoot, toProjectRef } from "../runtime/thcad/paths.ts";
+import { textIndexStatus } from "../runtime/thcad/text-index.ts";
 import {
+	assistantText,
 	createReviewRunId,
 	type ParentReviewContext,
 	ThcadReviewStore,
 } from "../runtime/thcad/review-store.ts";
-
-let cadQueue: Promise<void> = Promise.resolve();
+import { TopologySemanticsRecorder } from "../runtime/thcad/topology-semantics.ts";
 
 interface ActiveParentRun extends ParentReviewContext {
 	runIds: Set<string>;
 	lastMessages?: unknown[];
 }
 
-function serializeCadWork<T>(work: () => Promise<T>): Promise<T> {
-	const result = cadQueue.then(work, work);
-	cadQueue = result.then(() => undefined, () => undefined);
-	return result;
-}
-
 export default function thcadMechanicalExtension(pi: ExtensionAPI): void {
 	if (process.env.SHENBIAN_PI_ROLE?.startsWith("thcad-")) return;
 	const reviewStore = new ThcadReviewStore();
+	const topologyRecorder = new TopologySemanticsRecorder();
 	const finalizedRuns = new Set<string>();
 	let activeParentRun: ActiveParentRun | undefined;
 
@@ -45,6 +43,25 @@ export default function thcadMechanicalExtension(pi: ExtensionAPI): void {
 		for (const runId of active.runIds) {
 			if (finalizedRuns.has(runId)) continue;
 			try {
+				const finalText = assistantText(finalMessage);
+				if (finalText) {
+					const sync = await topologyRecorder.recordParentInterpretation({
+						runId,
+						content: finalText,
+						finalMessage,
+						model: ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : active.model,
+						thinkingLevel: ctx.thinkingLevel ?? active.thinkingLevel,
+						sessionRef: ctx.sessionManager.getSessionFile()
+							? toProjectRef(ctx.sessionManager.getSessionFile() as string)
+							: undefined,
+					});
+					if (sync.errors.length) {
+						ctx.ui.notify(
+							`拓扑语义后端暂未同步 [${runId}]；本地 outbox 已保留，可用 /thcad-semantic-sync 重放。`,
+							"warning",
+						);
+					}
+				}
 				await reviewStore.finalizeParent(runId, {
 					status,
 					finishedAtUtc: new Date().toISOString(),
@@ -93,7 +110,7 @@ export default function thcadMechanicalExtension(pi: ExtensionAPI): void {
 		label: "THCAD Mechanical Subagent",
 		description: [
 			"把一项自包含的沈变机械图纸取证任务委派给隔离的 THCAD 子 Agent。",
-			"child 只使用当前 THCAD 和 .NET 01–20：实体、图框/分区、BOM、技术要求、图层、中心线、标注、尺寸链、图线、块实例、拓扑、视图、表达/身份、轮廓、接口、尺寸绑定、语义快照和跨图关系。",
+			"child 只使用当前 THCAD 和 .NET 01–21：实体、图框/分区、BOM、技术要求、图层、中心线、标注、尺寸链、图线、块实例、拓扑、视图、表达/身份、轮廓、接口、尺寸绑定、语义快照、跨图关系和 BOM 实例覆盖。",
 			"task 必须写清目标、区域/构件/编号、需要的字段，以及用户是否明确要求在 THCAD 中选择/缩放定位。child 不继承父对话，也不形成最终用户答案。",
 			"不要要求 child 创建、写入或只返回 evidence/artifact 路径；child 必须返回证据正文，evidence 文件和不可变 review bundle 由宿主创建。",
 			"完成后只返回 host 写入的 evidence.md 相对路径和安全用量；必须先用 read 读取 evidence，再由主 Agent 区分确定事实、派生候选和限制并回答。",
@@ -231,6 +248,89 @@ export default function thcadMechanicalExtension(pi: ExtensionAPI): void {
 		},
 	});
 
+	pi.registerTool({
+		name: "delegate_thcad_bom_close_reading",
+		label: "THCAD BOM Component Close Reading",
+		description: [
+			"按 capability 04 确定性序号段，对 BOM 指向的局部构件做视觉精读。",
+			"宿主内部一次性组合 04 BOM/序号段、08 去标注证据、11 块实例世界坐标图元、13 工程视图和 21 同定义实例覆盖；每个序号段同时生成完整图、去干扰图和选中态拓扑。",
+			"序号段中的所有 BOM 项已确定共同指向目标；视觉 child 以 BOM 为业务准则，结合机械制图和变压器常识推理当前/其他投影、装配关系与构件作用。",
+			"item_numbers 省略时处理当前图中全部可解析 BOM 序号段；指定时只跑包含这些序号的段，便于现场验证。",
+			"从项目文字检索跨图路由时传 expected_document；宿主会在刷新和出图前核对活动图，避免同名图或漏激活导致精读错图。该字段不改变 Agent 自主选择检索与审图步骤。",
+			"完成后先读 evidence.md；完整输入、两张图、提示词、子会话、原始输出、覆盖账本和 01–21 证据代次均保存在 review bundle，并登记到拓扑语义后端；后端暂不可用时由本地 outbox 保留。",
+		].join("\n"),
+		promptSnippet: "Close-read BOM components from deterministic serial segments, paired local renders and topology",
+		promptGuidelines: [
+			"Use delegate_thcad_bom_close_reading when the user asks what BOM-numbered components are, how jointly pointed serial balloons form one assembly segment, or requests visual understanding of all BOM items.",
+			"Omit item_numbers for an all-BOM batch. Supply item_numbers only for an explicit subset or a focused test; one member selects its whole connected serial segment.",
+			"When routing a project-search hit, pass its drawing ref as expected_document so the delegated run fails fast if another drawing is active.",
+			"After completion, read evidence_ref before answering. Keep deterministic BOM/serial/geometry evidence distinct from the vision model's mechanical interpretation, without inventing confidence downgrades.",
+		],
+		parameters: Type.Object({
+			expected_document: Type.Optional(Type.String({ minLength: 1, maxLength: 2_000 })),
+			item_numbers: Type.Optional(Type.Array(
+				Type.Integer({ minimum: 1, maximum: 1_000_000 }),
+				{ minItems: 1, maxItems: 500, uniqueItems: true },
+			)),
+		}, { additionalProperties: false }),
+		async execute(toolCallId, params, signal, onUpdate, ctx) {
+			if (signal?.aborted) throw new Error("SUBAGENT_CANCELLED");
+			onUpdate?.({ content: [{ type: "text", text: "THCAD BOM 构件精读已排队…" }], details: { stage: "queued" } });
+			const runId = createReviewRunId();
+			activeParentRun?.runIds.add(runId);
+			const result = await serializeCadWork(() => runThcadBomCloseReadingSubagent({
+				runId,
+				cwd: ctx.cwd,
+				itemNumbers: params.item_numbers,
+				expectedDocument: params.expected_document,
+				signal,
+				onProgress: (text) => onUpdate?.({ content: [{ type: "text", text }], details: { stage: "running" } }),
+				parent: {
+					sessionId: ctx.sessionManager.getSessionId(),
+					sessionFile: ctx.sessionManager.getSessionFile(),
+					toolCallId,
+					prompt: activeParentRun?.prompt,
+					systemPrompt: activeParentRun?.systemPrompt,
+					model: ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : undefined,
+					thinkingLevel: ctx.thinkingLevel,
+					images: activeParentRun?.images,
+				},
+			}));
+			const completed = result.groups.filter((group) => group.status === "completed").length;
+			const failed = result.groups.length - completed;
+			return {
+				content: [{
+					type: "text",
+					text: [
+						"THCAD BOM component close-reading evidence pack saved.",
+						`Segments: ${completed}/${result.groups.length} completed${failed ? `, ${failed} failed` : ""}.`,
+						`Evidence: ${result.evidenceRef}`,
+						`Structured results: ${result.batchResultRef}`,
+						`Coverage ledger: ${result.coverageRef}`,
+						`Immutable review bundle: ${result.reviewRef} (${result.reviewStatus})`,
+						"Read the evidence before answering; BOM/serial/topology are deterministic inputs and component interpretation is model-derived.",
+					].join("\n"),
+				}],
+				details: {
+					child_run_id: result.runId,
+					status: failed ? "partial" : "completed",
+					model: result.model,
+					duration_ms: result.durationMs,
+					turns: result.turns,
+					usage: result.usage,
+					segment_count: result.groups.length,
+					completed_segment_count: completed,
+					failed_segment_count: failed,
+					review_status: result.reviewStatus,
+					artifact_manifest_ref: result.artifactManifestRef,
+					artifact_refs: [result.evidenceRef, result.batchResultRef, result.coverageRef, result.reviewRef],
+					semantic_sync: result.semanticSync,
+				},
+				usage: result.usage,
+			};
+		},
+	});
+
 	pi.registerCommand("thcad-reviews", {
 		description: "列出或校验本机 THCAD review bundle",
 		handler: async (args, ctx) => {
@@ -256,6 +356,22 @@ export default function thcadMechanicalExtension(pi: ExtensionAPI): void {
 		},
 	});
 
+	pi.registerCommand("thcad-semantic-sync", {
+		description: "重放本机 THCAD 拓扑语义 outbox 到 backend",
+		handler: async (_args, ctx) => {
+			const results = await topologyRecorder.flushPending();
+			const sent = results.reduce((sum, item) => sum + item.sent, 0);
+			const pending = results.reduce((sum, item) => sum + item.pending, 0);
+			const errors = results.flatMap((item) => item.errors);
+			ctx.ui.notify(
+				errors.length
+					? `拓扑语义同步：发送 ${sent}，仍待处理 ${pending}；${errors[0]}`
+					: `拓扑语义同步完成：发送 ${sent}，待处理 ${pending}。`,
+				errors.length ? "warning" : "info",
+			);
+		},
+	});
+
 	pi.registerCommand("thcad-doctor", {
 		description: "检查 THCAD .NET Bridge 与活动图（只读）",
 		handler: async (_args, ctx) => {
@@ -266,10 +382,18 @@ export default function thcadMechanicalExtension(pi: ExtensionAPI): void {
 			}
 			ctx.ui.notify(`Bridge 已构建；作业目录 ${toProjectRef(bridgeRoot)}，正在检查活动 THCAD…`, "info");
 			try {
-				const status = await bridge.invoke("status", {}, { timeoutSeconds: 30 });
+				const { status, index } = await serializeCadWork(async () => ({
+					status: await bridge.invoke("status", {}, { timeoutSeconds: 30 }),
+					index: await textIndexStatus(),
+				}));
 				const active = status.active_document as Record<string, unknown> | undefined;
+				const indexState = !index.exists
+					? "未构建"
+					: index.fresh
+						? `${index.drawing_count} 图/已新鲜`
+						: `${index.drawing_count} 图/${index.stale_count} 过期/${index.missing_count} 源缺失/${index.unindexed_count} 未索引`;
 				ctx.ui.notify(
-					`THCAD 已连接：${String(active?.name ?? "未知图纸")} · DBMOD=${String(active?.dbmod ?? "?")} · 01–20 Host 可用`,
+					`THCAD 已连接：${String(active?.name ?? "未知图纸")} · DBMOD=${String(active?.dbmod ?? "?")} · 01–21 Host 可用 · 文字索引${indexState}`,
 					"info",
 				);
 			} catch (error) {

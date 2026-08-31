@@ -10,7 +10,7 @@
 | --- | --- |
 | `pi/` | Pi 官方源码，git submodule，固定到已验证 release commit，只读 |
 | `.pi/` | 项目级 Pi 设置；默认隔离状态写入被忽略的 `.pi/runtime/` |
-| `plugins/shenbian-pi/` | 沈变 Pi package：TUI、THCAD 机械/视觉子代理、01–20 工具契约与证据投影 |
+| `plugins/shenbian-pi/` | 沈变 Pi package：TUI、THCAD 机械/视觉子代理、01–21 工具契约与证据投影 |
 | `scripts/*-pi.ps1` | 安装、构建、启动、验证与上游升级门禁 |
 | `client-data/` | 客户原始资料，只收不改，不进 git |
 | `data/` | Data Layer：登记、管线、派生数据集 |
@@ -75,12 +75,13 @@ $env:npm_config_registry = "https://registry.npmmirror.com"
 - `/shenbian-ui`：在沈变界面与原生 Pi 界面之间切换；
 - `/thcad-doctor`：只读检查独立 .NET Host、活动 THCAD 与当前图；
 - `/thcad-reviews`：查看最近 THCAD 运行包，或用 `/thcad-reviews verify <run-id>` 校验；
-- `delegate_thcad_mechanical`：主 Agent 将自包含图纸任务交给 fresh 机械子 Agent，child 只使用 THCAD 01–20 和有界 artifact 查询；
+- `delegate_thcad_mechanical`：主 Agent 将自包含图纸任务交给 fresh 机械子 Agent，child 只使用 THCAD 01–21 和有界 artifact 查询；
 - `delegate_thcad_visual_overview`：按 capability 02 图框从 THCAD 生成整图 PNG，交给固定 DeepSeek Vision child 判断是否足以宏观导航；
+- `delegate_thcad_bom_close_reading`：按 04 序号段对 BOM 构件做成对局部出图、拓扑组织和机械/变压器语义精读，省略序号时覆盖当前图全部可解析 BOM；
 - 项目级模型范围固定为三项 DeepSeek 模型，默认 `deepseek-v4-flash`、`high` thinking；
 - Pi package 使用官方公开入口，Pi 核心依赖全部是 `peerDependencies: "*"`，不会带入第二份运行时。
 
-THCAD 链路采用“COM 控制面 + 进程内 .NET 数据/计算面”：PowerShell 只附着 `thcad.exe` 并发送命令，01–20 始终在 CAD 主线程读取当前 Database。视觉概览复用 02 图框，通过 THCAD `PNGOUT` 导出当前模型空间显示，再由无工具、无父上下文的 `deepseek-v4-flash-vision-exp` child 做清晰度门禁；它不能替代精确实体、尺寸或文字证据。主 Agent 上下文只收到有界 evidence path，不接收 child transcript 或整图 JSON。完整 child Session、raw events、视觉输入、父 Session 快照和内容寻址 artifact 只写本机 `.pi/runtime/thcad-reviews/`，供 review 与后续人工筛选训练数据。当前不开放保存、删除标注或其他 DWG 写操作。
+THCAD 链路采用“COM 控制面 + 进程内 .NET 数据/计算面”：PowerShell 只附着 `thcad.exe` 并发送命令，01–21 始终在 CAD 主线程读取当前 Database。父 Agent 还可用 side-DB 项目文字索引检索业务词、打开/切换命中图纸，再进入 BOM 精读。由工具新打开的客户原图强制只读；用户已经可写打开的原图会明确保留为用户现场而不伪报只读，复制和保存仍只允许落 `.pi/runtime/thcad-workspace/`。视觉概览复用 02 图框的 `PNGOUT`；BOM 精读则用 `SetWindowToPlot` 原生窗口 Plot（不移动当前视口）与 11 世界坐标去干扰重绘成对供图。完整 child Session、raw events、视觉输入、父 Session 快照和内容寻址 artifact 只写本机 `.pi/runtime/thcad-reviews/`。
 
 本地 review 命令：
 

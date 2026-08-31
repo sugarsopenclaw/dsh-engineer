@@ -21,8 +21,24 @@ namespace Shb.Thcad.AgentBridge
     internal static class BridgeProtocol
     {
         public const int Version = 1;
-        public const string CommandName = "SHBTHCADAGENT";
-        public const int MaxJobsPerCommand = 8;
+        public const string ModalCommandName = "SHBTHCADAGENTV4";
+        public const string ApplicationCommandName = "SHBTHCADAGENTV4APP";
+        public const string DispatchMode = "request_id_prompt_v1";
+
+        static readonly ISet<string> ModalOperations = new HashSet<string>(
+            new[] { "status", "extract_current", "locate_handles", "scan_texts" },
+            StringComparer.OrdinalIgnoreCase);
+
+        static readonly ISet<string> ApplicationOperations = new HashSet<string>(
+            new[]
+            {
+                "open_document",
+                "activate_document",
+                "close_document",
+                "save_document_as",
+                "save_document"
+            },
+            StringComparer.OrdinalIgnoreCase);
 
         static readonly IDictionary<int, string> ArtifactFiles = new Dictionary<int, string>
         {
@@ -45,12 +61,29 @@ namespace Shb.Thcad.AgentBridge
             { 17, "mechanical-interface-adjacency.json" },
             { 18, "dimension-geometry-binding.json" },
             { 19, "semantic-drawing-snapshot.json" },
-            { 20, "cross-drawing-observation.json" }
+            { 20, "cross-drawing-observation.json" },
+            { 21, "bom-instance-coverage.json" }
         };
 
         public static IDictionary<int, string> GetArtifactFiles()
         {
             return ArtifactFiles;
+        }
+
+        public static bool IsApplicationOperation(string operation)
+        {
+            return ApplicationOperations.Contains(operation ?? "");
+        }
+
+        public static bool ClaimsOperation(string operation, bool applicationContext)
+        {
+            if (applicationContext)
+            {
+                return ApplicationOperations.Contains(operation ?? "");
+            }
+            return ModalOperations.Contains(operation ?? "")
+                || (!ApplicationOperations.Contains(operation ?? "")
+                    && !string.IsNullOrWhiteSpace(operation));
         }
     }
 
@@ -61,8 +94,9 @@ namespace Shb.Thcad.AgentBridge
             try
             {
                 BridgeCommands.WriteMessage(
-                    "\nShenbian THCAD Agent Bridge loaded. Command: "
-                    + BridgeProtocol.CommandName + "\n");
+                    "\nShenbian THCAD Agent Bridge V4 loaded. Commands: "
+                    + BridgeProtocol.ModalCommandName + " / "
+                    + BridgeProtocol.ApplicationCommandName + "\n");
                 BridgeCommands.WriteLoadedMarker();
             }
             catch
@@ -80,9 +114,23 @@ namespace Shb.Thcad.AgentBridge
     {
         static readonly JavaScriptSerializer Json = new JavaScriptSerializer();
 
-        [CommandMethod(BridgeProtocol.CommandName, CommandFlags.Modal)]
+        [CommandMethod(BridgeProtocol.ModalCommandName, CommandFlags.Modal)]
         public void ExecutePendingJobs()
         {
+            ExecuteRequestedJob(false);
+        }
+
+        [CommandMethod(BridgeProtocol.ApplicationCommandName, CommandFlags.Session)]
+        public void ExecutePendingApplicationJobs()
+        {
+            ExecuteRequestedJob(true);
+        }
+
+        static void ExecuteRequestedJob(bool applicationContext)
+        {
+            string commandName = applicationContext
+                ? BridgeProtocol.ApplicationCommandName
+                : BridgeProtocol.ModalCommandName;
             string root;
             try
             {
@@ -91,37 +139,56 @@ namespace Shb.Thcad.AgentBridge
             }
             catch (System.Exception ex)
             {
-                WriteMessage("\n" + BridgeProtocol.CommandName + ": bridge root unavailable: "
+                WriteMessage("\n" + commandName + ": bridge root unavailable: "
                     + ex.Message + "\n");
                 return;
             }
 
-            string pending = Path.Combine(root, "pending");
-            string[] jobs = Directory.GetFiles(pending, "*.json")
-                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
-                .Take(BridgeProtocol.MaxJobsPerCommand)
-                .ToArray();
-
-            if (jobs.Length == 0)
+            string requestId = PromptRequestId(commandName);
+            if (string.IsNullOrWhiteSpace(requestId))
             {
-                WriteMessage("\n" + BridgeProtocol.CommandName + ": no pending jobs.\n");
                 return;
             }
 
-            int completed = 0;
-            foreach (string pendingPath in jobs)
+            try
             {
-                if (TryProcessJob(root, pendingPath))
-                {
-                    completed++;
-                }
+                ValidateRequestId(requestId);
+            }
+            catch (System.Exception ex)
+            {
+                WriteMessage("\n" + commandName + ": " + ex.Message + "\n");
+                return;
             }
 
-            WriteMessage("\n" + BridgeProtocol.CommandName + ": completed "
-                + completed.ToString(CultureInfo.InvariantCulture) + " job(s).\n");
+            string pendingPath = Path.Combine(root, "pending", requestId + ".json");
+            if (!File.Exists(pendingPath))
+            {
+                WriteMessage("\n" + commandName + ": request " + requestId
+                    + " is no longer pending.\n");
+                return;
+            }
+
+            bool completed = TryProcessJob(root, pendingPath, applicationContext);
+            WriteMessage("\n" + commandName + ": request " + requestId
+                + (completed ? " completed.\n" : " failed to publish a response.\n"));
         }
 
-        static bool TryProcessJob(string root, string pendingPath)
+        static string PromptRequestId(string commandName)
+        {
+            Document document = CoreApp.DocumentManager.MdiActiveDocument;
+            if (document == null)
+            {
+                WriteMessage("\n" + commandName + ": THCAD has no active document.\n");
+                return string.Empty;
+            }
+
+            var options = new PromptStringOptions("\n" + commandName + " request id: ");
+            options.AllowSpaces = false;
+            PromptResult result = document.Editor.GetString(options);
+            return result.Status == PromptStatus.OK ? (result.StringResult ?? string.Empty).Trim() : string.Empty;
+        }
+
+        static bool TryProcessJob(string root, string pendingPath, bool applicationContext)
         {
             string requestId = Path.GetFileNameWithoutExtension(pendingPath);
             string runningPath = Path.Combine(root, "running", requestId + ".json");
@@ -135,6 +202,13 @@ namespace Shb.Thcad.AgentBridge
                 File.Move(pendingPath, runningPath);
                 request = Json.DeserializeObject(File.ReadAllText(runningPath))
                     as IDictionary<string, object>;
+                string operation = GetString(request, "operation");
+                if (!BridgeProtocol.ClaimsOperation(operation, applicationContext))
+                {
+                    throw new BridgeException(
+                        "OPERATION_CONTEXT_MISMATCH",
+                        "Operation " + operation + " was dispatched to the wrong THCAD command context.");
+                }
                 response = ExecuteRequest(root, requestId, request);
             }
             catch (System.Exception ex)
@@ -154,7 +228,7 @@ namespace Shb.Thcad.AgentBridge
             }
             catch (System.Exception ex)
             {
-                WriteMessage("\n" + BridgeProtocol.CommandName
+                WriteMessage("\n" + BridgeProtocol.ModalCommandName
                     + ": cannot publish response " + requestId + ": " + ex.Message + "\n");
                 return false;
             }
@@ -206,12 +280,6 @@ namespace Shb.Thcad.AgentBridge
             string operation = GetString(request, "operation");
             IDictionary<string, object> parameters = GetDictionary(request, "params");
             Document document = CoreApp.DocumentManager.MdiActiveDocument;
-            if (document == null)
-            {
-                throw new BridgeException("NO_ACTIVE_DOCUMENT", "THCAD has no active document.");
-            }
-
-            ValidateExpectedDocument(parameters, document);
 
             IDictionary<string, object> data;
             if (string.Equals(operation, "status", StringComparison.OrdinalIgnoreCase))
@@ -220,11 +288,39 @@ namespace Shb.Thcad.AgentBridge
             }
             else if (string.Equals(operation, "extract_current", StringComparison.OrdinalIgnoreCase))
             {
+                RequireActiveDocument(document);
+                ValidateExpectedDocument(parameters, document);
                 data = ExtractCurrent(root, requestId, document);
             }
             else if (string.Equals(operation, "locate_handles", StringComparison.OrdinalIgnoreCase))
             {
+                RequireActiveDocument(document);
+                ValidateExpectedDocument(parameters, document);
                 data = LocateHandles(document, parameters);
+            }
+            else if (string.Equals(operation, "scan_texts", StringComparison.OrdinalIgnoreCase))
+            {
+                data = ScanTexts(root, parameters);
+            }
+            else if (string.Equals(operation, "open_document", StringComparison.OrdinalIgnoreCase))
+            {
+                data = OpenDocument(root, parameters);
+            }
+            else if (string.Equals(operation, "activate_document", StringComparison.OrdinalIgnoreCase))
+            {
+                data = ActivateDocument(parameters);
+            }
+            else if (string.Equals(operation, "close_document", StringComparison.OrdinalIgnoreCase))
+            {
+                data = CloseDocument(parameters);
+            }
+            else if (string.Equals(operation, "save_document_as", StringComparison.OrdinalIgnoreCase))
+            {
+                data = SaveDocumentAs(root, parameters);
+            }
+            else if (string.Equals(operation, "save_document", StringComparison.OrdinalIgnoreCase))
+            {
+                data = SaveDocument(root, parameters);
             }
             else
             {
@@ -259,11 +355,23 @@ namespace Shb.Thcad.AgentBridge
             return Map(
                 "host", "THCAD",
                 "bridge_version", Assembly.GetExecutingAssembly().GetName().Version.ToString(),
-                "command", BridgeProtocol.CommandName,
-                "active_document", DocumentMap(active, true),
+                "commands", Map(
+                    "modal", BridgeProtocol.ModalCommandName,
+                    "application", BridgeProtocol.ApplicationCommandName),
+                "dispatch_mode", BridgeProtocol.DispatchMode,
+                "active_document", active == null ? null : DocumentMap(active, true),
                 "documents", documents,
                 "capability_ids", BridgeProtocol.GetArtifactFiles().Keys.ToArray(),
+                "workspace_root", ResolveWorkspaceRoot(root),
                 "current_analysis", currentAnalysis);
+        }
+
+        static void RequireActiveDocument(Document document)
+        {
+            if (document == null)
+            {
+                throw new BridgeException("NO_ACTIVE_DOCUMENT", "THCAD has no active document.");
+            }
         }
 
         static IDictionary<string, object> ExtractCurrent(
@@ -307,6 +415,232 @@ namespace Shb.Thcad.AgentBridge
                 Shb.Thcad.Extractor.JsonUtil.Serialize(state));
 
             return state;
+        }
+
+        static IDictionary<string, object> ScanTexts(
+            string root,
+            IDictionary<string, object> parameters)
+        {
+            IList values = GetList(parameters, "files");
+            if (values == null || values.Count == 0 || values.Count > 128)
+            {
+                throw new BridgeException(
+                    "INVALID_ARGUMENT",
+                    "files must contain between 1 and 128 DWG paths.");
+            }
+
+            var files = new List<object>();
+            var failures = new List<object>();
+            foreach (object value in values)
+            {
+                string sourcePath = "";
+                try
+                {
+                    sourcePath = ValidateReadableDwgPath(
+                        root,
+                        Convert.ToString(value, CultureInfo.InvariantCulture));
+                    Document openDocument = FindDocumentByPath(sourcePath);
+                    int openDbmod = openDocument == null ? -1 : GetDocumentDbMod(openDocument);
+                    using (var database = new Database(false, true))
+                    {
+                        database.ReadDwgFile(
+                            sourcePath,
+                            FileOpenMode.OpenForReadAndAllShare,
+                            false,
+                            "");
+                        database.CloseInput(true);
+                        Dictionary<string, object> inventory =
+                            Shb.Thcad.TextInventory.TextInventoryExtractor.Extract(
+                                database,
+                                sourcePath);
+                        inventory["open"] = openDocument != null;
+                        inventory["open_dirty"] = openDocument != null && openDbmod != 0;
+                        inventory["open_dbmod_known"] = openDocument == null || openDbmod >= 0;
+                        inventory["open_dbmod"] = openDbmod;
+                        inventory["scanned_at_utc"] = DateTime.UtcNow.ToString("o");
+                        files.Add(inventory);
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    failures.Add(Map(
+                        "path", sourcePath.Length == 0
+                            ? Convert.ToString(value, CultureInfo.InvariantCulture)
+                            : sourcePath,
+                        "code", StableErrorCode(ex),
+                        "message", SafeMessage(ex.Message)));
+                }
+            }
+
+            return Map(
+                "requested_count", values.Count,
+                "completed_count", files.Count,
+                "failed_count", failures.Count,
+                "files", files,
+                "failures", failures,
+                "dwg_modified", false);
+        }
+
+        static IDictionary<string, object> OpenDocument(
+            string root,
+            IDictionary<string, object> parameters)
+        {
+            string sourcePath = ValidateReadableDwgPath(root, GetString(parameters, "path"));
+            bool requestedReadOnly = GetBool(parameters, "read_only", true);
+            bool forcedReadOnly = IsInside(ResolveClientDataRoot(root), sourcePath);
+            bool readOnly = forcedReadOnly || requestedReadOnly;
+            Document existing = FindDocumentByPath(sourcePath);
+            if (existing != null)
+            {
+                if (forcedReadOnly && !existing.IsReadOnly)
+                {
+                    throw new BridgeException(
+                        "CLIENT_DOCUMENT_ALREADY_OPEN_WRITABLE",
+                        "The client-data drawing is already open writable. Use activate for read-only analysis of the user's existing session, or copy it to the workspace before editing.");
+                }
+                CoreApp.DocumentManager.MdiActiveDocument = existing;
+                return Map(
+                    "already_open", true,
+                    "requested_read_only", requestedReadOnly,
+                    "forced_read_only", forcedReadOnly,
+                    "document", DocumentMap(existing, true),
+                    "dwg_modified", false);
+            }
+
+            Document opened = CoreApp.DocumentManager.Open(sourcePath, readOnly);
+            CoreApp.DocumentManager.MdiActiveDocument = opened;
+            return Map(
+                "already_open", false,
+                "requested_read_only", requestedReadOnly,
+                "forced_read_only", forcedReadOnly,
+                "document", DocumentMap(opened, true),
+                "dwg_modified", false);
+        }
+
+        static IDictionary<string, object> ActivateDocument(
+            IDictionary<string, object> parameters)
+        {
+            Document previous = CoreApp.DocumentManager.MdiActiveDocument;
+            Document target = ResolveDocument(parameters, true);
+            CoreApp.DocumentManager.MdiActiveDocument = target;
+            return Map(
+                "previous_document", previous == null ? null : Path.GetFileName(previous.Name),
+                "document", DocumentMap(target, true),
+                "dwg_modified", false);
+        }
+
+        static IDictionary<string, object> CloseDocument(
+            IDictionary<string, object> parameters)
+        {
+            if (CoreApp.DocumentManager.Count <= 1)
+            {
+                throw new BridgeException(
+                    "LAST_DOCUMENT_CLOSE_REFUSED",
+                    "The bridge will not close the final THCAD document.");
+            }
+
+            Document target = ResolveDocument(parameters, true);
+            int dbmod = GetDocumentDbMod(target);
+            bool discardChanges = GetBool(parameters, "discard_changes", false);
+            if (dbmod != 0 && !discardChanges)
+            {
+                throw new BridgeException(
+                    "DIRTY_DOCUMENT_REQUIRES_DISCARD",
+                    "Document DBMOD=" + dbmod.ToString(CultureInfo.InvariantCulture)
+                    + "; pass discard_changes=true to close without saving.");
+            }
+
+            string name = Path.GetFileName(target.Name);
+            string targetPath = DocumentPath(target);
+            target.CloseAndDiscard();
+            Document active = CoreApp.DocumentManager.MdiActiveDocument;
+            return Map(
+                "closed_document", name,
+                "closed_path", targetPath,
+                "discarded_changes", dbmod != 0,
+                "dbmod_before", dbmod,
+                "active_document", active == null ? null : DocumentMap(active, true),
+                "dwg_modified", false);
+        }
+
+        static IDictionary<string, object> SaveDocumentAs(
+            string root,
+            IDictionary<string, object> parameters)
+        {
+            Document document = ResolveDocument(parameters, false);
+            string targetPath = ValidateWorkspaceDwgPath(
+                root,
+                GetString(parameters, "target_path"),
+                false);
+            if (File.Exists(targetPath))
+            {
+                throw new BridgeException(
+                    "TARGET_ALREADY_EXISTS",
+                    "Refusing to overwrite an existing workspace drawing.");
+            }
+
+            Directory.CreateDirectory(Path.GetDirectoryName(targetPath));
+            int dbmodBefore = GetDocumentDbMod(document);
+            string sourceDocumentPathBefore = DocumentPath(document);
+            string databaseFilenameBefore = document.Database.Filename;
+            using (document.LockDocument())
+            {
+                document.Database.SaveAs(
+                    targetPath,
+                    false,
+                    DwgVersion.Current,
+                    document.Database.SecurityParameters);
+            }
+            string sourceDocumentPathAfter = DocumentPath(document);
+            string databaseFilenameAfter = document.Database.Filename;
+            return Map(
+                "source_document", Path.GetFileName(document.Name),
+                "source_document_path_before", sourceDocumentPathBefore,
+                "source_document_path_after", sourceDocumentPathAfter,
+                "source_document_path_unchanged", string.Equals(
+                    sourceDocumentPathBefore,
+                    sourceDocumentPathAfter,
+                    StringComparison.OrdinalIgnoreCase),
+                "database_filename_before", databaseFilenameBefore,
+                "database_filename_after", databaseFilenameAfter,
+                "database_filename_changed", !string.Equals(
+                    databaseFilenameBefore,
+                    databaseFilenameAfter,
+                    StringComparison.OrdinalIgnoreCase),
+                "target_path", targetPath,
+                "dbmod_before", dbmodBefore,
+                "document", DocumentMap(document, ReferenceEquals(
+                    document,
+                    CoreApp.DocumentManager.MdiActiveDocument)),
+                "saved", true);
+        }
+
+        static IDictionary<string, object> SaveDocument(
+            string root,
+            IDictionary<string, object> parameters)
+        {
+            Document document = ResolveDocument(parameters, false);
+            string documentPath = ValidateWorkspaceDwgPath(
+                root,
+                DocumentPath(document),
+                true);
+            int dbmodBefore = GetDocumentDbMod(document);
+            using (document.LockDocument())
+            {
+                object acadDocument = document.AcadDocument;
+                acadDocument.GetType().InvokeMember(
+                    "Save",
+                    BindingFlags.InvokeMethod,
+                    null,
+                    acadDocument,
+                    new object[0],
+                    CultureInfo.InvariantCulture);
+            }
+            return Map(
+                "document_path", documentPath,
+                "dbmod_before", dbmodBefore,
+                "dbmod_after", GetDocumentDbMod(document),
+                "saved", true);
         }
 
         static IDictionary<string, object> LocateHandles(
@@ -421,15 +755,193 @@ namespace Shb.Thcad.AgentBridge
             }
         }
 
+        static Document ResolveDocument(
+            IDictionary<string, object> parameters,
+            bool requireSelector)
+        {
+            string requestedPath = GetString(parameters, "path");
+            string requestedName = GetString(parameters, "name");
+            if (string.IsNullOrWhiteSpace(requestedPath)
+                && string.IsNullOrWhiteSpace(requestedName))
+            {
+                if (requireSelector)
+                {
+                    throw new BridgeException(
+                        "INVALID_ARGUMENT",
+                        "Provide document name or path.");
+                }
+                Document active = CoreApp.DocumentManager.MdiActiveDocument;
+                RequireActiveDocument(active);
+                return active;
+            }
+
+            string normalizedPath = string.IsNullOrWhiteSpace(requestedPath)
+                ? ""
+                : Path.GetFullPath(requestedPath.Trim());
+            var matches = new List<Document>();
+            foreach (Document document in CoreApp.DocumentManager)
+            {
+                bool pathMatches = normalizedPath.Length > 0
+                    && string.Equals(
+                        normalizedPath,
+                        DocumentPath(document),
+                        StringComparison.OrdinalIgnoreCase);
+                bool nameMatches = requestedName.Length > 0
+                    && (string.Equals(
+                            requestedName,
+                            Path.GetFileName(document.Name),
+                            StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(
+                            requestedName,
+                            document.Name,
+                            StringComparison.OrdinalIgnoreCase));
+                if (pathMatches || nameMatches)
+                {
+                    matches.Add(document);
+                }
+            }
+
+            if (matches.Count == 0)
+            {
+                throw new BridgeException("DOCUMENT_NOT_OPEN", "No open document matches the selector.");
+            }
+            if (matches.Count > 1)
+            {
+                throw new BridgeException(
+                    "AMBIGUOUS_DOCUMENT",
+                    "More than one open document matches; use an absolute path.");
+            }
+            return matches[0];
+        }
+
+        static Document FindDocumentByPath(string path)
+        {
+            string expected = Path.GetFullPath(path);
+            foreach (Document document in CoreApp.DocumentManager)
+            {
+                if (string.Equals(
+                    expected,
+                    DocumentPath(document),
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    return document;
+                }
+            }
+            return null;
+        }
+
+        static string DocumentPath(Document document)
+        {
+            if (document == null)
+            {
+                return "";
+            }
+            string value = document.Name;
+            if (string.IsNullOrWhiteSpace(value) && document.Database != null)
+            {
+                value = document.Database.Filename;
+            }
+            try
+            {
+                return Path.GetFullPath(value);
+            }
+            catch
+            {
+                return value ?? "";
+            }
+        }
+
+        static string ValidateReadableDwgPath(string root, string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                throw new BridgeException("INVALID_ARGUMENT", "DWG path is required.");
+            }
+            string path = Path.GetFullPath(value.Trim());
+            if (!string.Equals(Path.GetExtension(path), ".dwg", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new BridgeException("INVALID_ARGUMENT", "Only .dwg files are supported.");
+            }
+            if (!IsInside(ResolveClientDataRoot(root), path)
+                && !IsInside(ResolveWorkspaceRoot(root), path))
+            {
+                throw new BridgeException(
+                    "PATH_OUTSIDE_ALLOWED_ROOTS",
+                    "Drawing must be under client-data or the THCAD workspace.");
+            }
+            if (!File.Exists(path))
+            {
+                throw new BridgeException("DRAWING_NOT_FOUND", "DWG file does not exist.");
+            }
+            return path;
+        }
+
+        static string ValidateWorkspaceDwgPath(
+            string root,
+            string value,
+            bool requireExisting)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                throw new BridgeException("INVALID_ARGUMENT", "Workspace target path is required.");
+            }
+            string path = Path.GetFullPath(value.Trim());
+            if (!string.Equals(Path.GetExtension(path), ".dwg", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new BridgeException("INVALID_ARGUMENT", "Workspace target must be a .dwg file.");
+            }
+            if (!IsInside(ResolveWorkspaceRoot(root), path))
+            {
+                throw new BridgeException(
+                    "WRITE_OUTSIDE_WORKSPACE_REFUSED",
+                    "DWG writes are only allowed under the THCAD workspace.");
+            }
+            if (requireExisting && !File.Exists(path))
+            {
+                throw new BridgeException("DRAWING_NOT_FOUND", "Workspace drawing does not exist.");
+            }
+            return path;
+        }
+
+        static string ResolveProjectRoot(string root)
+        {
+            return Path.GetFullPath(Path.Combine(root, "..", "..", ".."));
+        }
+
+        static string ResolveClientDataRoot(string root)
+        {
+            return Path.Combine(ResolveProjectRoot(root), "client-data");
+        }
+
+        static string ResolveWorkspaceRoot(string root)
+        {
+            return Path.GetFullPath(Path.Combine(root, "..", "thcad-workspace"));
+        }
+
+        static bool IsInside(string root, string candidate)
+        {
+            string normalizedRoot = Path.GetFullPath(root)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string normalizedCandidate = Path.GetFullPath(candidate)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (string.Equals(normalizedRoot, normalizedCandidate, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+            return normalizedCandidate.StartsWith(
+                normalizedRoot + Path.DirectorySeparatorChar,
+                StringComparison.OrdinalIgnoreCase);
+        }
+
         static IDictionary<string, object> DocumentMap(Document document, bool active)
         {
             return Map(
                 "name", Path.GetFileName(document.Name),
-                "path", document.Name,
+                "path", DocumentPath(document),
                 "database_filename", document.Database == null ? null : document.Database.Filename,
                 "active", active,
                 "read_only", document.IsReadOnly,
-                "dbmod", active ? GetDbMod() : -1,
+                "dbmod", GetDocumentDbMod(document),
                 "command_in_progress", document.CommandInProgress);
         }
 
@@ -458,6 +970,34 @@ namespace Shb.Thcad.AgentBridge
             try
             {
                 object value = CoreApp.GetSystemVariable("DBMOD");
+                return Convert.ToInt32(value, CultureInfo.InvariantCulture);
+            }
+            catch
+            {
+                return -1;
+            }
+        }
+
+        static int GetDocumentDbMod(Document document)
+        {
+            if (document == null)
+            {
+                return -1;
+            }
+            if (ReferenceEquals(document, CoreApp.DocumentManager.MdiActiveDocument))
+            {
+                return GetDbMod();
+            }
+            try
+            {
+                object acadDocument = document.AcadDocument;
+                object value = acadDocument.GetType().InvokeMember(
+                    "GetVariable",
+                    BindingFlags.InvokeMethod,
+                    null,
+                    acadDocument,
+                    new object[] { "DBMOD" },
+                    CultureInfo.InvariantCulture);
                 return Convert.ToInt32(value, CultureInfo.InvariantCulture);
             }
             catch
@@ -594,7 +1134,10 @@ namespace Shb.Thcad.AgentBridge
                         "loaded_at_utc", DateTime.UtcNow.ToString("o"),
                         "assembly", Assembly.GetExecutingAssembly().Location,
                         "version", Assembly.GetExecutingAssembly().GetName().Version.ToString(),
-                        "command", BridgeProtocol.CommandName)));
+                        "commands", Map(
+                            "modal", BridgeProtocol.ModalCommandName,
+                            "application", BridgeProtocol.ApplicationCommandName),
+                        "dispatch_mode", BridgeProtocol.DispatchMode)));
             }
             catch
             {

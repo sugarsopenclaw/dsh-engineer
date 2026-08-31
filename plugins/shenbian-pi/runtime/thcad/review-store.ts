@@ -51,7 +51,7 @@ export interface BeginReviewInput {
 	childSystemPrompt: string;
 	childModel?: string;
 	childThinkingLevel?: string;
-	childRole?: "mechanical" | "vision";
+	childRole?: "mechanical" | "vision" | "bom_close_reading";
 	cwd: string;
 	parent?: ParentReviewContext;
 }
@@ -59,6 +59,14 @@ export interface BeginReviewInput {
 export interface ChildInputSnapshotEntry extends ArtifactSnapshotEntry {
 	role: string;
 	media_type?: string;
+	metadata?: unknown;
+}
+
+export interface ChildInputSnapshotRequest {
+	source: string;
+	logicalPath: string;
+	role: string;
+	mediaType?: string;
 	metadata?: unknown;
 }
 
@@ -200,7 +208,7 @@ async function regularFiles(root: string): Promise<string[]> {
 	return result;
 }
 
-function assistantText(message: unknown): string {
+export function assistantText(message: unknown): string {
 	if (!message || typeof message !== "object") return "";
 	const value = message as { role?: unknown; content?: unknown };
 	if (value.role !== "assistant" || !Array.isArray(value.content)) return "";
@@ -406,38 +414,55 @@ export class ThcadReviewStore {
 		mediaType?: string;
 		metadata?: unknown;
 	}): Promise<ChildInputSnapshotEntry> {
-		if (
-			!input.logicalPath
-			|| path.isAbsolute(input.logicalPath)
-			|| input.logicalPath.split(/[\\/]/).includes("..")
-		) throw new Error("INVALID_CHILD_INPUT_LOGICAL_PATH");
-		const stored = await this.storeFile(input.source);
-		const entry: ChildInputSnapshotEntry = {
-			logical_path: input.logicalPath.replaceAll("\\", "/"),
-			source_ref: toProjectRef(input.source),
-			bytes: stored.bytes,
-			sha256: stored.sha256,
-			object_path: normalizedRelative(this.root, stored.objectPath),
-			object_ref: stored.objectRef,
-			source_fingerprint: stored.sourceFingerprint,
-			role: input.role,
-			media_type: input.mediaType,
-			metadata: input.metadata,
-		};
+		const [entry] = await this.snapshotChildInputs(runId, [input]);
+		return entry;
+	}
+
+	async snapshotChildInputs(
+		runId: string,
+		inputs: readonly ChildInputSnapshotRequest[],
+	): Promise<ChildInputSnapshotEntry[]> {
+		if (!inputs.length) throw new Error("CHILD_INPUTS_EMPTY");
+		const logicalPaths = new Set<string>();
+		const entries: ChildInputSnapshotEntry[] = [];
+		let uniqueObjectBytesAdded = 0;
+		for (const input of inputs) {
+			if (
+				!input.logicalPath
+				|| path.isAbsolute(input.logicalPath)
+				|| input.logicalPath.split(/[\\/]/).includes("..")
+			) throw new Error("INVALID_CHILD_INPUT_LOGICAL_PATH");
+			const logicalPath = input.logicalPath.replaceAll("\\", "/");
+			if (logicalPaths.has(logicalPath)) throw new Error("DUPLICATE_CHILD_INPUT_LOGICAL_PATH");
+			logicalPaths.add(logicalPath);
+			const stored = await this.storeFile(input.source);
+			uniqueObjectBytesAdded += stored.addedBytes;
+			entries.push({
+				logical_path: logicalPath,
+				source_ref: toProjectRef(input.source),
+				bytes: stored.bytes,
+				sha256: stored.sha256,
+				object_path: normalizedRelative(this.root, stored.objectPath),
+				object_ref: stored.objectRef,
+				source_fingerprint: stored.sourceFingerprint,
+				role: input.role,
+				media_type: input.mediaType,
+				metadata: input.metadata,
+			});
+		}
 		await writeJsonExclusive(path.join(this.runDirectory(runId), "child-inputs.json"), {
 			schema_version: REVIEW_SCHEMA_VERSION,
 			run_id: runId,
 			created_at_utc: utcNow(),
-			files: [entry],
-			unique_object_bytes_added: stored.addedBytes,
+			files: entries,
+			unique_object_bytes_added: uniqueObjectBytesAdded,
 		});
-		await this.appendLifecycle(runId, "child_input_snapshotted", {
-			role: input.role,
-			bytes: stored.bytes,
-			sha256: stored.sha256,
-			unique_object_bytes_added: stored.addedBytes,
+		await this.appendLifecycle(runId, "child_inputs_snapshotted", {
+			file_count: entries.length,
+			total_bytes: entries.reduce((sum, item) => sum + item.bytes, 0),
+			unique_object_bytes_added: uniqueObjectBytesAdded,
 		});
-		return entry;
+		return entries;
 	}
 
 	async snapshotArtifacts(runId: string): Promise<ArtifactSnapshotManifest> {

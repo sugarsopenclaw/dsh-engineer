@@ -22,10 +22,10 @@ export default function thcadChildExtension(pi: ExtensionAPI): void {
 		name: "thcad_session",
 		label: "THCAD Session",
 		description: [
-			"访问已经运行的 THCAD 当前会话。status 读取活动图与现有分析；refresh_analysis 在 THCAD .NET 主线程完整运行 01–20；locate_handles 只设置选择集并可缩放。",
+			"访问已经运行的 THCAD 当前会话。status 读取活动图与现有分析；refresh_analysis 在 THCAD .NET 主线程完整运行 01–21；locate_handles 只设置选择集并可缩放。",
 			"本工具不启动、关闭、保存或修改图纸。只有委派任务明确要求在 THCAD 中定位/显示时才调用 locate_handles。",
 		].join("\n"),
-		promptSnippet: "Read current THCAD status, refresh 01-20, or locate evidence handles",
+		promptSnippet: "Read current THCAD status, refresh 01-21, or locate evidence handles",
 		promptGuidelines: [
 			"Use thcad_session status before refreshing; do not repeat refresh_analysis when current artifacts match the active drawing.",
 			"Use thcad_session locate_handles only when the delegated task explicitly requests visible positioning in THCAD.",
@@ -42,7 +42,7 @@ export default function thcadChildExtension(pi: ExtensionAPI): void {
 					return toolSuccess({ operation: "status", data: await bridge.invoke("status", {}, { signal, timeoutSeconds: 30 }) });
 				}
 				if (params.action === "refresh_analysis") {
-					onUpdate?.({ content: [{ type: "text", text: "THCAD 正在运行 01–20，只读分析可能需要一些时间…" }], details: { stage: "extracting" } });
+					onUpdate?.({ content: [{ type: "text", text: "THCAD 正在运行 01–21，只读分析可能需要一些时间…" }], details: { stage: "extracting" } });
 					return toolSuccess({
 						operation: "refresh_analysis",
 						data: await bridge.invoke(
@@ -73,19 +73,19 @@ export default function thcadChildExtension(pi: ExtensionAPI): void {
 
 	pi.registerTool({
 		name: "thcad_analysis",
-		label: "THCAD Analysis 01-20",
+		label: "THCAD Analysis 01-21",
 		description: [
-			"读取 THCAD .NET 01–20 artifact。catalog 列能力；summary 返回报告计数和有界 Markdown；query 用 JSON path 或关键词返回有界证据。",
+			"读取 THCAD .NET 01–21 artifact。catalog 列能力；summary 返回报告计数和有界 Markdown；query 用 JSON path 或关键词返回有界证据。",
 			"query 的 exact JSON path 优先；关键词搜索会返回命中路径、字面值和有界父对象。结果状态为 possible/ambiguous/unsupported_partial 时必须保留原口径。",
 		].join("\n"),
-		promptSnippet: "Catalog, summarize, and query deterministic THCAD analyses 01-20",
+		promptSnippet: "Catalog, summarize, and query deterministic THCAD analyses 01-21",
 		promptGuidelines: [
 			"Use thcad_analysis summary before broad queries, then query only the capability and fields needed by the delegated task.",
 			"Cite thcad_analysis capability id, artifact_ref, JSON path, and handles; never upgrade candidates into proven engineering facts.",
 		],
 		parameters: Type.Object({
 			action: StringEnum(analysisActions),
-			capability: Type.Optional(Type.Integer({ minimum: 1, maximum: 20 })),
+			capability: Type.Optional(Type.Integer({ minimum: 1, maximum: 21 })),
 			json_path: Type.Optional(Type.String({ maxLength: 1000 })),
 			terms: Type.Optional(Type.Array(Type.String({ minLength: 1, maxLength: 200 }), { minItems: 1, maxItems: 8 })),
 			match_mode: Type.Optional(StringEnum(matchModes)),

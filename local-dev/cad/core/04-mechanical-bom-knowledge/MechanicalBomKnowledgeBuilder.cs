@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 
 namespace Shb.Cad.Core
 {
@@ -163,6 +164,167 @@ namespace Shb.Cad.Core
         }
     }
 
+    public sealed class MechanicalBomSerialAnnotationLinkKnowledge
+    {
+        internal MechanicalBomSerialAnnotationLinkKnowledge(
+            MechanicalBomAnnotationObservation source,
+            MechanicalBomAnnotationObservation target,
+            double centerDistance,
+            double pointingResidual,
+            double lineResidual,
+            double projectionRatio)
+        {
+            Source = source;
+            Target = target;
+            CenterDistance = centerDistance;
+            PointingResidual = pointingResidual;
+            LineResidual = lineResidual;
+            ProjectionRatio = projectionRatio;
+        }
+
+        internal MechanicalBomAnnotationObservation Source { get; private set; }
+        internal MechanicalBomAnnotationObservation Target { get; private set; }
+        public double CenterDistance { get; private set; }
+        public double PointingResidual { get; private set; }
+        public double LineResidual { get; private set; }
+        public double ProjectionRatio { get; private set; }
+
+        internal Dictionary<string, object> ToMap()
+        {
+            return MechanicalBomMaps.Map(
+                "relation", "serial_balloon_points_to_preceding_balloon",
+                "source_item_number", Source.ItemNumber,
+                "source_xuhao_handle", Source.XuhaoHandle,
+                "target_item_number", Target.ItemNumber,
+                "target_xuhao_handle", Target.XuhaoHandle,
+                "center_distance", CenterDistance,
+                "pointing_residual", PointingResidual,
+                "line_residual", LineResidual,
+                "projection_ratio", ProjectionRatio);
+        }
+    }
+
+    public sealed class MechanicalBomSerialAnnotationGroupKnowledge
+    {
+        internal MechanicalBomSerialAnnotationGroupKnowledge(string id)
+        {
+            Id = id;
+            Members = new List<MechanicalBomAnnotationObservation>();
+            OrderedMembers = new List<MechanicalBomAnnotationObservation>();
+            InternalLinks = new List<MechanicalBomSerialAnnotationLinkKnowledge>();
+            ExternalTargetMembers = new List<MechanicalBomAnnotationObservation>();
+        }
+
+        public string Id { get; private set; }
+        internal IList<MechanicalBomAnnotationObservation> Members { get; private set; }
+        internal IList<MechanicalBomAnnotationObservation> OrderedMembers { get; private set; }
+        public IList<MechanicalBomSerialAnnotationLinkKnowledge> InternalLinks { get; private set; }
+        internal IList<MechanicalBomAnnotationObservation> ExternalTargetMembers { get; private set; }
+
+        public int MemberCount { get { return Members.Count; } }
+        public string GroupType
+        {
+            get { return Members.Count > 1 ? "connected_serial_run" : "single_serial"; }
+        }
+
+        public string TargetStatus
+        {
+            get
+            {
+                if (ExternalTargetMembers.Count == 1)
+                {
+                    return "resolved_shared_target";
+                }
+                if (ExternalTargetMembers.Count > 1)
+                {
+                    return "multiple_external_targets";
+                }
+                return "target_position_unavailable";
+            }
+        }
+
+        public double[] TargetPoint
+        {
+            get
+            {
+                return ExternalTargetMembers.Count == 1
+                    ? CopyPosition(ExternalTargetMembers[0].PointingPosition)
+                    : null;
+            }
+        }
+
+        public IList<int> ItemNumbers
+        {
+            get
+            {
+                var result = new List<int>();
+                foreach (MechanicalBomAnnotationObservation member in OrderedMembers)
+                {
+                    if (!result.Contains(member.ItemNumber))
+                    {
+                        result.Add(member.ItemNumber);
+                    }
+                }
+                return result;
+            }
+        }
+
+        internal Dictionary<string, object> ToMap()
+        {
+            var members = new List<Dictionary<string, object>>();
+            for (int index = 0; index < OrderedMembers.Count; index++)
+            {
+                MechanicalBomAnnotationObservation member = OrderedMembers[index];
+                string role = ExternalTargetMembers.Contains(member)
+                    ? "external_target_root"
+                    : InternalLinks.Any(link => ReferenceEquals(link.Source, member))
+                        ? "linked_serial_member"
+                        : "number_only_member";
+                members.Add(MechanicalBomMaps.Map(
+                    "sequence", index + 1,
+                    "item_number", member.ItemNumber,
+                    "xuhao_handle", member.XuhaoHandle,
+                    "role", role,
+                    "number_position", member.NumberPosition,
+                    "pointing_position", member.PointingPosition));
+            }
+
+            var links = new List<Dictionary<string, object>>();
+            foreach (MechanicalBomSerialAnnotationLinkKnowledge link in InternalLinks)
+            {
+                links.Add(link.ToMap());
+            }
+
+            var externalTargets = new List<Dictionary<string, object>>();
+            foreach (MechanicalBomAnnotationObservation member in ExternalTargetMembers)
+            {
+                externalTargets.Add(MechanicalBomMaps.Map(
+                    "item_number", member.ItemNumber,
+                    "xuhao_handle", member.XuhaoHandle,
+                    "point", member.PointingPosition));
+            }
+
+            return MechanicalBomMaps.Map(
+                "id", Id,
+                "kind", "serial_annotation_group",
+                "group_type", GroupType,
+                "member_count", MemberCount,
+                "item_numbers", ItemNumbers,
+                "annotation_handles", OrderedMembers.Select(member => member.XuhaoHandle).ToArray(),
+                "target_status", TargetStatus,
+                "target_point", TargetPoint,
+                "members", members,
+                "internal_links", links,
+                "external_targets", externalTargets,
+                "derivation", "xuhao_number_and_pointing_geometry_graph");
+        }
+
+        static double[] CopyPosition(double[] position)
+        {
+            return position == null ? null : (double[])position.Clone();
+        }
+    }
+
     public sealed class MechanicalBomRowKnowledge
     {
         internal MechanicalBomRowKnowledge(MechanicalBomRowObservation source)
@@ -230,6 +392,7 @@ namespace Shb.Cad.Core
             SequenceGaps = new List<int>();
             DuplicateItemNumbers = new List<int>();
             NonEmptyCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+            SerialAnnotationGroups = new List<MechanicalBomSerialAnnotationGroupKnowledge>();
         }
 
         public string Id { get; private set; }
@@ -247,6 +410,9 @@ namespace Shb.Cad.Core
         public int AnnotationLinkCount { get; internal set; }
         public int PresentAnnotationLinkCount { get; internal set; }
         public IDictionary<string, int> NonEmptyCounts { get; private set; }
+        public IList<MechanicalBomSerialAnnotationGroupKnowledge> SerialAnnotationGroups { get; private set; }
+        public int GroupedAnnotationCount { get; internal set; }
+        public int UngroupedAnnotationCount { get; internal set; }
         public double MinX { get; internal set; }
         public double MinY { get; internal set; }
         public double MaxX { get; internal set; }
@@ -263,6 +429,11 @@ namespace Shb.Cad.Core
             foreach (MechanicalBomRowKnowledge row in Rows)
             {
                 rows.Add(row.ToMap());
+            }
+            var serialAnnotationGroups = new List<Dictionary<string, object>>();
+            foreach (MechanicalBomSerialAnnotationGroupKnowledge group in SerialAnnotationGroups)
+            {
+                serialAnnotationGroups.Add(group.ToMap());
             }
 
             return MechanicalBomMaps.Map(
@@ -290,8 +461,12 @@ namespace Shb.Cad.Core
                 "annotation_summary", MechanicalBomMaps.Map(
                     "annotated_row_count", AnnotatedRowCount,
                     "link_count", AnnotationLinkCount,
-                    "present_entity_link_count", PresentAnnotationLinkCount),
+                    "present_entity_link_count", PresentAnnotationLinkCount,
+                    "serial_group_count", SerialAnnotationGroups.Count,
+                    "grouped_annotation_count", GroupedAnnotationCount,
+                    "ungrouped_annotation_count", UngroupedAnnotationCount),
                 "non_empty_counts", NonEmptyCounts,
+                "serial_annotation_groups", serialAnnotationGroups,
                 "rows", rows);
         }
     }
@@ -329,10 +504,10 @@ namespace Shb.Cad.Core
             }
 
             return MechanicalBomMaps.Map(
-                "schema_version", "1",
+                "schema_version", "2",
                 "knowledge_type", "mechanical_bill_of_materials",
                 "builder", "mechanical_bom_knowledge_builder",
-                "builder_version", "2",
+                "builder_version", "3",
                 "annotation_source", "PC_BOMXHRELATEDIC",
                 "drawing_id", DrawingId,
                 "table_count", Tables.Count,
@@ -406,6 +581,7 @@ namespace Shb.Cad.Core
                 table.Rows[i].Id = "bom-row-" + (i + 1).ToString(CultureInfo.InvariantCulture);
             }
             AttachAnnotations(table.Rows, sourceAnnotations);
+            BuildSerialAnnotationGroups(table);
             Summarize(table);
             document.Tables.Add(table);
             return document;
@@ -534,6 +710,300 @@ namespace Shb.Cad.Core
                     left.AssociationRecordHandle,
                     right.AssociationRecordHandle,
                     StringComparison.OrdinalIgnoreCase);
+        }
+
+        static void BuildSerialAnnotationGroups(MechanicalBomTableKnowledge table)
+        {
+            var byHandle = new Dictionary<string, MechanicalBomAnnotationObservation>(
+                StringComparer.OrdinalIgnoreCase);
+            foreach (MechanicalBomRowKnowledge row in table.Rows)
+            {
+                foreach (MechanicalBomAnnotationObservation annotation in row.Annotations)
+                {
+                    if (!annotation.EntityPresent)
+                    {
+                        continue;
+                    }
+                    if (!string.IsNullOrWhiteSpace(annotation.XuhaoHandle)
+                        && !byHandle.ContainsKey(annotation.XuhaoHandle))
+                    {
+                        byHandle[annotation.XuhaoHandle] = annotation;
+                    }
+                }
+            }
+
+            var candidates = byHandle.Values
+                .Where(annotation => HasPlanarPosition(annotation.NumberPosition))
+                .OrderBy(annotation => annotation.XuhaoHandle, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            double serialConnectionLimit = EstimateSerialConnectionLimit(candidates);
+            int attachedPresent = byHandle.Count;
+            var links = new List<MechanicalBomSerialAnnotationLinkKnowledge>();
+            foreach (MechanicalBomAnnotationObservation source in candidates)
+            {
+                MechanicalBomSerialAnnotationLinkKnowledge best = null;
+                if (HasPlanarPosition(source.PointingPosition))
+                {
+                    foreach (MechanicalBomAnnotationObservation target in candidates)
+                    {
+                        if (ReferenceEquals(source, target))
+                        {
+                            continue;
+                        }
+                        MechanicalBomSerialAnnotationLinkKnowledge candidate =
+                            TryCreateInternalSerialLink(source, target, serialConnectionLimit);
+                        if (candidate == null)
+                        {
+                            continue;
+                        }
+                        if (best == null
+                            || candidate.PointingResidual < best.PointingResidual
+                            || (Math.Abs(candidate.PointingResidual - best.PointingResidual) <= 1e-9
+                                && candidate.LineResidual < best.LineResidual))
+                        {
+                            best = candidate;
+                        }
+                    }
+                }
+                if (best != null)
+                {
+                    links.Add(best);
+                }
+            }
+
+            var adjacency = new Dictionary<MechanicalBomAnnotationObservation,
+                List<MechanicalBomAnnotationObservation>>();
+            foreach (MechanicalBomAnnotationObservation candidate in candidates)
+            {
+                adjacency[candidate] = new List<MechanicalBomAnnotationObservation>();
+            }
+            foreach (MechanicalBomSerialAnnotationLinkKnowledge link in links)
+            {
+                adjacency[link.Source].Add(link.Target);
+                adjacency[link.Target].Add(link.Source);
+            }
+
+            var visited = new HashSet<MechanicalBomAnnotationObservation>();
+            var components = new List<List<MechanicalBomAnnotationObservation>>();
+            foreach (MechanicalBomAnnotationObservation candidate in candidates)
+            {
+                if (visited.Contains(candidate))
+                {
+                    continue;
+                }
+                var component = new List<MechanicalBomAnnotationObservation>();
+                var queue = new Queue<MechanicalBomAnnotationObservation>();
+                queue.Enqueue(candidate);
+                visited.Add(candidate);
+                while (queue.Count > 0)
+                {
+                    MechanicalBomAnnotationObservation current = queue.Dequeue();
+                    component.Add(current);
+                    foreach (MechanicalBomAnnotationObservation next in adjacency[current])
+                    {
+                        if (visited.Add(next))
+                        {
+                            queue.Enqueue(next);
+                        }
+                    }
+                }
+                components.Add(component);
+            }
+
+            components.Sort((left, right) => CompareAnnotations(
+                left.OrderBy(item => item.ItemNumber)
+                    .ThenBy(item => item.XuhaoHandle, StringComparer.OrdinalIgnoreCase).First(),
+                right.OrderBy(item => item.ItemNumber)
+                    .ThenBy(item => item.XuhaoHandle, StringComparer.OrdinalIgnoreCase).First()));
+            int groupIndex = 0;
+            foreach (List<MechanicalBomAnnotationObservation> component in components)
+            {
+                groupIndex++;
+                var group = new MechanicalBomSerialAnnotationGroupKnowledge(
+                    "serial-annotation-group-" + groupIndex.ToString("D3", CultureInfo.InvariantCulture));
+                foreach (MechanicalBomAnnotationObservation member in component)
+                {
+                    group.Members.Add(member);
+                }
+                foreach (MechanicalBomSerialAnnotationLinkKnowledge link in links)
+                {
+                    if (component.Contains(link.Source) && component.Contains(link.Target))
+                    {
+                        group.InternalLinks.Add(link);
+                    }
+                }
+                foreach (MechanicalBomAnnotationObservation member in component)
+                {
+                    bool isInternalSource = group.InternalLinks.Any(link => ReferenceEquals(link.Source, member));
+                    if (HasPlanarPosition(member.PointingPosition) && !isInternalSource)
+                    {
+                        group.ExternalTargetMembers.Add(member);
+                    }
+                }
+                OrderGroupMembers(group);
+                table.SerialAnnotationGroups.Add(group);
+                table.GroupedAnnotationCount += component.Count;
+            }
+            table.UngroupedAnnotationCount = Math.Max(0, attachedPresent - table.GroupedAnnotationCount);
+        }
+
+        static MechanicalBomSerialAnnotationLinkKnowledge TryCreateInternalSerialLink(
+            MechanicalBomAnnotationObservation source,
+            MechanicalBomAnnotationObservation target,
+            double serialConnectionLimit)
+        {
+            double ax = source.NumberPosition[0];
+            double ay = source.NumberPosition[1];
+            double bx = target.NumberPosition[0];
+            double by = target.NumberPosition[1];
+            double px = source.PointingPosition[0];
+            double py = source.PointingPosition[1];
+            double dx = bx - ax;
+            double dy = by - ay;
+            double centerDistanceSquared = dx * dx + dy * dy;
+            if (centerDistanceSquared <= 1e-12)
+            {
+                return null;
+            }
+            double centerDistance = Math.Sqrt(centerDistanceSquared);
+            if (centerDistance > serialConnectionLimit)
+            {
+                return null;
+            }
+            double projection = ((px - ax) * dx + (py - ay) * dy) / centerDistanceSquared;
+            if (projection < 0.25 || projection > 0.75)
+            {
+                return null;
+            }
+            double projectedX = ax + projection * dx;
+            double projectedY = ay + projection * dy;
+            double lineResidual = Distance(px, py, projectedX, projectedY);
+            double fromSource = Distance(px, py, ax, ay);
+            double toTarget = Distance(px, py, bx, by);
+            if (lineResidual > Math.Max(1e-6, centerDistance * 0.08)
+                || fromSource < centerDistance * 0.20
+                || fromSource > centerDistance * 0.75
+                || toTarget < centerDistance * 0.20
+                || toTarget > centerDistance * 0.75)
+            {
+                return null;
+            }
+            return new MechanicalBomSerialAnnotationLinkKnowledge(
+                source,
+                target,
+                centerDistance,
+                toTarget,
+                lineResidual,
+                projection);
+        }
+
+        static double EstimateSerialConnectionLimit(
+            IList<MechanicalBomAnnotationObservation> candidates)
+        {
+            if (candidates.Count < 2)
+            {
+                return double.PositiveInfinity;
+            }
+
+            var nearestDistances = new List<double>();
+            foreach (MechanicalBomAnnotationObservation source in candidates)
+            {
+                double nearest = double.PositiveInfinity;
+                foreach (MechanicalBomAnnotationObservation target in candidates)
+                {
+                    if (ReferenceEquals(source, target))
+                    {
+                        continue;
+                    }
+                    double distance = Distance(
+                        source.NumberPosition[0],
+                        source.NumberPosition[1],
+                        target.NumberPosition[0],
+                        target.NumberPosition[1]);
+                    if (distance > 1e-6 && distance < nearest)
+                    {
+                        nearest = distance;
+                    }
+                }
+                if (!double.IsInfinity(nearest))
+                {
+                    nearestDistances.Add(nearest);
+                }
+            }
+            if (nearestDistances.Count == 0)
+            {
+                return double.PositiveInfinity;
+            }
+
+            nearestDistances.Sort();
+            int lowerQuartileIndex = Math.Min(
+                nearestDistances.Count - 1,
+                (int)Math.Floor(nearestDistances.Count * 0.25));
+            // Consecutive balloons are local drawing symbols.  A remote leader
+            // may accidentally cross the segment between two unrelated balloon
+            // centres, so the ratio test below is insufficient on its own.  The
+            // lower-quartile nearest-neighbour distance supplies a drawing-scale
+            // estimate without hard-coding one paper-space size.
+            return Math.Max(1e-6, nearestDistances[lowerQuartileIndex] * 4.0);
+        }
+
+        static void OrderGroupMembers(MechanicalBomSerialAnnotationGroupKnowledge group)
+        {
+            var ordered = new List<MechanicalBomAnnotationObservation>();
+            var roots = group.ExternalTargetMembers
+                .OrderBy(member => member.ItemNumber)
+                .ThenBy(member => member.XuhaoHandle, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            foreach (MechanicalBomAnnotationObservation root in roots)
+            {
+                AppendGroupTree(root, group.InternalLinks, ordered);
+            }
+            foreach (MechanicalBomAnnotationObservation member in group.Members
+                .OrderBy(item => item.ItemNumber)
+                .ThenBy(item => item.XuhaoHandle, StringComparer.OrdinalIgnoreCase))
+            {
+                AppendGroupTree(member, group.InternalLinks, ordered);
+            }
+            foreach (MechanicalBomAnnotationObservation member in ordered)
+            {
+                group.OrderedMembers.Add(member);
+            }
+        }
+
+        static void AppendGroupTree(
+            MechanicalBomAnnotationObservation parent,
+            IList<MechanicalBomSerialAnnotationLinkKnowledge> links,
+            IList<MechanicalBomAnnotationObservation> ordered)
+        {
+            if (ordered.Contains(parent))
+            {
+                return;
+            }
+            ordered.Add(parent);
+            foreach (MechanicalBomSerialAnnotationLinkKnowledge link in links
+                .Where(candidate => ReferenceEquals(candidate.Target, parent))
+                .OrderBy(candidate => candidate.Source.ItemNumber)
+                .ThenBy(candidate => candidate.Source.XuhaoHandle, StringComparer.OrdinalIgnoreCase))
+            {
+                AppendGroupTree(link.Source, links, ordered);
+            }
+        }
+
+        static bool HasPlanarPosition(double[] value)
+        {
+            return value != null
+                && value.Length >= 2
+                && !double.IsNaN(value[0])
+                && !double.IsInfinity(value[0])
+                && !double.IsNaN(value[1])
+                && !double.IsInfinity(value[1]);
+        }
+
+        static double Distance(double x1, double y1, double x2, double y2)
+        {
+            double dx = x2 - x1;
+            double dy = y2 - y1;
+            return Math.Sqrt(dx * dx + dy * dy);
         }
 
         static object ParseValue(string key, string raw)

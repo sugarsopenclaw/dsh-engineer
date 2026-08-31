@@ -514,6 +514,16 @@ namespace Shb.Thcad.Extractor
             engineeringViewRegionWatch.Stop();
             Dictionary<string, object> engineeringViewRegionsMap =
                 engineeringViewRegions.ToMap();
+            var bomInstanceCoverageWatch =
+                System.Diagnostics.Stopwatch.StartNew();
+            BomInstanceCoverageDocument bomInstanceCoverage =
+                BomInstanceCoverageAnalyzer.Analyze(
+                    bomKnowledge,
+                    blockInstanceCoordinates,
+                    engineeringViewRegions);
+            bomInstanceCoverageWatch.Stop();
+            Dictionary<string, object> bomInstanceCoverageMap =
+                bomInstanceCoverage.ToMap();
             var representationCorrespondenceWatch =
                 System.Diagnostics.Stopwatch.StartNew();
             RepresentationCorrespondenceDocument representationCorrespondence =
@@ -765,6 +775,17 @@ namespace Shb.Thcad.Extractor
                     engineeringViewRegions.Diagnostics.Count,
                 "engineering_view_region_elapsed_ms",
                     Math.Round(engineeringViewRegionWatch.Elapsed.TotalMilliseconds, 1),
+                "bom_instance_coverage_status", bomInstanceCoverage.Status,
+                "bom_instance_coverage_segment_count",
+                    bomInstanceCoverage.SegmentCount,
+                "bom_instance_coverage_matchable_segment_count",
+                    bomInstanceCoverage.MatchableSegmentCount,
+                "bom_instance_coverage_unpointed_candidate_count",
+                    bomInstanceCoverage.UnpointedCandidateCount,
+                "bom_instance_coverage_not_matchable_count",
+                    bomInstanceCoverage.NotMatchableCount,
+                "bom_instance_coverage_elapsed_ms",
+                    Math.Round(bomInstanceCoverageWatch.Elapsed.TotalMilliseconds, 1),
                 "representation_correspondence_status",
                     representationCorrespondence.Status,
                 "representation_signature_count",
@@ -936,6 +957,15 @@ namespace Shb.Thcad.Extractor
                     "documentation_region_count",
                         engineeringViewRegions.DocumentationRegionCount,
                     "diagnostic_count", engineeringViewRegions.Diagnostics.Count),
+                "bom_instance_coverage", Map(
+                    "artifact", "bom-instance-coverage.json",
+                    "status", bomInstanceCoverage.Status,
+                    "segment_count", bomInstanceCoverage.SegmentCount,
+                    "matchable_segment_count",
+                        bomInstanceCoverage.MatchableSegmentCount,
+                    "unpointed_candidate_count",
+                        bomInstanceCoverage.UnpointedCandidateCount,
+                    "not_matchable_count", bomInstanceCoverage.NotMatchableCount),
                 "representation_correspondence", Map(
                     "artifact", "representation-correspondence.json",
                     "status", representationCorrespondence.Status,
@@ -1110,6 +1140,12 @@ namespace Shb.Thcad.Extractor
             AtomicWrite(
                 Path.Combine(outDir, "engineering-view-regions.md"),
                 engineeringViewRegions.ToMarkdown());
+            AtomicWrite(
+                Path.Combine(outDir, "bom-instance-coverage.json"),
+                JsonUtil.Serialize(bomInstanceCoverageMap));
+            AtomicWrite(
+                Path.Combine(outDir, "bom-instance-coverage.md"),
+                bomInstanceCoverage.ToMarkdown());
             AtomicWrite(
                 Path.Combine(outDir, "representation-correspondence.json"),
                 JsonUtil.Serialize(representationCorrespondenceMap));

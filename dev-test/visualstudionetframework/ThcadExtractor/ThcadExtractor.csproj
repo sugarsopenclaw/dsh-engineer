@@ -105,6 +105,9 @@
     <Compile Include="..\..\..\local-dev\cad\core\13-engineering-view-regions\EngineeringViewRegionAnalyzer.cs">
       <Link>Core\EngineeringViewRegionAnalyzer.cs</Link>
     </Compile>
+    <Compile Include="..\..\..\local-dev\cad\core\21-bom-instance-coverage\BomInstanceCoverageAnalyzer.cs">
+      <Link>Core\BomInstanceCoverageAnalyzer.cs</Link>
+    </Compile>
     <Compile Include="..\..\..\local-dev\cad\core\14-representation-correspondence\RepresentationCorrespondenceAnalyzer.cs">
       <Link>Core\RepresentationCorrespondenceAnalyzer.cs</Link>
     </Compile>

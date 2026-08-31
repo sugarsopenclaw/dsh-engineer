@@ -1,6 +1,6 @@
 [project]
 name = "shenbian-api"
-version = "0.3.0"
+version = "0.4.0"
 description = "沈变 Harness Agent 的共享 API 与模型网关"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"

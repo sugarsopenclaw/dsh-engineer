@@ -15,15 +15,20 @@ from shenbian_api.application.ports import (
     BusinessRequirementsReader,
     CadCapabilitiesReader,
     DependencyProbe,
+    TopologySemanticsRepository,
 )
 from shenbian_api.application.queries import DataCatalogQueryService, OntologyQueryService
 from shenbian_api.application.readiness import ReadinessService
+from shenbian_api.application.topology_semantics import TopologySemanticsService
 from shenbian_api.core.config import Settings, get_settings
 from shenbian_api.infrastructure.deepseek_gateway import HttpxDeepSeekModelGateway
 from shenbian_api.infrastructure.postgres_business_requirements import (
     PostgresBusinessRequirementsReader,
 )
 from shenbian_api.infrastructure.postgres_cad_capabilities import PostgresCadCapabilitiesReader
+from shenbian_api.infrastructure.postgres_topology_semantics import (
+    PostgresTopologySemanticsRepository,
+)
 from shenbian_api.infrastructure.probes import build_dependency_probes
 from shenbian_api.infrastructure.yaml_registry import (
     YamlDataCatalogRegistry,
@@ -39,6 +44,7 @@ def create_app(
     deepseek_gateway: DeepSeekModelGateway | None = None,
     business_requirements_reader: BusinessRequirementsReader | None = None,
     cad_capabilities_reader: CadCapabilitiesReader | None = None,
+    topology_semantics_repository: TopologySemanticsRepository | None = None,
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
     ontology_registry = YamlOntologyRegistry(resolved_settings.ontology_path)
@@ -57,6 +63,13 @@ def create_app(
         cad_capabilities_reader or PostgresCadCapabilitiesReader(resolved_settings)
     )
     cad_capabilities_service = CadCapabilitiesQueryService(resolved_cad_capabilities_reader)
+    resolved_topology_semantics_repository = (
+        topology_semantics_repository
+        or PostgresTopologySemanticsRepository(resolved_settings)
+    )
+    topology_semantics_service = TopologySemanticsService(
+        resolved_topology_semantics_repository
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -67,6 +80,7 @@ def create_app(
                 resolved_deepseek_gateway.close(),
                 business_requirements_service.close(),
                 cad_capabilities_service.close(),
+                topology_semantics_service.close(),
                 readiness_service.close(),
                 return_exceptions=True,
             )
@@ -76,7 +90,7 @@ def create_app(
 
     application = FastAPI(
         title="沈变 Harness Agent API",
-        version="0.3.0",
+        version="0.4.0",
         description="为本地 DeepSeek Harness Agent 提供模型网关和共享业务接口。",
         lifespan=lifespan,
     )
@@ -86,5 +100,6 @@ def create_app(
     application.state.deepseek_gateway = resolved_deepseek_gateway
     application.state.business_requirements_service = business_requirements_service
     application.state.cad_capabilities_service = cad_capabilities_service
+    application.state.topology_semantics_service = topology_semantics_service
     application.include_router(api_router)
     return application

@@ -395,7 +395,7 @@ export async function runThcadSubagent(options: RunThcadSubagentOptions): Promis
 			usage,
 			error: diagnostic,
 		});
-		options.onProgress?.("正在冻结失败现场与现有 01–20 artifact…");
+		options.onProgress?.("正在冻结失败现场与现有 01–21 artifact…");
 		try {
 			await reviewStore.snapshotArtifacts(runId);
 		} catch (error) {
@@ -417,7 +417,7 @@ export async function runThcadSubagent(options: RunThcadSubagentOptions): Promis
 		turns,
 		usage,
 	});
-	options.onProgress?.("正在用 SHA-256 冻结本次 01–20 证据快照…");
+	options.onProgress?.("正在用 SHA-256 冻结本次 01–21 证据快照…");
 	let artifactManifestRef: string | undefined;
 	let reviewStatus: "complete" | "partial" = "partial";
 	try {

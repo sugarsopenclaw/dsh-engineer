@@ -1,0 +1,78 @@
+schema_version: "1.0"
+namespace: cad.topology_semantics
+display_name: CAD 拓扑语义与局部审读 Ontology
+description: >-
+  保存版本化局部拓扑模式、真实图纸观察、模型或人工语义描述及其多对多证据链接。
+  拓扑是确定性检索入口，语义允许随 BOM、视图和机械上下文形成多个解释。
+
+object_types:
+  - id: topology_pattern
+    display_name: 拓扑模式
+    identity_property: pattern_id
+    backing_table: topology_patterns
+    properties:
+      - pattern_id
+      - knowledge_scope
+      - fingerprint_schema_version
+      - scope_kind
+      - graph_hash
+      - shape_hash
+      - metric_hash
+      - invariances
+      - feature_summary
+      - canonical_payload
+
+  - id: topology_observation
+    display_name: 拓扑现场观察
+    identity_property: observation_id
+    backing_table: topology_observations
+    properties:
+      - observation_id
+      - ingestion_key
+      - workflow_kind
+      - review_run_id
+      - group_id
+      - drawing_context
+      - selection
+      - plots
+      - bom_context
+      - capability_evidence
+      - artifact_refs
+      - provenance
+
+  - id: semantic_description
+    display_name: 机械语义描述
+    identity_property: description_id
+    backing_table: semantic_descriptions
+    properties:
+      - description_id
+      - description_key
+      - description_kind
+      - content_md
+      - structured_content
+      - source_kind
+      - model_provenance
+      - evidence_refs
+      - supersedes_description_id
+
+link_types:
+  - id: observation_instantiates_pattern
+    from: topology_observation
+    to: topology_pattern
+  - id: semantic_description_describes_pattern
+    from: semantic_description
+    to: topology_pattern
+
+action_types:
+  - id: register_topology_observation
+    display_name: 登记局部拓扑观察
+    risk: reversible_write
+    requires_approval: false
+    input_types: [topology_pattern, topology_observation]
+    output_types: [topology_observation]
+  - id: append_semantic_description
+    display_name: 追加拓扑语义描述
+    risk: reversible_write
+    requires_approval: false
+    input_types: [topology_observation]
+    output_types: [semantic_description]

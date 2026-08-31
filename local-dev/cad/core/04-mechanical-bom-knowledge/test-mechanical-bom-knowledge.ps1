@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$ExtractionRoot
 )
 
@@ -175,7 +175,7 @@ foreach ($drawingId in $expectedRowCounts.Keys) {
     $observations = [System.Collections.Generic.List[Shb.Cad.Core.MechanicalBomRowObservation]]::new()
     $xuhaoHandles = [System.Collections.Generic.HashSet[string]]::new(
         [System.StringComparer]::OrdinalIgnoreCase)
-    foreach ($line in Get-Content -LiteralPath $entitiesPath) {
+    foreach ($line in Get-Content -LiteralPath $entitiesPath -Encoding UTF8) {
         if ($line -like '*"runtime_class":"TH_XuHaoEntity"*') {
             $xuhao = $line | ConvertFrom-Json
             [void]$xuhaoHandles.Add([string]$xuhao.handle)
@@ -189,7 +189,7 @@ foreach ($drawingId in $expectedRowCounts.Keys) {
 
     $annotationObservations = [System.Collections.Generic.List[Shb.Cad.Core.MechanicalBomAnnotationObservation]]::new()
     $dictionariesPath = Join-Path $ExtractionRoot "$drawingId\dictionaries.jsonl"
-    foreach ($line in Get-Content -LiteralPath $dictionariesPath) {
+    foreach ($line in Get-Content -LiteralPath $dictionariesPath -Encoding UTF8) {
         if ($line -notlike '*"key":"PC_BOMXHRELATEDIC"*') {
             continue
         }
@@ -348,5 +348,48 @@ $mappedAnnotation = $documentMap["tables"][0]["rows"][0]["annotations"][0]
 Assert-Equal "10,20,0" ($mappedAnnotation["pointing_position"] -join ",") "mapped pointing position"
 Assert-Equal "30,40,0" ($mappedAnnotation["number_position"] -join ",") "mapped number position"
 
+# Synthetic serial-run regression matching the observed 19-20-21 topology:
+# 20 points into balloon 19, 21 points into balloon 20, while 19 owns the
+# only remote target. Item 13 is collinear but remains a separate negative
+# boundary because no pointing geometry connects it to the run.
+$serialRows = [System.Collections.Generic.List[Shb.Cad.Core.MechanicalBomRowObservation]]::new()
+foreach ($item in @(13, 19, 20, 21)) {
+    $serialRows.Add((New-SyntheticObservation "serial-row-$item" ([string]$item) ([string]$item)))
+}
+$serialLinks = [System.Collections.Generic.List[Shb.Cad.Core.MechanicalBomAnnotationObservation]]::new()
+$serialLinks.Add([Shb.Cad.Core.MechanicalBomAnnotationObservation]::new(
+    19, "19#28035", "6D83", "A19", "TH_BOMItem2XuhaoAssoiateRecoder", $true,
+    [double[]]@(752.7136728, 5599.4691857, 0), [double[]]@(224.7136728, 4672.30573, 0)))
+$serialLinks.Add([Shb.Cad.Core.MechanicalBomAnnotationObservation]::new(
+    20, "20#28039", "6D87", "A20", "TH_BOMItem2XuhaoAssoiateRecoder", $true,
+    [double[]]@(322.7136728, 4672.30573, 0), [double[]]@(434.7136728, 4672.30573, 0)))
+$serialLinks.Add([Shb.Cad.Core.MechanicalBomAnnotationObservation]::new(
+    21, "21#28043", "6D8B", "A21", "TH_BOMItem2XuhaoAssoiateRecoder", $true,
+    [double[]]@(532.7136728, 4672.30573, 0), [double[]]@(644.7136728, 4672.30573, 0)))
+$serialLinks.Add([Shb.Cad.Core.MechanicalBomAnnotationObservation]::new(
+    13, "13#28047", "6D8F", "A13", "TH_BOMItem2XuhaoAssoiateRecoder", $true,
+    [double[]]@(930, 4550, 0), [double[]]@(1000, 4672.30573, 0)))
+$serialLinks.Add([Shb.Cad.Core.MechanicalBomAnnotationObservation]::new(
+    13, "13#28048", "6D90", "A13B", "TH_BOMItem2XuhaoAssoiateRecoder", $true,
+    [double[]]@(900, 3000, 0), [double[]]@(1300, 5000, 0)))
+$serialDocument = [Shb.Cad.Core.MechanicalBomKnowledgeBuilder]::Build(
+    "synthetic-serial-run", $serialRows, $serialLinks)
+$serialTable = $serialDocument.Tables[0]
+$run1921 = @($serialTable.SerialAnnotationGroups | Where-Object { ($_.ItemNumbers -join ",") -eq "19,20,21" })
+Assert-Equal 1 $run1921.Count "19-21 serial group count"
+Assert-Equal "connected_serial_run" $run1921[0].GroupType "19-21 serial group type"
+Assert-Equal "resolved_shared_target" $run1921[0].TargetStatus "19-21 shared target status"
+Assert-Equal "752.7136728,5599.4691857,0" ($run1921[0].TargetPoint -join ",") "19-21 shared target"
+Assert-Equal 2 $run1921[0].InternalLinks.Count "19-21 internal link count"
+$serialMap = $serialDocument.ToMap()
+$mappedRun = @($serialMap["tables"][0]["serial_annotation_groups"] | Where-Object {
+    (($_["item_numbers"] | ForEach-Object { [string]$_ }) -join ",") -eq "19,20,21"
+})
+Assert-Equal 1 $mappedRun.Count "mapped 19-21 serial group"
+Assert-Equal "6D83,6D87,6D8B" ($mappedRun[0]["annotation_handles"] -join ",") "mapped serial order"
+Assert-Equal 3 $serialTable.SerialAnnotationGroups.Count "serial negative-boundary group count"
+Assert-Equal 5 $serialTable.GroupedAnnotationCount "serial grouped annotations"
+Assert-Equal 0 $serialTable.UngroupedAnnotationCount "serial ungrouped annotations"
+
 $results | Format-Table -AutoSize
-Write-Host "PASS: 7/7 drawings; 5 native BOM tables; 208 rows; 147 row-to-annotation links; coordinate fields; quality regressions."
+Write-Host "PASS: 7/7 drawings; 5 native BOM tables; 208 rows; 147 row-to-annotation links; coordinate fields; serial-run topology; quality regressions."

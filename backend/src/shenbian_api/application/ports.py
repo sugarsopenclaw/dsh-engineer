@@ -15,6 +15,20 @@ from shenbian_api.domain.cad_capabilities import (
 )
 from shenbian_api.domain.catalog import DatasetCatalogEntry
 from shenbian_api.domain.ontology import OntologyDefinition
+from shenbian_api.domain.topology_semantics import (
+    SemanticDescriptionCreateRequest,
+    SemanticDescriptionDetailResponse,
+    SemanticDescriptionListResponse,
+    SemanticDescriptionWriteResponse,
+    SemanticSearchResponse,
+    TopologyMatchRequest,
+    TopologyMatchResponse,
+    TopologyObservationCreateRequest,
+    TopologyObservationDetailResponse,
+    TopologyObservationWriteResponse,
+    TopologyPatternDetailResponse,
+    TopologyPatternListResponse,
+)
 
 
 class OntologyReader(Protocol):
@@ -59,6 +73,57 @@ class CadCapabilitiesReader(Protocol):
         dataset_id: str,
         filters: CapabilityAtomFilters,
     ) -> CapabilityGraphAtomStreamData: ...
+
+    async def close(self) -> None: ...
+
+
+class TopologySemanticsRepository(Protocol):
+    async def register_observation(
+        self,
+        request: TopologyObservationCreateRequest,
+    ) -> TopologyObservationWriteResponse: ...
+
+    async def append_description(
+        self,
+        request: SemanticDescriptionCreateRequest,
+    ) -> SemanticDescriptionWriteResponse: ...
+
+    async def match(self, request: TopologyMatchRequest) -> TopologyMatchResponse: ...
+
+    async def list_descriptions(
+        self,
+        knowledge_scope: str,
+        description_kind: str | None,
+        limit: int,
+        offset: int,
+    ) -> SemanticDescriptionListResponse: ...
+
+    async def description_detail(
+        self,
+        description_id: str,
+    ) -> SemanticDescriptionDetailResponse: ...
+
+    async def list_patterns(
+        self,
+        knowledge_scope: str,
+        scope_kind: str | None,
+        limit: int,
+        offset: int,
+    ) -> TopologyPatternListResponse: ...
+
+    async def pattern_detail(self, pattern_id: str) -> TopologyPatternDetailResponse: ...
+
+    async def observation_detail(
+        self,
+        observation_id: str,
+    ) -> TopologyObservationDetailResponse: ...
+
+    async def search_semantics(
+        self,
+        knowledge_scope: str,
+        query: str,
+        limit: int,
+    ) -> SemanticSearchResponse: ...
 
     async def close(self) -> None: ...
 

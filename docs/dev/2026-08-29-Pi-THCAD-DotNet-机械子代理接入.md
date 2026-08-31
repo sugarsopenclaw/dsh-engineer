@@ -29,6 +29,9 @@ THCAD/Teigha 的文档、Editor 和 Database 对线程与文档上下文敏感�
 
 - `delegate_thcad_mechanical({ task })`：把自包含的机械图纸取证任务交给子 Agent。
 - `delegate_thcad_visual_overview({ frame_id? })`：复用 02 图框导出一张整图，交给固定 DeepSeek Vision child 做宏观清晰度门禁。
+- `delegate_thcad_bom_close_reading({ item_numbers? })`：默认精读当前图全部 BOM 序号段；也可指定序号做局部现场回归。
+- `thcad_app({ action, ... })`：父 Agent 管理多图纸状态、只读打开/激活/关闭及工作区复制保存。
+- `thcad_project_texts({ action, ... })`：构建和检索项目级文字/BOM 索引，为跨图审图选择 drawing 与 item numbers。
 
 子 Agent 只看到：
 
@@ -42,8 +45,9 @@ THCAD/Teigha 的文档、Editor 和 Database 对线程与文档上下文敏感�
 
 - `status` 和 `refresh_analysis` 不改 DWG；分析结果写到被忽略的 `.pi/runtime/`。
 - `locate_handles` 只改变当前选择集和可选视图，不保存、不关闭、不新增或删除实体。
-- 工具不会启动、关闭或重启 THCAD，只附着已经运行的 `thcad.exe`。
-- 任何未来写操作必须另开规格，加入工作副本、预览、用户批准、撤销与复验，不能塞进现有只读工具。
+- 工具不会启动或重启 THCAD，只附着已经运行的 `thcad.exe`。
+- 规格 013 单独开放文档级 open/activate/close/copy/save：`client-data/` 强制只读，写入只允许 `.pi/runtime/thcad-workspace/`，close 对 dirty 图默认拒绝且永不代存。
+- 01–20 分析和机械/视觉 child 工具面保持只读；实体编辑仍未开放。
 
 ## 构建
 
@@ -55,11 +59,11 @@ THCAD/Teigha 的文档、Editor 和 Database 对线程与文档上下文敏感�
 Bridge 输出：
 
 ```text
-.pi/runtime/thcad-bridge/deployments/<build-id>/Shb.Thcad.AgentBridge.dll
+.pi/runtime/thcad-bridge/deployments/<build-id>/Shb.Thcad.AgentBridge.V4.dll
 .pi/runtime/thcad-bridge/current-dll.txt
 ```
 
-构建脚本每次写入新的版本化部署目录，并原子更新 current pointer，不覆盖 THCAD 已锁定的 DLL，因此开着 THCAD 也能继续编译和验证。它使用独立程序集名，可与已加载的 `Shb.Thcad.Extractor.dll` 共存。THCAD 首次请求时由控制面自动 `NETLOAD`；当前会话仍使用已经加载的程序集代次，代码升级后需要用户在方便时重启 THCAD 才切换到新代次，工具不会代替用户重启。
+构建脚本每次写入新的版本化部署目录，并原子更新 current pointer，不覆盖 THCAD 已锁定的 DLL。V4 用 Modal `SHBTHCADAGENTV4` 与 Session `SHBTHCADAGENTV4APP` 分离当前图/side-DB 操作和文档生命周期。同一 V4 身份后续再改 .NET 时，当前 THCAD AppDomain 仍不会热替换；需新身份或由用户在方便时重启，工具不代替用户重启。
 
 ## Pi TUI 测试
 
@@ -73,6 +77,10 @@ Bridge 输出：
 定位动作示例：`让机械子代理找到尺寸 1710 对应证据，并在 THCAD 中定位相关句柄。` 只有任务明确要求“定位/显示”时 child 才应调用 `locate_handles`。
 
 视觉示例：`对当前 THCAD 图纸生成整图视觉概览，判断是否看得清。` 主 Agent 应调用视觉委派工具并读取 evidence。视觉 child 没有任何 CAD 工具，不能输出精确尺寸或审图结论；实现和晓量能力取舍见 [`2026-08-30-Pi-THCAD-视觉概览与晓量能力取舍.md`](2026-08-30-Pi-THCAD-视觉概览与晓量能力取舍.md)。
+
+BOM 精读示例：`精读序号 19、20、21 共同指向的构件，结合 BOM 解释当前投影和其他剖面尺寸。` 主 Agent 应调用 `delegate_thcad_bom_close_reading`，再读取 evidence。细节见 [`2026-08-30-Pi-THCAD-BOM构件视觉精读.md`](2026-08-30-Pi-THCAD-BOM构件视觉精读.md)。
+
+跨图示例：`法兰审图。` 主 Agent 应先用 `thcad_project_texts` 检索 `bom_row`，再逐图用 `thcad_app` 激活并把命中序号交给 BOM 精读。协议、索引和工作区边界见 [`2026-08-30-Pi-THCAD-图纸会话与项目文字检索.md`](2026-08-30-Pi-THCAD-图纸会话与项目文字检索.md)。
 
 ## 已知边界
 

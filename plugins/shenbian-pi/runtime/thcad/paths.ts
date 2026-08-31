@@ -25,6 +25,8 @@ const legacyBridgeDll = path.join(
 );
 export const invokeBridgeScript = path.join(repositoryRoot, "scripts", "invoke-thcad-agent-bridge.ps1");
 export const plotFrameOverviewScript = path.join(repositoryRoot, "scripts", "plot-thcad-frame-overview.ps1");
+export const plotWindowScript = path.join(repositoryRoot, "scripts", "plot-thcad-window.ps1");
+export const rasterizeThcadPdfScript = path.join(repositoryRoot, "scripts", "rasterize-thcad-pdf.py");
 export const projectGraphScript = path.join(
 	repositoryRoot,
 	"local-dev",
@@ -34,6 +36,13 @@ export const projectGraphScript = path.join(
 	"build-cross-drawing-interface-graph.ps1",
 );
 export const projectGraphRoot = path.join(bridgeRoot, "project-graph");
+export const thcadWorkspaceRoot = path.join(repositoryRoot, ".pi", "runtime", "thcad-workspace");
+export const textIndexRoot = path.join(bridgeRoot, "text-index");
+export const transformerDrawingRoot = path.join(
+	repositoryRoot,
+	"client-data",
+	"transformer-design-drawings",
+);
 export const evidenceRoot = path.join(repositoryRoot, ".pi", "runtime", "thcad-evidence");
 export const reviewRoot = path.join(repositoryRoot, ".pi", "runtime", "thcad-reviews");
 export const reviewRunsRoot = path.join(reviewRoot, "runs");

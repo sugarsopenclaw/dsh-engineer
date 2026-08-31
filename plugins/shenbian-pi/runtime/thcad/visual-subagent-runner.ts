@@ -517,7 +517,7 @@ export async function runThcadVisualOverviewSubagent(
 		turns,
 		usage,
 	});
-	options.onProgress?.("正在冻结视觉输入和当前 01–20 证据代次…");
+	options.onProgress?.("正在冻结视觉输入和当前 01–21 证据代次…");
 	let artifactManifestRef: string | undefined;
 	let reviewStatus: "complete" | "partial" = "partial";
 	try {

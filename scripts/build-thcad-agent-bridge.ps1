@@ -27,14 +27,15 @@ if ($LASTEXITCODE -ne 0) {
     throw "THCAD Agent Bridge build failed with exit code $LASTEXITCODE"
 }
 
-$dll = Join-Path $deploymentDirectory 'Shb.Thcad.AgentBridge.dll'
+$dllName = 'Shb.Thcad.AgentBridge.V4.dll'
+$dll = Join-Path $deploymentDirectory $dllName
 if (-not (Test-Path -LiteralPath $dll)) {
     throw "Build completed without expected DLL: $dll"
 }
 
 $pointer = Join-Path $bridgeRoot 'current-dll.txt'
 $temporaryPointer = "$pointer.tmp-$PID"
-$relativeDll = "$deploymentId/Shb.Thcad.AgentBridge.dll"
+$relativeDll = "$deploymentId/$dllName"
 [IO.File]::WriteAllText(
     $temporaryPointer,
     $relativeDll + [Environment]::NewLine,

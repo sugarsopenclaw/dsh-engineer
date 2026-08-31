@@ -21,6 +21,20 @@ from shenbian_api.domain.cad_capabilities import (
     CapabilityFacetsData,
     CapabilityGraphAtomStreamData,
 )
+from shenbian_api.domain.topology_semantics import (
+    SemanticDescriptionCreateRequest,
+    SemanticDescriptionDetailResponse,
+    SemanticDescriptionListResponse,
+    SemanticDescriptionWriteResponse,
+    SemanticSearchResponse,
+    TopologyMatchRequest,
+    TopologyMatchResponse,
+    TopologyObservationCreateRequest,
+    TopologyObservationDetailResponse,
+    TopologyObservationWriteResponse,
+    TopologyPatternDetailResponse,
+    TopologyPatternListResponse,
+)
 
 
 class HealthyProbe(DependencyProbe):
@@ -149,6 +163,74 @@ class NoopCadCapabilitiesReader:
         return None
 
 
+class NoopTopologySemanticsRepository:
+    async def register_observation(
+        self,
+        request: TopologyObservationCreateRequest,
+    ) -> TopologyObservationWriteResponse:
+        raise AssertionError(f"unexpected topology observation write: {request.ingestion_key}")
+
+    async def append_description(
+        self,
+        request: SemanticDescriptionCreateRequest,
+    ) -> SemanticDescriptionWriteResponse:
+        raise AssertionError(f"unexpected topology description write: {request.description_key}")
+
+    async def match(self, request: TopologyMatchRequest) -> TopologyMatchResponse:
+        raise AssertionError(f"unexpected topology match: {request.fingerprint.shape_hash}")
+
+    async def list_descriptions(
+        self,
+        knowledge_scope: str,
+        description_kind: str | None,
+        limit: int,
+        offset: int,
+    ) -> SemanticDescriptionListResponse:
+        raise AssertionError(
+            "unexpected topology description list: "
+            f"{knowledge_scope}/{description_kind}/{limit}/{offset}"
+        )
+
+    async def list_patterns(
+        self,
+        knowledge_scope: str,
+        scope_kind: str | None,
+        limit: int,
+        offset: int,
+    ) -> TopologyPatternListResponse:
+        raise AssertionError(
+            f"unexpected topology pattern list: {knowledge_scope}/{scope_kind}/{limit}/{offset}"
+        )
+
+    async def pattern_detail(self, pattern_id: str) -> TopologyPatternDetailResponse:
+        raise AssertionError(f"unexpected topology pattern detail: {pattern_id}")
+
+    async def description_detail(
+        self,
+        description_id: str,
+    ) -> SemanticDescriptionDetailResponse:
+        raise AssertionError(f"unexpected topology description detail: {description_id}")
+
+    async def observation_detail(
+        self,
+        observation_id: str,
+    ) -> TopologyObservationDetailResponse:
+        raise AssertionError(f"unexpected topology observation detail: {observation_id}")
+
+    async def search_semantics(
+        self,
+        knowledge_scope: str,
+        query: str,
+        limit: int,
+    ) -> SemanticSearchResponse:
+        raise AssertionError(
+            f"unexpected topology semantic search: {knowledge_scope}/{query}/{limit}"
+        )
+
+    async def close(self) -> None:
+        return None
+
+
 @pytest.fixture
 def settings() -> Settings:
     return Settings(
@@ -178,6 +260,7 @@ def client(settings: Settings, deepseek_gateway: FakeDeepSeekGateway) -> TestCli
         deepseek_gateway=deepseek_gateway,
         business_requirements_reader=NoopBusinessRequirementsReader(),
         cad_capabilities_reader=NoopCadCapabilitiesReader(),
+        topology_semantics_repository=NoopTopologySemanticsRepository(),
     )
     with TestClient(app) as test_client:
         yield test_client

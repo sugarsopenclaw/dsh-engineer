@@ -95,6 +95,18 @@ Line、Polyline、Arc、Circle、Ellipse、Spline、Region、Hatch、DBText、MT
 - `Entity.GetObjectSnapPoints`：当前序号对象取得端点和圆心捕捉点。
 - `Entity.GeometricExtents` 属性：当前序号对象读取时返回 `eInvalidExtents`，说明成员存在但该对象实现不可用。
 
+### 3.1 2026-08-30 V4 产品桥新增实测
+
+- `CommandFlags.Session`：`SHBTHCADAGENTV4APP` 已在运行中的 THCAD V24 热加载并成功执行文档生命周期作业；Modal/Session 两个命令能按 request operation 分开认领同一 pending 队列。
+- `DocumentCollection.Open(path, readOnly)`：成功只读打开另一张客户 DWG，`Document.IsReadOnly=true`；该 V24 会话打开后 DBMOD 可立即为 4，因此产品仍把非零视为 dirty，不据此猜测“没有变化”。
+- `DocumentCollection.MdiActiveDocument{set}`：成功在测试图与原活动图之间切换。
+- `Document.CloseAndDiscard()`：在显式 discard 后成功关闭测试图并恢复原活动图；产品不会用 `CloseAndSave` 代替用户决策。
+- `Database.ReadDwgFile(path, FileOpenMode.OpenForReadAndAllShare, false, "")`：V4 `scan_texts` 用 side database 一次扫描七张样图，7/7 成功、5,543 条文字/BOM/标题栏记录，活动图与 DBMOD 不变。
+- `Database.SaveAs`：对工作区新目标的实测成功；简单重载和显式 `bBakAndRename=false` 重载都会让 `Database.Filename` 指向副本，而实测 `Document.Name` / `Document` 路径仍保持源图。产品桥将此作为显式 `from_session` 能力并回传前后路径事实，不把它描述为无状态的 side-DB 复制。
+- `Database.Save()`：对 `DocumentManager.Open` 的活动工作区图实测返回 `eCantOpenFile`；同一图的 `Document.AcadDocument.Save` 成功并把 DBMOD 从 5 清为 0，因此当前产品桥保存已打开工作区图使用后一个已验证入口。这个结果只说明当前 V24/调用上下文，不否定 `Database.Save` 在其他数据库生命周期中的公开能力。
+
+实现、路径守卫与复现结果见 [`2026-08-30-Pi-THCAD-图纸会话与项目文字检索.md`](2026-08-30-Pi-THCAD-图纸会话与项目文字检索.md)。
+
 ## 4. 命名空间索引
 
 | 程序集 | 命名空间 | 公开类型数 |

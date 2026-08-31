@@ -7,12 +7,13 @@ import test from "node:test";
 import { ThcadArtifactStore } from "./artifact-store.ts";
 import { THCAD_CAPABILITIES, getCapability } from "./capability-catalog.ts";
 
-test("01-20 capability catalog is complete and unique", () => {
-	assert.equal(THCAD_CAPABILITIES.length, 20);
-	assert.deepEqual(THCAD_CAPABILITIES.map((item) => item.id), Array.from({ length: 20 }, (_, index) => index + 1));
-	assert.equal(new Set(THCAD_CAPABILITIES.map((item) => item.artifact)).size, 20);
+test("01-21 capability catalog is complete and unique", () => {
+	assert.equal(THCAD_CAPABILITIES.length, 21);
+	assert.deepEqual(THCAD_CAPABILITIES.map((item) => item.id), Array.from({ length: 21 }, (_, index) => index + 1));
+	assert.equal(new Set(THCAD_CAPABILITIES.map((item) => item.artifact)).size, 21);
 	assert.equal(getCapability(9).artifact, "dimension-topology.json");
 	assert.equal(getCapability(20).artifact, "cross-drawing-observation.json");
+	assert.equal(getCapability(21).artifact, "bom-instance-coverage.json");
 });
 
 test("artifact store returns bounded summaries, paths, and search contexts", async () => {

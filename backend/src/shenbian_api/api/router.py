@@ -7,6 +7,7 @@ from shenbian_api.api.routes import (
     health,
     model_gateway,
     ontology,
+    topology_semantics,
 )
 
 api_router = APIRouter(prefix="/api/v1")
@@ -22,6 +23,11 @@ api_router.include_router(
     cad_capabilities.router,
     prefix="/cad-capabilities",
     tags=["cad-capabilities"],
+)
+api_router.include_router(
+    topology_semantics.router,
+    prefix="/topology-semantics",
+    tags=["topology-semantics"],
 )
 api_router.include_router(
     model_gateway.router,
