@@ -18,7 +18,7 @@ class TopologySemanticConflictError(TopologySemanticsError):
 
 
 class TopologySemanticsUnavailableError(TopologySemanticsError):
-    code = "postgres_unavailable"
+    code = "sqlite_unavailable"
 
     def __init__(self) -> None:
         super().__init__("The topology semantics store is temporarily unavailable.")

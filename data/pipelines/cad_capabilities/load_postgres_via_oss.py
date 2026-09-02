@@ -18,6 +18,7 @@ import alibabacloud_oss_v2 as oss
 import asyncpg
 
 if __package__:
+    from .graph_snapshots import graph_snapshot_scopes
     from .load_postgres import (
         REPO_ROOT,
         SCHEMA,
@@ -27,6 +28,7 @@ if __package__:
         load_dataset,
     )
 else:
+    from graph_snapshots import graph_snapshot_scopes
     from load_postgres import (
         REPO_ROOT,
         SCHEMA,
@@ -195,20 +197,6 @@ def atom_insert_sql(table_name: str) -> str:
         FROM {SCHEMA}.{table_name}
         ORDER BY payload->>'atom_id'
     """
-
-
-def graph_snapshot_scopes(
-    manifest: dict[str, Any],
-    inventories: list[dict[str, Any]],
-) -> list[tuple[str | None, str | None]]:
-    surfaces = sorted(manifest["counts"]["by_surface"])
-    hosts = sorted({inventory["observed_host_id"] for inventory in inventories})
-    return [
-        (None, None),
-        *((surface, None) for surface in surfaces),
-        *((None, host) for host in hosts),
-        *((surface, host) for host in hosts for surface in surfaces),
-    ]
 
 
 def _sql_literal(value: str) -> str:
@@ -475,6 +463,11 @@ async def cad_dataset_counts(
 
 
 async def import_dataset_via_oss(dataset_directory: Path) -> dict[str, Any]:
+    raise RuntimeError(
+        "PostgreSQL import for business requirements and CAD capabilities is retired. "
+        "Use data/pipelines/local_query_store/load_sqlite.py. "
+        "Do not write these datasets to DATABASE_URL."
+    )
     manifest, inventories, atoms_path = load_dataset(dataset_directory)
     settings = Settings()
     client = build_oss_client(settings)
@@ -585,6 +578,11 @@ async def import_dataset_via_oss(dataset_directory: Path) -> dict[str, Any]:
 
 
 def main() -> None:
+    raise SystemExit(
+        "PostgreSQL import for business requirements and CAD capabilities is retired. "
+        "Use data/pipelines/local_query_store/load_sqlite.py. "
+        "Do not write these datasets to DATABASE_URL."
+    )
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--dataset-dir", type=Path, default=DEFAULT_FAST_DATASET_DIRECTORY

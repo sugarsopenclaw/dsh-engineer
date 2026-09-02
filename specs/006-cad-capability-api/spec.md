@@ -1,8 +1,10 @@
-# 006 — CAD 原子能力 PostgreSQL 物化与查询 API
+# 006 — CAD 原子能力本机 SQLite 物化与查询 API
+
+状态：历史实现，当前无活动数据物化。旧 SQLite 已按 016 清理；原子 JSONL 仍是参考资料，不进入 FastAPI 运行库。
 
 ## 背景
 
-`specs/005-cad-capability-catalog/` 已经生成 THCAD V24 的 COM、.NET、LISP、Command/CUI 和原生 PE 原子能力 JSONL。首批数据已经完成完整性校验与人工抽查，现在需要把这些原子作为 Ontology 对象实例写入 PostgreSQL，并通过真实后端接口供前端浏览。
+`specs/005-cad-capability-catalog/` 已经生成 THCAD V24 的 COM、.NET、LISP、Command/CUI 和原生 PE 原子能力 JSONL。首批数据已经完成完整性校验与人工抽查。查询物化改为本机 SQLite（见 [`specs/016-local-sqlite-query-layer/`](../016-local-sqlite-query-layer/)），通过真实后端接口供前端浏览，不再写入 `DATABASE_URL`。
 
 ## 需求
 
@@ -11,9 +13,9 @@
 - **R3** 原子保留稳定 `atom_id`、完整签名、参数、返回类型、来源构件、声明符号、技术面、原子种类和 `observed_host_ids`。当前观测宿主仅为 `thcad-v24`，不得推断 AutoCAD 兼容性。
 - **R4** `surface`、`atom_kind`、`observed_host_ids`、`classification_status`、`operation_kinds` 和 `domain_tags` 必须是可查询属性。API 不把 `.NET`、COM、THCAD 或操作类型写死为前端枚举。
 - **R5** 提供分页只读接口：原子列表、单原子详情和筛选项计数；支持按技术面、宿主、原子种类、分类状态、操作类型、领域标签和文本查询筛选。
-- **R6** PostgreSQL 物化只能由 `data/pipelines/cad_capabilities/` 的导入管线完成，连接只读取根 `.env` 的 `DATABASE_URL`。导入按 `dataset_id` 原子替换并核对提交前后计数。
-- **R7** 数据库不可用返回脱敏 `503`；数据集或原子不存在返回稳定 `404`。领域和应用模型不得依赖 FastAPI 或 SQLAlchemy。
-- **R8** OpenAPI、仓库 API 文档、测试和真实数据库验收必须与实现一致。前端生产代码只调用真实 `/api/v1`，不得使用 mock 兜底。
+- **R6** 本机 SQLite 物化只能由官方 `load_sqlite.py` 完成，路径由根 `.env` 的 `CAD_CAPABILITIES_SQLITE` 给出。导入按 `dataset_id` 原子替换并核对提交前后计数。不得再写入 `DATABASE_URL`。
+- **R7** SQLite 文件缺失或查询层不可用返回脱敏 `503`；数据集或原子不存在返回稳定 `404`。领域和应用模型不得依赖 FastAPI 或 SQLAlchemy。
+- **R8** OpenAPI、仓库 API 文档、测试和真实本机 SQLite 验收必须与实现一致。前端生产代码只调用真实 `/api/v1`，不得使用 mock 兜底。
 
 ## 当前数据边界
 
@@ -31,9 +33,9 @@
 
 ## 验收
 
-1. curated manifest 与 PostgreSQL 中的库存数、原子数和按技术面计数一致；
-2. 当前五个技术面的 79,549 个原子全部入库，稳定 ID 不变；
+1. curated manifest 与本机 SQLite 中的库存数、原子数和按技术面计数一致；
+2. `cad.capabilities.curated.v1` 仍是 THCAD V24 切片：五个技术面 79,549 个原子、稳定 ID 不变。默认查询层是 008 的 v2（334,049）；显式 `dataset_id` 可查 v1；
 3. `surface=com`、`observed_host_id=thcad-v24`、`operation_kind=delete` 等筛选返回真实计数和分页数据；
 4. 原子详情返回完整 member、source artifact、provenance 和 enrichment 属性；
 5. 原生候选保持未知签名和 pending 状态；
-6. API 自动化测试、迁移、真实数据库查询和文档校验通过。
+6. API 自动化测试、本机 SQLite 查询和文档校验通过。

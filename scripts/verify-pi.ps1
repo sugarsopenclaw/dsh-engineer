@@ -74,6 +74,9 @@ if ($settings.enabledModels -notcontains "deepseek/deepseek-v4-flash") {
 if ($settings.enabledModels -notcontains "deepseek/deepseek-v4-flash-vision-exp") {
     throw "Project Pi model scope does not include the THCAD DeepSeek vision model."
 }
+if ($settings.enabledModels -notcontains "xai/*") {
+    throw "Project Pi model scope does not include the THCAD Grok vision model."
+}
 
 $theme = Get-Content -Raw -LiteralPath (Join-Path $pluginDirectory "themes/shenbian.json") | ConvertFrom-Json
 if ($theme.name -ne "shenbian") {

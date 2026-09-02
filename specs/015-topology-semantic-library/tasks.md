@@ -1,7 +1,7 @@
 # 任务
 
 - [x] 领域/API 契约
-- [x] PostgreSQL migration 与 Repository
+- [x] 单文件 SQLite schema 与 Repository
 - [x] 查询/写入 Service 和 FastAPI 路由
 - [x] capability 21 精读证据接入
 - [x] 局部拓扑指纹与现场观察 payload

@@ -6,13 +6,15 @@
 FastAPI route
   → BusinessRequirementsQueryService
   → BusinessRequirementsReader port
-  → PostgreSQL SQLAlchemy adapter
-  → ontology.* tables
+  → 本机 SQLite adapter
+  → business-requirements.sqlite
 ```
+
+查询层见 [`specs/016-local-sqlite-query-layer/`](../016-local-sqlite-query-layer/)。拓扑语义仍在 PostgreSQL，不在本规格。
 
 - `domain/` 定义图谱、节点、边、详情和错误契约；
 - `application/` 负责查询编排与 `initial-semantic-v1` 布局；
-- `infrastructure/` 只负责参数化 SQL、结果映射和连接池；
+- `infrastructure/` 只负责本机 SQLite 参数化查询和结果映射；
 - `api/` 只做参数校验、依赖注入和 HTTP 错误映射。
 
 ## 查询

@@ -1,8 +1,10 @@
 # 业务需求图谱可视化 API 契约
 
+> 当前状态：历史契约，无活动数据物化；旧 SQLite 已清理。接口不回退到 mock 或旧数据。
+
 > 契约版本：`0.1`  
 > 数据集：`shenbian.client_requirements.curated.v1`  
-> 状态：**已实现并通过真实 PostgreSQL 验收。** 前端直接调用本文接口。
+> 原状态：已实现；当前按规格 016 停用数据物化。
 
 ## 第一版做什么
 
@@ -22,14 +24,14 @@
 
 | 能力 | 当前状态 |
 | --- | --- |
-| PostgreSQL `ontology` schema | 已完成 |
-| 业务需求数据导入 | 已完成 |
-| 240 个需求与 249 条关系 | 已落库 |
+| 本机 SQLite 查询层 | 已完成（见 specs/016） |
+| 业务需求数据导入 | 已改为 `load_sqlite.py` |
+| 240 个需求与 249 条关系 | curated JSONL 物化到本机 SQLite |
 | 初始 2D / 3D 坐标规则 | 本文确定 |
 | 图谱 HTTP 查询接口 | 已完成 |
 | 前端真实接口联调 | 可以开始 |
 
-启动后端后可在 `http://127.0.0.1:8000/docs` 查看 Swagger/OpenAPI。接口已用根 `.env` 指向的真实数据库验证：240 个节点、249 条关系、201 个原子需求、20 个一级需求。
+启动后端后可在 `http://127.0.0.1:8000/docs` 查看 Swagger/OpenAPI。接口从根 `.env` 的 `BUSINESS_REQUIREMENTS_SQLITE` 读取：240 个节点、249 条关系、201 个原子需求、20 个一级需求。不得再把该数据集写入 `DATABASE_URL`。
 
 ## 坐标是什么意思
 
@@ -413,17 +415,13 @@ export interface BusinessRequirementDetailResponse {
 | `404` | `graph_view_not_found` | 视图不存在 |
 | `404` | `requirement_not_found` | 需求不存在 |
 | `422` | FastAPI 参数校验错误 | `dimensions` 等参数非法 |
-| `503` | `postgres_unavailable` | PostgreSQL 暂时不可用 |
+| `503` | `postgres_unavailable` | 本机 SQLite 查询层不可用（错误码保持兼容） |
 
 错误消息不能包含数据库连接串、源文件绝对路径或客户文档正文。
 
 ## 读取性能与快照缓存
 
-当前数据库是远程链路（实测 RTT 数百毫秒且波动，最坏时单 round-trip 超过 1 秒）。为防冷查询叠加网络尖峰触发 503：
-
-- 引擎连接超时为 20 秒（`create_postgres_engine` 默认值）；
-- 图谱读模型带进程内快照缓存：以 `(dataset_id, view_id)` 为键、`content_sha256` 为失效依据。每次请求先跑一条毫秒级元数据校验查询，命中缓存即直接返回，不重复搬运全量节点/边；数据集重新导入（哈希变化）后第一次请求重建快照；
-- 实测（2026-08，远程链路波动期）：冷请求约 12 秒（重建快照），热请求约 1.7 秒。详情接口未做缓存，每次约 2–5 秒，如需优化再按同一模式加。
+查询层是本机 SQLite。图谱读模型仍带进程内快照缓存：以 `(dataset_id, view_id)` 为键、`content_sha256` 为失效依据。每次请求先做元数据校验，命中缓存即直接返回，不重复搬运全量节点/边；数据集重新导入（哈希变化）后第一次请求重建快照。详情接口未做缓存。
 
 ## 前端联调顺序
 
@@ -439,20 +437,20 @@ export interface BusinessRequirementDetailResponse {
 
 ## 后端实现时的数据映射
 
-| API 内容 | PostgreSQL 表 |
+| API 内容 | SQLite 表 |
 | --- | --- |
-| 数据集元数据 | `ontology.dataset_builds` |
-| 节点 | `ontology.requirement_nodes` |
-| 边 | `ontology.requirement_relations` |
-| 坐标记录 | `ontology.graph_layout_positions` |
-| 图谱视图 | `ontology.graph_views`、`ontology.graph_view_filters` |
-| 节点来源 | `ontology.requirement_source_links`、`ontology.source_evidence`、`ontology.source_documents` |
-| 别名 | `ontology.requirement_aliases` |
-| 适用范围 | `ontology.requirement_scope_links`、`ontology.scope_values`、`ontology.scope_dimensions` |
-| 验收条件 | `ontology.acceptance_criteria` |
-| 待确认问题 | `ontology.open_question_requirement_links`、`ontology.open_questions` |
+| 数据集元数据 | `dataset_builds` |
+| 节点 | `requirement_nodes` |
+| 边 | `requirement_relations` |
+| 坐标记录 | `graph_layout_positions` |
+| 图谱视图 | `graph_views`、`graph_view_filters` |
+| 节点来源 | `requirement_source_links`、`source_evidence`、`source_documents` |
+| 别名 | `requirement_aliases` |
+| 适用范围 | `requirement_scope_links`、`scope_values`、`scope_dimensions` |
+| 验收条件 | `acceptance_criteria` |
+| 待确认问题 | `open_question_requirement_links`、`open_questions` |
 
-数据库中的 `graph_layout_positions.x/y/z` 当前为空。后端首版按 `initial-semantic-v1` 生成数值并返回，`view.persisted=false`；等我们观察并认可排布后，再决定是否把某个布局版本持久化。前端不应直接连接 PostgreSQL。
+`graph_layout_positions.x/y/z` 当前为空。后端首版按 `initial-semantic-v1` 生成数值并返回，`view.persisted=false`；等我们观察并认可排布后，再决定是否把某个布局版本持久化。前端不应直接连接 SQLite 或 PostgreSQL。
 
 ## 第一版明确不做
 

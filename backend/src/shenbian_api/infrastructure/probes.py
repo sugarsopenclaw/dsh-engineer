@@ -1,37 +1,37 @@
 from __future__ import annotations
 
 import asyncio
+import sqlite3
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 import alibabacloud_oss_v2 as oss
 from redis.asyncio import Redis
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine
 
 from shenbian_api.application.ports import DependencyProbe
 from shenbian_api.core.config import Settings
-from shenbian_api.infrastructure.database import create_postgres_engine
+from shenbian_api.infrastructure.sqlite_paths import resolve_sqlite_path
 
 
-class PostgresProbe(DependencyProbe):
-    name = "postgresql"
+class SqliteProbe(DependencyProbe):
+    name = "sqlite"
 
-    def __init__(self, settings: Settings) -> None:
-        self._engine: AsyncEngine = create_postgres_engine(
-            settings.database_url.get_secret_value(),
-            pool_size=2,
-            max_overflow=0,
-            connect_timeout_seconds=3,
-            command_timeout_seconds=3,
-        )
+    def __init__(self, path: Path) -> None:
+        self._path = path
+
+    def _check(self) -> None:
+        connection = sqlite3.connect(f"file:{self._path.as_posix()}?mode=ro", uri=True)
+        try:
+            connection.execute("SELECT 1").fetchone()
+        finally:
+            connection.close()
 
     async def check(self) -> None:
-        async with self._engine.connect() as connection:
-            await connection.execute(text("SELECT 1"))
+        await asyncio.to_thread(self._check)
 
     async def close(self) -> None:
-        await self._engine.dispose()
+        return None
 
 
 class RedisProbe(DependencyProbe):
@@ -91,4 +91,8 @@ def _build_oss_credentials_provider(access_key_id: str, access_key_secret: str) 
 
 
 def build_dependency_probes(settings: Settings) -> list[DependencyProbe]:
-    return [PostgresProbe(settings), RedisProbe(settings), OssProbe(settings)]
+    return [
+        SqliteProbe(resolve_sqlite_path(settings.topology_semantics_sqlite)),
+        RedisProbe(settings),
+        OssProbe(settings),
+    ]

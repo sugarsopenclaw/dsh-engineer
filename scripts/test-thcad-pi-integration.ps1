@@ -20,6 +20,7 @@ $tsx = Join-Path $repositoryRoot 'pi\node_modules\.bin\tsx.cmd'
     (Join-Path $repositoryRoot 'plugins\shenbian-pi\runtime\thcad\text-index.test.ts') `
     (Join-Path $repositoryRoot 'plugins\shenbian-pi\runtime\thcad\bom-visual-subagent-runner.test.ts') `
     (Join-Path $repositoryRoot 'plugins\shenbian-pi\runtime\thcad\topology-semantics.test.ts') `
+    (Join-Path $repositoryRoot 'plugins\shenbian-pi\runtime\thcad\vision-model-routing.test.ts') `
     (Join-Path $repositoryRoot 'plugins\shenbian-pi\runtime\thcad\visual-subagent-runner.test.ts')
 if ($LASTEXITCODE -ne 0) { throw "THCAD artifact tests failed: $LASTEXITCODE" }
 

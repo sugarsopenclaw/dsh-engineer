@@ -30,7 +30,18 @@ class Settings(BaseSettings):
         populate_by_name=True,
     )
 
-    database_url: SecretStr = Field(validation_alias="DATABASE_URL")
+    business_requirements_sqlite: str = Field(
+        default="data/datasets/local/topology-semantics.sqlite",
+        validation_alias="BUSINESS_REQUIREMENTS_SQLITE",
+    )
+    cad_capabilities_sqlite: str = Field(
+        default="data/datasets/local/topology-semantics.sqlite",
+        validation_alias="CAD_CAPABILITIES_SQLITE",
+    )
+    topology_semantics_sqlite: str = Field(
+        default="data/datasets/local/topology-semantics.sqlite",
+        validation_alias="TOPOLOGY_SEMANTICS_SQLITE",
+    )
     redis_url: SecretStr = Field(validation_alias="REDIS_URL")
     alibaba_cloud_access_key_id: SecretStr = Field(validation_alias="ALIBABA_CLOUD_ACCESS_KEY_ID")
     alibaba_cloud_access_key_secret: SecretStr = Field(

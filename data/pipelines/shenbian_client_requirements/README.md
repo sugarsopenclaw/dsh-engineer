@@ -19,19 +19,17 @@ C:\Users\Microsoft\.cache\codex-runtimes\codex-primary-runtime\dependencies\pyth
 
 默认输出到 `data/datasets/curated/shenbian-client-requirements/v1/`。该目录是可再生产物，不进 Git。
 
-## 写入 PostgreSQL
+## 写入本机 SQLite
 
-PostgreSQL 是该 curated 数据集的可查询物化层，连接只读取仓库根 `.env` 的 `DATABASE_URL`。先执行后端迁移，再运行导入管线：
+查询物化是本机 SQLite，不再写入 `DATABASE_URL`。JSONL 仍是可复现产物。
 
 ```powershell
-cd backend
-uv run alembic upgrade head
-cd ..
 uv run --project backend python `
-  data\pipelines\shenbian_client_requirements\load_postgres.py
+  data\pipelines\local_query_store\load_sqlite.py `
+  --kind business-requirements
 ```
 
-表位于 PostgreSQL 的 `ontology` schema。导入会按 `dataset_id` 加事务锁，只替换同一数据集版本的数据，并在提交前后核对清单计数；失败时整次回滚。JSONL 仍是可复现的数据产物，导入不会读取或写入 Redis、OSS。
+默认写入 `data/datasets/local/business-requirements.sqlite`。旧的 `load_postgres.py` 入口会立即失败。详见 [`../local_query_store/README.md`](../local_query_store/README.md)。
 
 ## 数据表
 

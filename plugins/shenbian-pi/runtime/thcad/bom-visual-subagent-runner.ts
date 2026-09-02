@@ -25,9 +25,8 @@ import {
 	TopologySemanticsRecorder,
 	type TopologySemanticSyncResult,
 } from "./topology-semantics.ts";
+import { resolveThcadVisionModel } from "./vision-model-routing.ts";
 
-export const THCAD_BOM_VISION_MODEL = process.env.SHENBIAN_THCAD_VISION_MODEL?.trim()
-	|| "deepseek/deepseek-v4-flash-vision-exp";
 export const THCAD_BOM_VISION_THINKING = process.env.SHENBIAN_THCAD_VISION_THINKING?.trim()
 	|| "high";
 const CHILD_TIMEOUT_MS = 15 * 60 * 1000;
@@ -45,23 +44,21 @@ interface ChildUsage {
 
 export interface BomItemVisualUnderstanding {
 	item_number: number;
-	geometry_mapping: string;
-	current_projection: string;
-	inferred_other_views: string;
-	assembly_role: string;
-	mechanical_reasoning: string;
+	bom_facts: string[];
+	visible_geometry: string[];
+	bom_geometry_matches: string[];
+	not_observed: string[];
 	evidence_refs: string[];
 }
 
 export interface BomGroupVisualUnderstanding {
-	schema_version: 1;
+	schema_version: 2;
 	group_id: string;
-	segment_understanding: string;
+	segment_observation: string;
 	items: BomItemVisualUnderstanding[];
-	assembly_relations: string[];
-	transformer_domain_interpretation: string[];
+	visible_relations: string[];
 	drawing_bom_discrepancies: string[];
-	extended_reasoning: string;
+	unresolved_observations: string[];
 }
 
 export interface BomCloseReadingGroupResult {
@@ -248,7 +245,7 @@ export function parseBomGroupVisualUnderstanding(
 		throw new Error("INVALID_BOM_VISUAL_RESULT: object required");
 	}
 	const raw = value as Record<string, unknown>;
-	if (raw.schema_version !== 1 || raw.group_id !== groupId || !Array.isArray(raw.items)) {
+	if (raw.schema_version !== 2 || raw.group_id !== groupId || !Array.isArray(raw.items)) {
 		throw new Error("INVALID_BOM_VISUAL_RESULT: schema, group_id or items");
 	}
 	const expected = [...new Set(expectedItemNumbers)].sort((left, right) => left - right);
@@ -261,11 +258,10 @@ export function parseBomGroupVisualUnderstanding(
 		if (!Number.isInteger(itemNumber)) throw new Error(`INVALID_BOM_VISUAL_RESULT: items[${index}].item_number`);
 		return {
 			item_number: itemNumber,
-			geometry_mapping: boundedString(item.geometry_mapping, `items[${index}].geometry_mapping`),
-			current_projection: boundedString(item.current_projection, `items[${index}].current_projection`),
-			inferred_other_views: boundedString(item.inferred_other_views, `items[${index}].inferred_other_views`),
-			assembly_role: boundedString(item.assembly_role, `items[${index}].assembly_role`),
-			mechanical_reasoning: boundedString(item.mechanical_reasoning, `items[${index}].mechanical_reasoning`),
+			bom_facts: boundedStrings(item.bom_facts, `items[${index}].bom_facts`),
+			visible_geometry: boundedStrings(item.visible_geometry, `items[${index}].visible_geometry`),
+			bom_geometry_matches: boundedStrings(item.bom_geometry_matches, `items[${index}].bom_geometry_matches`),
+			not_observed: boundedStrings(item.not_observed, `items[${index}].not_observed`),
 			evidence_refs: boundedStrings(item.evidence_refs, `items[${index}].evidence_refs`),
 		};
 	});
@@ -274,14 +270,13 @@ export function parseBomGroupVisualUnderstanding(
 		throw new Error("INVALID_BOM_VISUAL_RESULT: items must exactly cover the serial segment");
 	}
 	return {
-		schema_version: 1,
+		schema_version: 2,
 		group_id: groupId,
-		segment_understanding: boundedString(raw.segment_understanding, "segment_understanding"),
+		segment_observation: boundedString(raw.segment_observation, "segment_observation"),
 		items,
-		assembly_relations: boundedStrings(raw.assembly_relations, "assembly_relations"),
-		transformer_domain_interpretation: boundedStrings(raw.transformer_domain_interpretation, "transformer_domain_interpretation"),
+		visible_relations: boundedStrings(raw.visible_relations, "visible_relations"),
 		drawing_bom_discrepancies: boundedStrings(raw.drawing_bom_discrepancies, "drawing_bom_discrepancies"),
-		extended_reasoning: boundedString(raw.extended_reasoning, "extended_reasoning", 30_000),
+		unresolved_observations: boundedStrings(raw.unresolved_observations, "unresolved_observations"),
 	};
 }
 
@@ -315,7 +310,7 @@ function promptForGroup(plan: BomCloseReadingGroupPlan): string {
 			selected_component_topology: selectedTopology,
 			cleaning_evidence: plan.removed_occurrences,
 		}),
-		"不要因为当前图像只表达某一投影就回避 BOM 提供的其他维度；请结合机械制图与变压器结构积极推理。",
+		"只提取可复核事实：当前图中未直接表达的 BOM 维度写入 not_observed；不得补充用途、设计意图、其他视图形态或变压器领域知识。",
 		"只返回系统提示规定的 JSON 对象。",
 	].join("\n");
 }
@@ -337,6 +332,7 @@ async function spawnVisionChild(input: {
 	group: BomCloseReadingGroupPlan;
 	rendered: RenderedBomCloseReadingGroup;
 	groupDirectory: string;
+	visionModel: string;
 	signal?: AbortSignal;
 }): Promise<SpawnResult> {
 	const childSessionDirectory = path.join(input.groupDirectory, "child-session");
@@ -361,7 +357,7 @@ async function spawnVisionChild(input: {
 		"--no-context-files",
 		"--no-approve",
 		"--no-tools",
-		"--model", THCAD_BOM_VISION_MODEL,
+		"--model", input.visionModel,
 		"--thinking", THCAD_BOM_VISION_THINKING,
 		"--system-prompt", agentPromptFile,
 		"--",
@@ -372,7 +368,7 @@ async function spawnVisionChild(input: {
 	const invocation = getPiInvocation(args);
 	let text = "";
 	let stderr = "";
-	let model = THCAD_BOM_VISION_MODEL;
+	let model = input.visionModel;
 	let stopReason: string | undefined;
 	let errorMessage: string | undefined;
 	let turns = 0;
@@ -497,7 +493,7 @@ function evidenceContent(
 			group.result ? `\`\`\`json\n${JSON.stringify(group.result, null, 2)}\n\`\`\`` : `失败：${group.error ?? "unknown"}`,
 			"",
 		]),
-		">边界：BOM、序号段、指向点、图元世界坐标和清理清单是确定性证据；构件语义与跨投影解读是视觉/机械领域推理。",
+		">边界：本文件只交付 BOM、序号段、指向点、图元世界坐标、清理清单及视觉可复核事实；用途、设计意图与机械/变压器推理由主 Agent 结合用户问题完成。",
 		"",
 	].join("\n");
 }
@@ -508,13 +504,14 @@ export async function runThcadBomCloseReadingSubagent(
 	const systemPrompt = await readFile(agentPromptFile, "utf8");
 	const store = new ThcadReviewStore();
 	const runId = options.runId ?? createReviewRunId();
+	const visionModel = resolveThcadVisionModel(options.parent?.model);
 	const scopeText = options.itemNumbers?.length ? `BOM 序号 ${options.itemNumbers.join("/")}` : "全部有图面序号的 BOM";
 	const task = `按序号段精读${scopeText}，组合 BOM、共同指向、完整图、去干扰图和选中态拓扑，形成构件理解。`;
 	await store.beginRun({
 		runId,
 		task,
 		childSystemPrompt: systemPrompt,
-		childModel: THCAD_BOM_VISION_MODEL,
+		childModel: visionModel,
 		childThinkingLevel: THCAD_BOM_VISION_THINKING,
 		childRole: "bom_close_reading",
 		cwd: options.cwd,
@@ -548,7 +545,7 @@ export async function runThcadBomCloseReadingSubagent(
 			startedAtUtc,
 			finishedAtUtc: new Date().toISOString(),
 			durationMs: Date.now() - started,
-			model: THCAD_BOM_VISION_MODEL,
+			model: visionModel,
 			toolCallCount: 0,
 			turns: 0,
 			usage: totalUsage,
@@ -612,12 +609,12 @@ export async function runThcadBomCloseReadingSubagent(
 		const groupStarted = Date.now();
 		let childUsage = emptyUsage();
 		let turns = 0;
-		let model = THCAD_BOM_VISION_MODEL;
+		let model = visionModel;
 		try {
 			await store.appendLifecycle(runId, "bom_group_child_started", {
 				group_id: current.plan.group_id,
 				item_numbers: current.plan.serial_group.item_numbers,
-				model: THCAD_BOM_VISION_MODEL,
+				model: visionModel,
 				thinking_level: THCAD_BOM_VISION_THINKING,
 			});
 			const child = await spawnVisionChild({
@@ -626,6 +623,7 @@ export async function runThcadBomCloseReadingSubagent(
 				group: current.plan,
 				rendered: current.rendered,
 				groupDirectory: current.rendered.directory,
+				visionModel,
 				signal: options.signal,
 			});
 			childUsage = child.usage;
@@ -757,7 +755,7 @@ export async function runThcadBomCloseReadingSubagent(
 		startedAtUtc,
 		finishedAtUtc: new Date().toISOString(),
 		durationMs,
-		model: THCAD_BOM_VISION_MODEL,
+		model: visionModel,
 		toolCallCount: 0,
 		turns: totalTurns,
 		usage: totalUsage,
@@ -784,7 +782,7 @@ export async function runThcadBomCloseReadingSubagent(
 		coverageRef: toProjectRef(coveragePath),
 		artifactManifestRef,
 		reviewStatus,
-		model: THCAD_BOM_VISION_MODEL,
+		model: visionModel,
 		durationMs,
 		turns: totalTurns,
 		usage: totalUsage,

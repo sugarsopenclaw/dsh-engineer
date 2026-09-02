@@ -17,13 +17,7 @@ if ($null -eq $uvCommand) {
 
 Push-Location -LiteralPath $backendDirectory
 try {
-    Write-Host "[1/2] Applying backend database migrations..."
-    & $uvCommand.Source run alembic upgrade head
-    if ($LASTEXITCODE -ne 0) {
-        throw "Backend database migration failed with code $LASTEXITCODE."
-    }
-
-    Write-Host "[2/2] Starting Shenbian FastAPI at http://127.0.0.1:8000"
+    Write-Host "Starting Shenbian FastAPI with local SQLite at http://127.0.0.1:8000"
     Write-Host "      API docs: http://127.0.0.1:8000/docs"
     Write-Host "      Press Ctrl+C to stop the backend."
     & $uvCommand.Source run shenbian-api

@@ -460,7 +460,7 @@ export class TopologySemanticsRecorder {
 				schema_version: "1.0",
 				knowledge_scope: KNOWLEDGE_SCOPE,
 				description_key: descriptionKey,
-				description_kind: "vision_component_interpretation",
+				description_kind: "vision_component_observation",
 				content_md: JSON.stringify(input.visualResult, null, 2),
 				structured_content: input.visualResult,
 				source_kind: "vision_model",

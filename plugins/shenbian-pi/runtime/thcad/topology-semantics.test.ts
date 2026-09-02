@@ -225,7 +225,7 @@ test("outbox records BOM/21, paired plots, vision and parent semantics in delive
 			plan: plan(currentGroup),
 			group: currentGroup,
 			rendered: currentRendered,
-			visualResult: { segment_understanding: "19/20/21 构成法兰加强装配" },
+			visualResult: { schema_version: 2, segment_observation: "19/20/21 共同指向同一可见几何区域" },
 			model: "deepseek/vision",
 			childSessionRef: "review/child-session",
 		});
@@ -244,6 +244,7 @@ test("outbox records BOM/21, paired plots, vision and parent semantics in delive
 			(observation.plots as Array<Record<string, unknown>>).map((item) => item.role),
 			["component_full", "component_clean", "deterministic_sidecar"],
 		);
+		assert.equal(calls[1].body.description_kind, "vision_component_observation");
 
 		await recorder.recordParentInterpretation({
 			runId,
@@ -260,7 +261,7 @@ test("outbox records BOM/21, paired plots, vision and parent semantics in delive
 			plan: plan(currentGroup),
 			group: currentGroup,
 			rendered: currentRendered,
-			visualResult: { segment_understanding: "19/20/21 构成法兰加强装配" },
+			visualResult: { schema_version: 2, segment_observation: "19/20/21 共同指向同一可见几何区域" },
 			model: "deepseek/vision",
 			childSessionRef: "review/child-session",
 		});
@@ -272,7 +273,7 @@ test("outbox records BOM/21, paired plots, vision and parent semantics in delive
 				plan: plan(currentGroup),
 				group: currentGroup,
 				rendered: currentRendered,
-				visualResult: { segment_understanding: "同一键下被改写的解释" },
+				visualResult: { schema_version: 2, segment_observation: "同一键下被改写的观察" },
 				model: "deepseek/vision",
 				childSessionRef: "review/child-session",
 			}),
@@ -312,7 +313,7 @@ test("backend failure leaves an immutable replayable outbox", async () => {
 			plan: plan(currentGroup),
 			group: currentGroup,
 			rendered: await rendered(runDirectory),
-			visualResult: { segment_understanding: "fixture" },
+			visualResult: { schema_version: 2, segment_observation: "fixture" },
 		});
 		assert.equal(sync.sent, 0);
 		assert.equal(sync.pending, 2);

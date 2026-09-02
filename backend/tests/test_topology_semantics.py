@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 
 from conftest import (
     HealthyProbe,
@@ -411,3 +412,70 @@ def test_idempotency_conflict_is_public_409(settings, deepseek_gateway) -> None:
         )
     assert response.status_code == 409
     assert response.json()["detail"]["code"] == "topology_semantic_conflict"
+
+
+def test_sqlite_topology_repository_is_clean_persistent_and_idempotent(
+    tmp_path: Path,
+    settings,
+    deepseek_gateway,
+) -> None:
+    sqlite_path = tmp_path / "topology-semantics.sqlite"
+    sqlite_settings = settings.model_copy(
+        update={"topology_semantics_sqlite": str(sqlite_path)}
+    )
+    app = create_app(
+        settings=sqlite_settings,
+        probes=[HealthyProbe("sqlite"), HealthyProbe("redis"), HealthyProbe("oss")],
+        deepseek_gateway=deepseek_gateway,
+        business_requirements_reader=NoopBusinessRequirementsReader(),
+        cad_capabilities_reader=NoopCadCapabilitiesReader(),
+    )
+    description = {
+        "schema_version": "1.0",
+        "knowledge_scope": "shenbian-transformer",
+        "description_key": "run-1/vision/group-028",
+        "description_kind": "vision_component_observation",
+        "content_md": "当前图中直接观察到外圆、内圆和八个孔。",
+        "structured_content": {"schema_version": 2},
+        "source_kind": "vision_model",
+        "model_provenance": {"model": "deepseek-v4-vision"},
+        "evidence_refs": ["image:component-clean"],
+        "observation_keys": ["run-1/serial-annotation-group-028"],
+        "relation_kind": "describes",
+        "link_context": {},
+    }
+
+    with TestClient(app) as client:
+        assert sqlite_path.is_file()
+        first = client.post(
+            "/api/v1/topology-semantics/observations",
+            json=observation_payload(),
+        )
+        assert first.status_code == 200
+        assert first.json()["created"] is True
+        repeated = client.post(
+            "/api/v1/topology-semantics/observations",
+            json=observation_payload(),
+        )
+        assert repeated.status_code == 200
+        assert repeated.json()["created"] is False
+
+        written = client.post("/api/v1/topology-semantics/descriptions", json=description)
+        assert written.status_code == 200
+        assert written.json()["created"] is True
+        assert client.post(
+            "/api/v1/topology-semantics/descriptions", json=description
+        ).json()["created"] is False
+
+        patterns = client.get("/api/v1/topology-semantics/patterns").json()
+        assert patterns["total"] == 1
+        semantics = client.get("/api/v1/topology-semantics/semantics").json()
+        assert semantics["total"] == 1
+        search = client.get(
+            "/api/v1/topology-semantics/semantics/search",
+            params={"query": "八个孔"},
+        ).json()
+        assert search["total"] == 1
+        assert search["items"][0]["patterns"][0]["pattern_id"] == (
+            first.json()["pattern"]["pattern_id"]
+        )

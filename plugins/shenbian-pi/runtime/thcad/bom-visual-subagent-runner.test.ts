@@ -9,25 +9,23 @@ import {
 } from "./bom-visual-subagent-runner.ts";
 
 const validResult = {
-	schema_version: 1,
+	schema_version: 2,
 	group_id: "serial-annotation-group-028",
-	segment_understanding: "19/20/21 共同组成法兰、垫板和加强铁装配。",
+	segment_observation: "序号 19/20/21 共同指向包含矩形轮廓、同心圆和成组孔的区域。",
 	items: [19, 20, 21].map((item) => ({
 		item_number: item,
-		geometry_mapping: `序号 ${item} 对应几何`,
-		current_projection: "当前为平面投影。",
-		inferred_other_views: "剖面中表达 BOM 给定的高度与厚度。",
-		assembly_role: "局部连接与加强。",
-		mechanical_reasoning: "由 BOM、序号共同指向和图形关系推得。",
+		bom_facts: [`BOM 序号 ${item}`],
+		visible_geometry: ["当前图中可见平面几何。"],
+		bom_geometry_matches: [`序号 ${item} 的 BOM 数值与可见几何对应。`],
+		not_observed: ["BOM 中的厚度未在当前图中直接观察到。"],
 		evidence_refs: ["image:component-full", "image:component-clean", `bom:item:${item}`],
 	})),
-	assembly_relations: ["法兰、垫板与加强铁共同连接。"],
-	transformer_domain_interpretation: ["该结构用于油箱局部管路接口。"],
+	visible_relations: ["三项由确定性序号拓扑共同指向同一区域。"],
 	drawing_bom_discrepancies: [],
-	extended_reasoning: "可继续核对剖面高度、板厚和螺栓孔。",
+	unresolved_observations: ["当前图不能确认厚度方向形态。"],
 } as const;
 
-test("BOM visual parser accepts engineering inference without a confidence field", () => {
+test("BOM visual parser accepts the fact-only v2 contract", () => {
 	const parsed = parseBomGroupVisualUnderstanding(
 		`\`\`\`json\n${JSON.stringify(validResult)}\n\`\`\``,
 		"serial-annotation-group-028",
@@ -35,7 +33,8 @@ test("BOM visual parser accepts engineering inference without a confidence field
 	);
 	assert.equal(parsed.items.length, 3);
 	assert.deepEqual(parsed.items.map((item) => item.item_number), [19, 20, 21]);
-	assert.equal("confidence" in parsed, false);
+	assert.equal("assembly_role" in parsed.items[0], false);
+	assert.equal("mechanical_reasoning" in parsed.items[0], false);
 });
 
 test("BOM visual parser requires exact serial-segment coverage", () => {
@@ -49,6 +48,17 @@ test("BOM visual parser requires exact serial-segment coverage", () => {
 	);
 });
 
+test("BOM visual parser rejects the old inference contract", () => {
+	assert.throws(
+		() => parseBomGroupVisualUnderstanding(
+			JSON.stringify({ ...validResult, schema_version: 1 }),
+			"serial-annotation-group-028",
+			[19, 20, 21],
+		),
+		/schema, group_id or items/,
+	);
+});
+
 test("BOM visual parser repairs only a missing root closing brace", () => {
 	const complete = JSON.stringify(validResult);
 	const parsed = parseBomGroupVisualUnderstanding(
@@ -56,7 +66,7 @@ test("BOM visual parser repairs only a missing root closing brace", () => {
 		"serial-annotation-group-028",
 		[19, 20, 21],
 	);
-	assert.equal(parsed.extended_reasoning, validResult.extended_reasoning);
+	assert.deepEqual(parsed.unresolved_observations, validResult.unresolved_observations);
 	assert.throws(
 		() => parseBomGroupVisualUnderstanding(complete.slice(0, -2), "serial-annotation-group-028", [19, 20, 21]),
 		/incomplete JSON object|invalid JSON/,

@@ -1,6 +1,8 @@
 # CAD 原子能力查询 API
 
-本文是 CAD 原子能力的前端联调契约。接口默认读取 `cad.capabilities.curated.v2`；仅含 THCAD V24 的 `cad.capabilities.curated.v1` 仍可通过 `dataset_id` 显式查询。接口只从 PostgreSQL `ontology` schema 读取真实数据，不读取 staging JSONL，也不提供运行时 mock。
+> 当前状态：历史契约，无活动数据物化；旧 SQLite 已清理。接口不回退到 mock 或旧数据。
+
+本文是 CAD 原子能力的前端联调契约。接口默认读取 `cad.capabilities.curated.v2`；仅含 THCAD V24 的 `cad.capabilities.curated.v1` 仍可通过 `dataset_id` 显式查询。接口只从本机 SQLite 查询层读取真实数据，不读取 staging JSONL，也不提供运行时 mock。路径由 `CAD_CAPABILITIES_SQLITE` 给出。不得再写入 `DATABASE_URL`。
 
 ## 数据对象
 
@@ -98,7 +100,7 @@ GET /api/v1/cad-capabilities/atoms?surface=dotnet&observed_host_id=thcad-v24&ope
 - 缓存：带 `If-None-Match` 重新验证，命中返回 `304` 空体；支持浏览器 gzip。不同 `dataset_id` 与筛选条件具有不同 ETag；不用 `immutable`，因为同一 `dataset_id` 重导入后内容可能变化。
 - 取消：客户端断开时立即关闭流与数据库连接。
 
-实现说明：v2 入库时在 PostgreSQL 内生成 18 个 gzip 最小投影，按“数据集 + `surface` + `observed_host_id`”和数据集内容哈希失效；例如 AutoCAD `.NET` 投影为 26,778 条、约 1.07 MB，不先加载 v2 全部 334,049 条。后端首次读取后再保留进程内快照，同一分片后续的操作类型、领域标签等筛选在内存完成。当前远程链路实测该分片冷请求 59.6 秒、热请求 2.46 秒；这是实测而非 SLA。带 `q` 的请求还要匹配签名和摘要，仍走 SQL 直连流。当前不把这些不可驱逐的大对象写入 Redis。
+实现说明：v2 入库时在本机 SQLite 内生成 18 个 gzip 最小投影，按“数据集 + `surface` + `observed_host_id`”和数据集内容哈希失效；例如 AutoCAD `.NET` 投影为 26,778 条、约 1.07 MB，不先加载 v2 全部 334,049 条。后端首次读取后再保留进程内快照，同一分片后续的操作类型、领域标签等筛选在内存完成。带 `q` 的请求还要匹配签名和摘要，仍走 SQL 直连流。当前不把这些不可驱逐的大对象写入 Redis。
 
 ### `GET /api/v1/cad-capabilities/atoms/{atom_id}`
 
@@ -152,7 +154,7 @@ GET /api/v1/cad-capabilities/atoms?surface=dotnet&observed_host_id=thcad-v24&ope
 
 - 数据集不存在：`404`，`detail.code=capability_dataset_not_found`；
 - 原子不存在：`404`，`detail.code=capability_atom_not_found`；
-- PostgreSQL 不可用或数据库结果不符合契约：`503`，`detail.code=postgres_unavailable`；
+- 本机 SQLite 查询层不可用或结果不符合契约：`503`，`detail.code=postgres_unavailable`（错误码保持兼容）；
 - 查询参数越界：FastAPI `422`。
 
 错误体不包含数据库地址、SQL、绝对路径或密钥。

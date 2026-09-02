@@ -12,8 +12,8 @@ import {
 	type ParentReviewContext,
 	ThcadReviewStore,
 } from "./review-store.ts";
+import { resolveThcadVisionModel } from "./vision-model-routing.ts";
 
-export const THCAD_VISUAL_MODEL = "deepseek/deepseek-v4-flash-vision-exp";
 export const THCAD_VISUAL_THINKING = "low";
 const CHILD_TIMEOUT_MS = 10 * 60 * 1000;
 const runtimeDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -233,12 +233,13 @@ export async function runThcadVisualOverviewSubagent(
 	const systemPrompt = await readFile(agentPromptFile, "utf8");
 	const store = new ThcadReviewStore();
 	const runId = options.runId ?? createReviewRunId();
+	const visionModel = resolveThcadVisionModel(options.parent?.model);
 	const task = `按 capability 02 ${options.frameId ? `图框 ${options.frameId}` : "最外层图框"} 生成一张整图概览，并只判断宏观清晰度。`;
 	await store.beginRun({
 		runId,
 		task,
 		childSystemPrompt: systemPrompt,
-		childModel: THCAD_VISUAL_MODEL,
+		childModel: visionModel,
 		childThinkingLevel: THCAD_VISUAL_THINKING,
 		childRole: "vision",
 		cwd: options.cwd,
@@ -280,7 +281,7 @@ export async function runThcadVisualOverviewSubagent(
 			startedAtUtc,
 			finishedAtUtc: new Date().toISOString(),
 			durationMs: Date.now() - started,
-			model: THCAD_VISUAL_MODEL,
+			model: visionModel,
 			toolCallCount: 0,
 			turns: 0,
 			usage,
@@ -292,7 +293,7 @@ export async function runThcadVisualOverviewSubagent(
 		throw new Error(`THCAD_VISUAL_SUBAGENT_FAILED [${runId}]: ${diagnostic}`);
 	}
 
-	options.onProgress?.(`图框 PNG 已生成（${capture.plot.width}×${capture.plot.height}），正在调用 DeepSeek 视觉子代理…`);
+	options.onProgress?.(`图框 PNG 已生成（${capture.plot.width}×${capture.plot.height}），正在调用 ${visionModel} 视觉子代理…`);
 	const prompt = [
 		"请判断随本条 user 消息提供的唯一一张 THCAD 图纸概览是否足以进行宏观导航。",
 		"宿主已确定性验证的元数据如下；不要把它扩写成图纸业务结论：",
@@ -320,7 +321,7 @@ export async function runThcadVisualOverviewSubagent(
 		"--no-context-files",
 		"--no-approve",
 		"--no-tools",
-		"--model", THCAD_VISUAL_MODEL,
+		"--model", visionModel,
 		"--thinking", THCAD_VISUAL_THINKING,
 		"--system-prompt", systemPrompt,
 		"--",
@@ -331,13 +332,13 @@ export async function runThcadVisualOverviewSubagent(
 	let finalText = "";
 	let stderr = "";
 	let turns = 0;
-	let model = THCAD_VISUAL_MODEL;
+	let model = visionModel;
 	let stopReason: string | undefined;
 	let errorMessage: string | undefined;
 	const childEvents = createWriteStream(childEventsPath, { flags: "a", mode: 0o600 });
 	const childStderr = createWriteStream(childStderrPath, { flags: "a", mode: 0o600 });
 	await store.appendLifecycle(runId, "child_started", {
-		model: THCAD_VISUAL_MODEL,
+		model: visionModel,
 		thinking_level: THCAD_VISUAL_THINKING,
 		input_sha256: capture.plot.sha256,
 	});

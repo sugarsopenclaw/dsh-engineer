@@ -58,7 +58,7 @@ try {
         Write-Host "[1/2] FastAPI is already healthy; reusing the existing service."
     }
     else {
-        Write-Host "[1/2] Starting Shenbian FastAPI (migrations included)..."
+        Write-Host "[1/2] Starting Shenbian FastAPI (local SQLite)..."
         $backendProcess = Start-ShenbianBackend
         $ownsBackendProcess = $true
         $deadline = [DateTime]::UtcNow.AddSeconds($BackendStartupTimeoutSeconds)

@@ -22,14 +22,14 @@ from shenbian_api.application.readiness import ReadinessService
 from shenbian_api.application.topology_semantics import TopologySemanticsService
 from shenbian_api.core.config import Settings, get_settings
 from shenbian_api.infrastructure.deepseek_gateway import HttpxDeepSeekModelGateway
-from shenbian_api.infrastructure.postgres_business_requirements import (
-    PostgresBusinessRequirementsReader,
-)
-from shenbian_api.infrastructure.postgres_cad_capabilities import PostgresCadCapabilitiesReader
-from shenbian_api.infrastructure.postgres_topology_semantics import (
-    PostgresTopologySemanticsRepository,
-)
 from shenbian_api.infrastructure.probes import build_dependency_probes
+from shenbian_api.infrastructure.sqlite_business_requirements import (
+    SqliteBusinessRequirementsReader,
+)
+from shenbian_api.infrastructure.sqlite_cad_capabilities import SqliteCadCapabilitiesReader
+from shenbian_api.infrastructure.sqlite_topology_semantics import (
+    SqliteTopologySemanticsRepository,
+)
 from shenbian_api.infrastructure.yaml_registry import (
     YamlDataCatalogRegistry,
     YamlOntologyRegistry,
@@ -54,18 +54,18 @@ def create_app(
     )
     resolved_deepseek_gateway = deepseek_gateway or HttpxDeepSeekModelGateway(resolved_settings)
     resolved_business_requirements_reader = (
-        business_requirements_reader or PostgresBusinessRequirementsReader(resolved_settings)
+        business_requirements_reader or SqliteBusinessRequirementsReader(resolved_settings)
     )
     business_requirements_service = BusinessRequirementsQueryService(
         resolved_business_requirements_reader
     )
     resolved_cad_capabilities_reader = (
-        cad_capabilities_reader or PostgresCadCapabilitiesReader(resolved_settings)
+        cad_capabilities_reader or SqliteCadCapabilitiesReader(resolved_settings)
     )
     cad_capabilities_service = CadCapabilitiesQueryService(resolved_cad_capabilities_reader)
     resolved_topology_semantics_repository = (
         topology_semantics_repository
-        or PostgresTopologySemanticsRepository(resolved_settings)
+        or SqliteTopologySemanticsRepository(resolved_settings)
     )
     topology_semantics_service = TopologySemanticsService(
         resolved_topology_semantics_repository
@@ -89,9 +89,9 @@ def create_app(
                     logger.error("application resource close failed: %s", type(result).__name__)
 
     application = FastAPI(
-        title="沈变 Harness Agent API",
+        title="沈变共享 API",
         version="0.4.0",
-        description="为本地 DeepSeek Harness Agent 提供模型网关和共享业务接口。",
+        description="为本地 Pi Agent 提供 SQLite 拓扑语义存储和共享接口。",
         lifespan=lifespan,
     )
     application.state.ontology_service = OntologyQueryService(ontology_registry)

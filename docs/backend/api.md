@@ -51,16 +51,16 @@ uv run shenbian-api
 | 方法 | 路径 | 鉴权 | 说明 |
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/health/live` | 否 | 进程存活 |
-| `GET` | `/api/v1/health/ready` | 否 | 依赖就绪（PostgreSQL / Redis / OSS） |
+| `GET` | `/api/v1/health/ready` | 否 | 依赖就绪（SQLite / Redis / OSS） |
 | `GET` | `/api/v1/ontology` | 否 | Ontology 摘要 |
 | `GET` | `/api/v1/ontology/actions` | 否 | 全部动作类型契约 |
 | `GET` | `/api/v1/data-catalog` | 否 | 已登记数据集目录 |
-| `GET` | `/api/v1/business-requirements/graph` | 否 | PostgreSQL 业务需求图谱及 2D/3D 坐标 |
+| `GET` | `/api/v1/business-requirements/graph` | 否 | 本机 SQLite 业务需求图谱及 2D/3D 坐标 |
 | `GET` | `/api/v1/business-requirements/{requirement_id}` | 否 | 需求、证据、范围、验收条件和待确认项详情 |
-| `GET` | `/api/v1/cad-capabilities/atoms` | 否 | 分页查询 CAD 原子能力及属性筛选 |
-| `GET` | `/api/v1/cad-capabilities/graph-atoms` | 否 | NDJSON 批量返回筛选后的图谱最小投影 |
-| `GET` | `/api/v1/cad-capabilities/atoms/{atom_id}` | 否 | 查询单个原子的完整技术事实与分类属性 |
-| `GET` | `/api/v1/cad-capabilities/facets` | 否 | 查询技术面、宿主、操作类型等筛选项计数 |
+| `GET` | `/api/v1/cad-capabilities/atoms` | 否 | 本机 SQLite 分页查询 CAD 原子能力及属性筛选 |
+| `GET` | `/api/v1/cad-capabilities/graph-atoms` | 否 | 本机 SQLite NDJSON 批量返回筛选后的图谱最小投影 |
+| `GET` | `/api/v1/cad-capabilities/atoms/{atom_id}` | 否 | 本机 SQLite 查询单个原子的完整技术事实与分类属性 |
+| `GET` | `/api/v1/cad-capabilities/facets` | 否 | 本机 SQLite 查询技术面、宿主、操作类型等筛选项计数 |
 | `POST` | `/api/v1/llm/deepseek/chat/completions` | Bearer | DeepSeek Chat Completions 透明转发 |
 | `POST` | `/api/v1/llm/deepseek/anthropic/v1/messages` | Bearer | DeepSeek Anthropic Messages 透明转发（Harness Web Search） |
 
@@ -91,7 +91,7 @@ Host: 127.0.0.1:8000
 
 ### `GET /api/v1/health/ready`
 
-并行探测 PostgreSQL、Redis、OSS。任一失败则整体 `not_ready`，HTTP 状态为 `503`。探测超时 5 秒。错误只回异常类型名，不含连接串或密钥。
+并行探测拓扑语义 SQLite、Redis、OSS。任一失败则整体 `not_ready`，HTTP 状态为 `503`。探测超时 5 秒。错误只回异常类型名，不含连接串或密钥。
 
 **响应** `200`（全部 `ok`）
 
@@ -99,7 +99,7 @@ Host: 127.0.0.1:8000
 {
   "status": "ready",
   "dependencies": [
-    { "name": "postgresql", "status": "ok", "latency_ms": 12.34, "error_type": null },
+    { "name": "sqlite", "status": "ok", "latency_ms": 1.23, "error_type": null },
     { "name": "redis", "status": "ok", "latency_ms": 3.21, "error_type": null },
     { "name": "oss", "status": "ok", "latency_ms": 45.67, "error_type": null }
   ]
@@ -113,7 +113,7 @@ Host: 127.0.0.1:8000
   "status": "not_ready",
   "dependencies": [
     {
-      "name": "postgresql",
+      "name": "sqlite",
       "status": "error",
       "latency_ms": 8.1,
       "error_type": "TimeoutError"
@@ -125,7 +125,7 @@ Host: 127.0.0.1:8000
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `status` | `string` | `ready` 或 `not_ready` |
-| `dependencies[].name` | `string` | `postgresql` / `redis` / `oss` |
+| `dependencies[].name` | `string` | `sqlite` / `redis` / `oss` |
 | `dependencies[].status` | `string` | `ok` 或 `error` |
 | `dependencies[].latency_ms` | `number` | 该探测耗时，毫秒 |
 | `dependencies[].error_type` | `string \| null` | 失败时的异常类名 |

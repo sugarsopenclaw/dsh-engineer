@@ -155,7 +155,7 @@ Pi extension、skill 与 Agent 拥有本机系统权限，Pi 本身不是权限�
 Pi 基座不改变已有数据、Ontology、FastAPI 和 Web 前端边界。
 
 ```powershell
-# 业务需求图谱一键启动（后端迁移 + FastAPI + Vite 前端）；也可双击 start-graph.cmd
+# 业务需求图谱一键启动（FastAPI + Vite 前端）；也可双击 start-graph.cmd
 # 已运行的后端会被复用；Ctrl+C 退出前端时只会收掉由它拉起的后端。
 .\scripts\start-graph.ps1
 
@@ -171,7 +171,7 @@ pnpm test --run
 pnpm build
 ```
 
-后端也可从 `backend/` 用 `uv sync`、`uv run shenbian-api` 启动。前端不得直连 PostgreSQL、Redis、OSS 或 `client-data/`；FastAPI 也不代替本地 Pi Agent 与 THCAD 操作主循环。
+后端也可从 `backend/` 用 `uv sync`、`uv run shenbian-api` 启动。拓扑与语义只写本机 SQLite；Redis 与 OSS 适配继续保留。前端不得直连 SQLite、Redis、OSS 或 `client-data/`；FastAPI 也不代替本地 Pi Agent 与 THCAD 操作主循环。
 
 ## Harness 遗留路径
 

@@ -5,9 +5,7 @@ description = "沈变 Harness Agent 的共享 API 与模型网关"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
-    "alembic>=1.16.0",
     "alibabacloud-oss-v2",
-    "asyncpg>=0.30.0",
     "fastapi>=0.116.0",
     "httpx2>=2.12.0",
     "pydantic-settings>=2.10.0",
@@ -46,3 +44,6 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "ASYNC"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/test_sqlite_query_layer.py" = ["E402"]

@@ -12,8 +12,9 @@ from typing import Any
 import sqlalchemy as sa
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from shenbian_api.infrastructure.database import as_async_postgres_url
 from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
+
+from shenbian_api.infrastructure.database import as_async_postgres_url
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_DATASET_DIRECTORY = (
@@ -306,6 +307,11 @@ def assert_database_counts(manifest: dict[str, Any], counts: dict[str, Any]) -> 
 
 
 async def import_dataset(dataset_directory: Path) -> dict[str, Any]:
+    raise RuntimeError(
+        "PostgreSQL import for business requirements and CAD capabilities is retired. "
+        "Use data/pipelines/local_query_store/load_sqlite.py. "
+        "Do not write these datasets to DATABASE_URL."
+    )
     manifest, inventories, atoms_path = load_dataset(dataset_directory)
     dataset_id = str(manifest["dataset_id"])
     settings = DatabaseSettings()
@@ -382,6 +388,11 @@ async def import_dataset(dataset_directory: Path) -> dict[str, Any]:
 
 
 def main() -> None:
+    raise SystemExit(
+        "PostgreSQL import for business requirements and CAD capabilities is retired. "
+        "Use data/pipelines/local_query_store/load_sqlite.py. "
+        "Do not write these datasets to DATABASE_URL."
+    )
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset-dir", type=Path, default=DEFAULT_DATASET_DIRECTORY)
     args = parser.parse_args()

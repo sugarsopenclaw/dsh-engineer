@@ -46,6 +46,9 @@ other-projects/xiaoliang/.git.dsh-hidden/
 # Data Layer products — regenerate from pipelines
 data/datasets/
 
+# Local inspection dumps of a single review sample (customer-derived, not training data)
+sample/
+
 # Local CAD extractor build/output
 dev-test/**/bin/
 dev-test/**/obj/

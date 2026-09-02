@@ -10,8 +10,8 @@
 - `/shenbian-ui` 在产品界面与 Pi 原生界面之间切换。
 - `delegate_thcad_mechanical`：把确定性 01–21 取证交给 fresh 机械 child；
 - fresh `thcad-mechanical` 子 Agent：只见 `thcad_session`、`thcad_analysis`、`thcad_project_graph`，可使用 .NET 01–21；
-- `delegate_thcad_visual_overview`：用 capability 02 图框驱动 THCAD `PNGOUT`，把唯一一张整图交给固定 `deepseek-v4-flash-vision-exp` child 做宏观可读性判断；
-- `delegate_thcad_bom_close_reading`：一次高层调用内部组合 04/08/11/13/21，按共同指向的 BOM 序号段生成 THCAD 原生窗口 Plot、去干扰图和拓扑边车，再做变压器机械语义精读；局部拓扑、两图、视觉理解和父模型最终解释通过可重放 outbox 登记到 backend；跨图路由可传 `expected_document` 防止活动图错配，不固定父 Agent 的推理步骤；
+- `delegate_thcad_visual_overview`：用 capability 02 图框驱动 THCAD `PNGOUT`，把唯一一张整图交给同提供商的视觉 child 做宏观可读性判断；DeepSeek 父链用 DeepSeek Vision，xAI 父链用 Grok；
+- `delegate_thcad_bom_close_reading`：一次高层调用内部组合 04/08/11/13/21，按共同指向的 BOM 序号段生成 THCAD 原生窗口 Plot、去干扰图和拓扑边车；视觉 child 先交付事实包，完整图和去干扰图随后直接附给视觉父 Agent，由父 Agent 结合图形、数值、用户问题和机械/变压器知识推理；局部拓扑、两图、视觉理解和父模型最终解释通过可重放 outbox 登记到 backend；跨图路由可传 `expected_document` 防止活动图错配；
 - `thcad_app`：父 Agent 的图纸 status/list/open/activate/close/copy/save；客户原图强制只读，写入仅限本地 THCAD workspace；
 - `thcad_project_texts`：side-DB 构建 SHA-256 增量文字/BOM 索引；失败重扫保留 last-good，status 发现新增/过期/缺失，search 单图损坏时返回 partial 而非拖垮整库；
 - `/thcad-doctor`：只读检查 AgentBridge DLL、活动 THCAD 和当前图。

@@ -1,6 +1,6 @@
 # shenbian-api
 
-本地 DeepSeek Harness Agent 的共享 API 与模型网关。Harness/沈变插件负责理解用户任务并调用 THCAD；FastAPI 按需提供模型转发、知识和规则读取、业务 CRUD 以及 PostgreSQL/Redis/OSS 适配。
+本地 Pi Agent 的共享 API。沈变插件负责理解用户任务并调用 THCAD；FastAPI 用一份本机 SQLite 保存拓扑与语义，同时保留 Redis、OSS 适配和迁移期 DeepSeek 网关。
 
 当前第一条链路只解决一件事：Harness 的 DeepSeek 模型请求先经过本服务，再转发到 DeepSeek 上游。它覆盖主对话的 OpenAI-compatible Chat Completions，以及 Harness `web_search` 使用的 Anthropic-compatible Messages 接口；不要求上传当前 DWG，也不参与本地 CAD 图元读写。
 
@@ -8,7 +8,7 @@
 
 后端只读取仓库根目录 `.env`，不要在本目录创建第二份环境文件。
 
-从仓库根目录只启动后端（会先执行 Alembic migration）：
+从仓库根目录只启动后端：
 
 ```powershell
 .\scripts\start-backend.ps1
@@ -30,23 +30,20 @@ uv run shenbian-api
 uv run uvicorn shenbian_api.app_factory:create_app --factory --reload
 ```
 
-## 数据库迁移
+## 本机数据库
 
-后端用 Alembic 管理 PostgreSQL 表结构，连接仍只读取根 `.env`：
+FastAPI 运行时不再连接 PostgreSQL，也不再执行 Alembic。唯一活动数据库是：
 
-```powershell
-cd backend
-uv run alembic upgrade head
-```
+- `data/datasets/local/topology-semantics.sqlite`
 
-业务需求、CAD 原子能力和拓扑语义实例位于 `ontology` schema；表结构由后端迁移管理。客户需求只由 [`data/pipelines/shenbian_client_requirements/`](../data/pipelines/shenbian_client_requirements/) 导入，能力目录只由 [`data/pipelines/cad_capabilities/`](../data/pipelines/cad_capabilities/) 导入。拓扑语义由 Pi 在局部精读现场通过幂等接口登记；API 启动时不会偷偷重建或重灌数据。
+路径由根 `.env` 的 `TOPOLOGY_SEMANTICS_SQLITE` 给出。首次启动自动创建空表；之后由 Pi 的局部精读链路幂等写入。旧业务需求/CAD SQLite 已删除，线上 PostgreSQL `ontology` schema 已清空，历史数据不迁移。
 
 当前 Harness 模型链路：
 
 - `POST /api/v1/llm/deepseek/chat/completions`
 - `POST /api/v1/llm/deepseek/anthropic/v1/messages`
 
-已有的共享读取与诊断接口继续保留，但不构成 DWG 本地任务的前置流程：
+已有的共享读取与诊断接口代码继续保留，但业务需求/CAD 旧数据已经清理，不会回退读取历史库；它们也不构成 DWG 本地任务的前置流程：
 
 - `GET /api/v1/health/live`
 - `GET /api/v1/health/ready`
@@ -80,7 +77,7 @@ uv run alembic upgrade head
 - 选中图元的句柄、世界坐标路径、图层/线型/颜色和局部范围；
 - 完整 plot、去干扰 plot、确定性 sidecar 的本地引用与 SHA-256；
 - BOM 序号段和 capability 21 同定义实例覆盖证据；
-- 视觉模型结构化理解、原始输出/Session 引用和主模型最终解释。
+- 视觉子代理结构化事实、原始输出/Session 引用和主模型最终解释。
 
 Pi 先把请求写入 review bundle 内的不可变 `topology-semantics-outbox/`，再尝试本接口。同步回执位于 `.pi/runtime/thcad-reviews/semantic-sync/`，不会在 review bundle 定稿后改写其完整性清单。后端暂不可用不影响 THCAD 只读取证；恢复后在 Pi TUI 执行 `/thcad-semantic-sync` 重放。规格见 [`specs/015-topology-semantic-library/`](../specs/015-topology-semantic-library/)。
 

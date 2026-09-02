@@ -1,4 +1,7 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+
 import { Type } from "typebox";
 
 import { runThcadSubagent } from "../runtime/thcad/subagent-runner.ts";
@@ -180,12 +183,12 @@ export default function thcadMechanicalExtension(pi: ExtensionAPI): void {
 		name: "delegate_thcad_visual_overview",
 		label: "THCAD Visual Overview Subagent",
 		description: [
-			"按当前 THCAD 的 capability 02 确定性图框生成一张整图 PNG，并委派给隔离的 DeepSeek 视觉子 Agent 判断宏观清晰度。",
+			"按当前 THCAD 的 capability 02 确定性图框生成一张整图 PNG，并委派给与父 Agent 同提供商的隔离视觉子 Agent 判断宏观清晰度。",
 			"本工具只回答图像是否足以做整图概览/导航、是否需要后续局部出图；不读取精确尺寸，不形成审图结论。",
-			"出图通道只附着 thcad.exe，保存并恢复视图、布局与 DBMOD；视觉 child 无任何工具、无父上下文，固定使用 deepseek-v4-flash-vision-exp。",
+			"出图通道只附着 thcad.exe，保存并恢复视图、布局与 DBMOD；视觉 child 无任何工具、无父上下文。DeepSeek 父链使用 DeepSeek Vision，xAI 父链使用 Grok 视觉模型。",
 			"完成后先读取 host 写入的 evidence.md，再把确定性出图元数据与视觉候选判断分开表达。",
 		].join("\n"),
-		promptSnippet: "Plot a capability-02 frame and delegate one-image legibility assessment to DeepSeek vision",
+		promptSnippet: "Plot a capability-02 frame and delegate one-image legibility assessment to a provider-matched vision child",
 		promptGuidelines: [
 			"Use delegate_thcad_visual_overview when the user asks for a visual overview or whether the whole THCAD sheet is visually readable.",
 			"Treat its legibility assessment as model-derived evidence, while frame bbox, DBMOD, image hash and dimensions are deterministic host facts.",
@@ -254,17 +257,19 @@ export default function thcadMechanicalExtension(pi: ExtensionAPI): void {
 		description: [
 			"按 capability 04 确定性序号段，对 BOM 指向的局部构件做视觉精读。",
 			"宿主内部一次性组合 04 BOM/序号段、08 去标注证据、11 块实例世界坐标图元、13 工程视图和 21 同定义实例覆盖；每个序号段同时生成完整图、去干扰图和选中态拓扑。",
-			"序号段中的所有 BOM 项已确定共同指向目标；视觉 child 以 BOM 为业务准则，结合机械制图和变压器常识推理当前/其他投影、装配关系与构件作用。",
+			"序号段中的所有 BOM 项已确定共同指向目标；视觉 child 只提取可复核的 BOM、图形、数值、对应关系和未观察项，不解释用途、设计意图或其他视图。",
+			"视觉 child 跟随父 Agent 的提供商：DeepSeek 父链使用 DeepSeek Vision，xAI 父链使用 Grok 视觉模型，不再共用同一个视觉模型。",
 			"item_numbers 省略时处理当前图中全部可解析 BOM 序号段；指定时只跑包含这些序号的段，便于现场验证。",
 			"从项目文字检索跨图路由时传 expected_document；宿主会在刷新和出图前核对活动图，避免同名图或漏激活导致精读错图。该字段不改变 Agent 自主选择检索与审图步骤。",
-			"完成后先读 evidence.md；完整输入、两张图、提示词、子会话、原始输出、覆盖账本和 01–21 证据代次均保存在 review bundle，并登记到拓扑语义后端；后端暂不可用时由本地 outbox 保留。",
+			"完成后，工具会把完整图和去干扰图直接交给视觉父 Agent；父 Agent 同时读取 evidence.md、拓扑边车和 child 事实，再结合用户问题、机械与变压器知识推理。完整输入、提示词、子会话、原始输出、覆盖账本和 01–21 证据代次均保存在 review bundle，并登记到拓扑语义后端；后端暂不可用时由本地 outbox 保留。",
 		].join("\n"),
 		promptSnippet: "Close-read BOM components from deterministic serial segments, paired local renders and topology",
 		promptGuidelines: [
 			"Use delegate_thcad_bom_close_reading when the user asks what BOM-numbered components are, how jointly pointed serial balloons form one assembly segment, or requests visual understanding of all BOM items.",
 			"Omit item_numbers for an all-BOM batch. Supply item_numbers only for an explicit subset or a focused test; one member selects its whole connected serial segment.",
 			"When routing a project-search hit, pass its drawing ref as expected_document so the delegated run fails fast if another drawing is active.",
-			"After completion, read evidence_ref before answering. Keep deterministic BOM/serial/geometry evidence distinct from the vision model's mechanical interpretation, without inventing confidence downgrades.",
+			"After completion, inspect both parent image inputs (full and cleaned), read evidence_ref and the deterministic sidecar, then combine number, shape, the user's question, and mechanical/transformer knowledge in the parent answer.",
+			"The child supplies a fact packet, but it does not replace the parent visual reading. Distinguish what the parent can see, deterministic values, engineering reasoning, and unresolved content.",
 		],
 		parameters: Type.Object({
 			expected_document: Type.Optional(Type.String({ minLength: 1, maxLength: 2_000 })),
@@ -298,6 +303,19 @@ export default function thcadMechanicalExtension(pi: ExtensionAPI): void {
 			}));
 			const completed = result.groups.filter((group) => group.status === "completed").length;
 			const failed = result.groups.length - completed;
+			const completedGroups = result.groups.filter((group) => group.status === "completed");
+			const parentVisualContent = (await Promise.all(completedGroups.map(async (group) => {
+				const [fullImage, cleanImage] = await Promise.all([
+					readFile(path.resolve(ctx.cwd, group.full_image_ref)),
+					readFile(path.resolve(ctx.cwd, group.clean_image_ref)),
+				]);
+				return [
+					{ type: "text" as const, text: `Parent visual input · ${group.group_id} · full image · ${group.full_image_ref}` },
+					{ type: "image" as const, data: fullImage.toString("base64"), mimeType: "image/png" },
+					{ type: "text" as const, text: `Parent visual input · ${group.group_id} · cleaned image · ${group.clean_image_ref}` },
+					{ type: "image" as const, data: cleanImage.toString("base64"), mimeType: "image/png" },
+				];
+			}))).flat();
 			return {
 				content: [{
 					type: "text",
@@ -308,9 +326,9 @@ export default function thcadMechanicalExtension(pi: ExtensionAPI): void {
 						`Structured results: ${result.batchResultRef}`,
 						`Coverage ledger: ${result.coverageRef}`,
 						`Immutable review bundle: ${result.reviewRef} (${result.reviewStatus})`,
-						"Read the evidence before answering; BOM/serial/topology are deterministic inputs and component interpretation is model-derived.",
+						"The full and cleaned images follow in this tool result. Inspect them yourself, then combine their shapes with deterministic numbers, the child fact packet, the user's question, and mechanical/transformer knowledge.",
 					].join("\n"),
-				}],
+				}, ...parentVisualContent],
 				details: {
 					child_run_id: result.runId,
 					status: failed ? "partial" : "completed",
@@ -323,7 +341,14 @@ export default function thcadMechanicalExtension(pi: ExtensionAPI): void {
 					failed_segment_count: failed,
 					review_status: result.reviewStatus,
 					artifact_manifest_ref: result.artifactManifestRef,
-					artifact_refs: [result.evidenceRef, result.batchResultRef, result.coverageRef, result.reviewRef],
+					parent_visual_refs: completedGroups.flatMap((group) => [group.full_image_ref, group.clean_image_ref]),
+					artifact_refs: [
+						result.evidenceRef,
+						result.batchResultRef,
+						result.coverageRef,
+						...completedGroups.flatMap((group) => [group.full_image_ref, group.clean_image_ref, group.sidecar_ref]),
+						result.reviewRef,
+					],
 					semantic_sync: result.semanticSync,
 				},
 				usage: result.usage,

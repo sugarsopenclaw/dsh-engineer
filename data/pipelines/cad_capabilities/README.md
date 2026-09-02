@@ -1,6 +1,6 @@
 # CAD 原子能力 staging 管线
 
-这条管线把 THCAD/BricsCAD 的 .NET、COM、LISP/命令和原生盘点转换为可逐条处理的机器清单。原始扫描和 enrichment 先进入 staging；人工确认后由同目录的确定性管线构建 curated 数据集并写入 PostgreSQL。
+这条管线把 THCAD/BricsCAD 的 .NET、COM、LISP/命令和原生盘点转换为可逐条处理的机器清单。原始扫描和 enrichment 先进入 staging；人工确认后由同目录的确定性管线构建 curated 数据集，再由本机 SQLite 查询层导入。
 
 ## 谁负责生成 JSONL
 
@@ -171,7 +171,7 @@ uv run --project backend python data/pipelines/cad_capabilities/semantic_relatio
   --output-dir data/datasets/staging/cad-capabilities/thcad-v24.semantic
 ```
 
-## Curated 与 PostgreSQL
+## Curated 与本机 SQLite
 
 构建器支持两个不可互相覆盖的数据集版本：
 
@@ -187,18 +187,13 @@ uv run --project backend python data/pipelines/cad_capabilities/build_curated.py
 
 分别输出到 `data/datasets/curated/cad-capabilities/v1/` 与 `v2/`。构建器逐库存校验并以有界内存合并已排序片段；Native 原子没有 enrichment 时明确保存为 `classification_status=pending`，不猜测调用协议。v2 中两个宿主保持独立行，不按名称合并，也不生成同义或兼容关系。
 
-执行后端迁移并导入 PostgreSQL：
+导入本机 SQLite（默认 v2，本机生成 gzip 图投影，不经过 OSS）：
 
 ```powershell
-cd backend
-uv run alembic upgrade head
-cd ..
-uv run --project backend python data/pipelines/cad_capabilities/load_postgres_via_oss.py
+uv run --project backend python data/pipelines/local_query_store/load_sqlite.py --kind cad-capabilities
 ```
 
-大体量 v2 默认使用 `load_postgres_via_oss.py`：本地把 584 MB JSONL 压为约 46 MB，上传一个短期私有 OSS 对象，由数据库主机通过预签名 HTTPS 直接拉取；正式对象仍在 PostgreSQL 单事务物化，临时 OSS 对象和 staging 表在结束时删除。导入同时生成 18 个与 dataset 内容哈希绑定的 gzip 图投影，避免批量 API 冷启动逐行跨公网读取。
-
-传统 `load_postgres.py` 默认仍指向较小的 v1，作为没有 OSS/数据库服务端拉取条件时的兼容入口。它不会生成图投影；不要用它覆盖生产 v2。两个导入器都只替换输入 manifest 对应的 `dataset_id`，所以导入 v2 不会覆盖 v1。当前物化范围只有库存、原子属性和同源传输投影；SemanticCapability、Logic 和运行矩阵仍留在独立数据层。
+默认写入 `data/datasets/local/cad-capabilities.sqlite`。旧的 `load_postgres.py` 与 `load_postgres_via_oss.py` 入口会立即失败，不得再对 `DATABASE_URL` 写入。当前物化范围只有库存、原子属性和同源传输投影；SemanticCapability、Logic 和运行矩阵仍留在独立数据层。详见 [`../local_query_store/README.md`](../local_query_store/README.md)。
 
 完整要求见 [`specs/005-cad-capability-catalog/`](../../../specs/005-cad-capability-catalog/)。
 
