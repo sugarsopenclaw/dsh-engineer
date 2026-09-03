@@ -37,6 +37,20 @@ if (-not $UseUserPiHome) {
     Write-Host "Using isolated project Pi state at $projectPiHome."
 }
 
+if ($env:OS -eq "Windows_NT") {
+    $bashPath = Resolve-PiBashShell
+    if (-not $bashPath) {
+        $searched = @(Get-PiBashShellCandidates | Select-Object -Unique)
+        $searchedText = ($searched | ForEach-Object { "  $_" }) -join [Environment]::NewLine
+        throw "Pi bash tool requires Git Bash. Install Git for Windows from https://git-scm.com/download/win. User-scope Git under %LOCALAPPDATA%\Programs\Git is supported. WSL's C:\Windows\System32\bash.exe is ignored because it fails without a Linux distro.`nSearched:`n$searchedText"
+    }
+    Set-PiProcessBashPath -BashPath $bashPath
+    if (-not $UseUserPiHome) {
+        $bashPath = Merge-PiRuntimeShellPath -AgentDirectory $projectPiHome -BashPath $bashPath
+    }
+    Write-Host "Using bash at $bashPath."
+}
+
 if (-not $UseUserSkills) {
     $controlledSkillArguments = @("--no-skills")
     $projectSkills = Join-Path $repositoryRoot "plugins/shenbian-pi/skills"

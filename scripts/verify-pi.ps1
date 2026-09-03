@@ -11,6 +11,12 @@ $piCli = Join-Path $piDirectory "packages/coding-agent/dist/bundle/cli.js"
 $baseline = Get-PiBaseline
 $nodePath = Assert-PiNodeVersion -MinimumVersion $baseline.MinimumNodeVersion
 $gitPath = Get-RequiredCommand -Name "git"
+if ($env:OS -eq "Windows_NT") {
+    $bashPath = Resolve-PiBashShell
+    if (-not $bashPath) {
+        throw "Git Bash was not found. Pi's bash tool needs Git for Windows (not only git.exe, and not WSL's System32\\bash.exe)."
+    }
+}
 
 if (-not (Test-Path -LiteralPath (Join-Path $piDirectory "package.json"))) {
     throw "Pi submodule is not initialized. Run scripts/bootstrap-pi.ps1."

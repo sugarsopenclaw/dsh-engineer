@@ -1,12 +1,13 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 
 import { Type } from "typebox";
 
 import { runThcadSubagent } from "../runtime/thcad/subagent-runner.ts";
 import { runThcadVisualOverviewSubagent } from "../runtime/thcad/visual-subagent-runner.ts";
-import { runThcadBomCloseReadingSubagent } from "../runtime/thcad/bom-visual-subagent-runner.ts";
+import {
+	buildBomCloseReadingParentContent,
+	runThcadBomCloseReadingSubagent,
+} from "../runtime/thcad/bom-visual-subagent-runner.ts";
 import { ThcadBridgeClient } from "../runtime/thcad/bridge-client.ts";
 import { serializeCadWork } from "../runtime/thcad/cad-queue.ts";
 import { bridgeRoot, toProjectRef } from "../runtime/thcad/paths.ts";
@@ -14,6 +15,7 @@ import { textIndexStatus } from "../runtime/thcad/text-index.ts";
 import {
 	assistantText,
 	createReviewRunId,
+	parentReviewSettlementStatus,
 	type ParentReviewContext,
 	ThcadReviewStore,
 } from "../runtime/thcad/review-store.ts";
@@ -22,6 +24,14 @@ import { TopologySemanticsRecorder } from "../runtime/thcad/topology-semantics.t
 interface ActiveParentRun extends ParentReviewContext {
 	runIds: Set<string>;
 	lastMessages?: unknown[];
+}
+
+function latestAssistantMessage(messages: unknown[] | undefined): unknown {
+	return [...(messages ?? [])].reverse().find((message) => (
+		Boolean(message)
+		&& typeof message === "object"
+		&& (message as { role?: unknown }).role === "assistant"
+	));
 }
 
 export default function thcadMechanicalExtension(pi: ExtensionAPI): void {
@@ -38,16 +48,12 @@ export default function thcadMechanicalExtension(pi: ExtensionAPI): void {
 		const active = activeParentRun;
 		activeParentRun = undefined;
 		if (!active?.runIds.size) return;
-		const finalMessage = [...(active.lastMessages ?? [])].reverse().find((message) => (
-			Boolean(message)
-			&& typeof message === "object"
-			&& (message as { role?: unknown }).role === "assistant"
-		));
+		const finalMessage = latestAssistantMessage(active.lastMessages);
 		for (const runId of active.runIds) {
 			if (finalizedRuns.has(runId)) continue;
 			try {
 				const finalText = assistantText(finalMessage);
-				if (finalText) {
+				if (status === "completed" && finalText) {
 					const sync = await topologyRecorder.recordParentInterpretation({
 						runId,
 						content: finalText,
@@ -101,7 +107,10 @@ export default function thcadMechanicalExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.on("agent_settled", async (_event, ctx) => {
-		await finalizeParentRun("completed", ctx);
+		await finalizeParentRun(
+			parentReviewSettlementStatus(latestAssistantMessage(activeParentRun?.lastMessages)),
+			ctx,
+		);
 	});
 
 	pi.on("session_shutdown", async (_event, ctx) => {
@@ -256,20 +265,20 @@ export default function thcadMechanicalExtension(pi: ExtensionAPI): void {
 		label: "THCAD BOM Component Close Reading",
 		description: [
 			"按 capability 04 确定性序号段，对 BOM 指向的局部构件做视觉精读。",
-			"宿主内部一次性组合 04 BOM/序号段、08 去标注证据、11 块实例世界坐标图元、13 工程视图和 21 同定义实例覆盖；每个序号段同时生成完整图、去干扰图和选中态拓扑。",
+			"宿主内部一次性组合 04 BOM/序号段、08 去标注证据、11 块实例世界坐标图元、13 工程视图和 21 同定义实例覆盖；先为全部序号段串行冻结完整图、去干扰图和选中态拓扑，再复用现有无工具视觉 child 最多 10 路并发理解。",
 			"序号段中的所有 BOM 项已确定共同指向目标；视觉 child 只提取可复核的 BOM、图形、数值、对应关系和未观察项，不解释用途、设计意图或其他视图。",
 			"视觉 child 跟随父 Agent 的提供商：DeepSeek 父链使用 DeepSeek Vision，xAI 父链使用 Grok 视觉模型，不再共用同一个视觉模型。",
 			"item_numbers 省略时处理当前图中全部可解析 BOM 序号段；指定时只跑包含这些序号的段，便于现场验证。",
 			"从项目文字检索跨图路由时传 expected_document；宿主会在刷新和出图前核对活动图，避免同名图或漏激活导致精读错图。该字段不改变 Agent 自主选择检索与审图步骤。",
-			"完成后，工具会把完整图和去干扰图直接交给视觉父 Agent；父 Agent 同时读取 evidence.md、拓扑边车和 child 事实，再结合用户问题、机械与变压器知识推理。完整输入、提示词、子会话、原始输出、覆盖账本和 01–21 证据代次均保存在 review bundle，并登记到拓扑语义后端；后端暂不可用时由本地 outbox 保留。",
+			"完成后，工具只向父 Agent 返回全部序号段的完成清单，以及 evidence.md、结构化结果、覆盖账本、拓扑边车、完整图和去干扰图的路径，不把批量图片字节重复塞入父上下文。父 Agent 先基于 child 事实汇总，需要复核某段时再读取对应图片。完整输入、提示词、子会话、原始输出、覆盖账本和 01–21 证据代次均保存在 review bundle，并登记到拓扑语义后端；后端暂不可用时由本地 outbox 保留。",
 		].join("\n"),
 		promptSnippet: "Close-read BOM components from deterministic serial segments, paired local renders and topology",
 		promptGuidelines: [
 			"Use delegate_thcad_bom_close_reading when the user asks what BOM-numbered components are, how jointly pointed serial balloons form one assembly segment, or requests visual understanding of all BOM items.",
 			"Omit item_numbers for an all-BOM batch. Supply item_numbers only for an explicit subset or a focused test; one member selects its whole connected serial segment.",
 			"When routing a project-search hit, pass its drawing ref as expected_document so the delegated run fails fast if another drawing is active.",
-			"After completion, inspect both parent image inputs (full and cleaned), read evidence_ref and the deterministic sidecar, then combine number, shape, the user's question, and mechanical/transformer knowledge in the parent answer.",
-			"The child supplies a fact packet, but it does not replace the parent visual reading. Distinguish what the parent can see, deterministic values, engineering reasoning, and unresolved content.",
+			"After completion, read the returned group manifest, evidence_ref, structured results and deterministic sidecars. Open only the relevant full or cleaned image refs when visual reinspection is needed, then combine the child facts with the user's question and mechanical/transformer knowledge.",
+			"Use the child fact packets for batch synthesis. Keep child observations, deterministic values, parent engineering reasoning and unresolved content distinct.",
 		],
 		parameters: Type.Object({
 			expected_document: Type.Optional(Type.String({ minLength: 1, maxLength: 2_000 })),
@@ -304,31 +313,8 @@ export default function thcadMechanicalExtension(pi: ExtensionAPI): void {
 			const completed = result.groups.filter((group) => group.status === "completed").length;
 			const failed = result.groups.length - completed;
 			const completedGroups = result.groups.filter((group) => group.status === "completed");
-			const parentVisualContent = (await Promise.all(completedGroups.map(async (group) => {
-				const [fullImage, cleanImage] = await Promise.all([
-					readFile(path.resolve(ctx.cwd, group.full_image_ref)),
-					readFile(path.resolve(ctx.cwd, group.clean_image_ref)),
-				]);
-				return [
-					{ type: "text" as const, text: `Parent visual input · ${group.group_id} · full image · ${group.full_image_ref}` },
-					{ type: "image" as const, data: fullImage.toString("base64"), mimeType: "image/png" },
-					{ type: "text" as const, text: `Parent visual input · ${group.group_id} · cleaned image · ${group.clean_image_ref}` },
-					{ type: "image" as const, data: cleanImage.toString("base64"), mimeType: "image/png" },
-				];
-			}))).flat();
 			return {
-				content: [{
-					type: "text",
-					text: [
-						"THCAD BOM component close-reading evidence pack saved.",
-						`Segments: ${completed}/${result.groups.length} completed${failed ? `, ${failed} failed` : ""}.`,
-						`Evidence: ${result.evidenceRef}`,
-						`Structured results: ${result.batchResultRef}`,
-						`Coverage ledger: ${result.coverageRef}`,
-						`Immutable review bundle: ${result.reviewRef} (${result.reviewStatus})`,
-						"The full and cleaned images follow in this tool result. Inspect them yourself, then combine their shapes with deterministic numbers, the child fact packet, the user's question, and mechanical/transformer knowledge.",
-					].join("\n"),
-				}, ...parentVisualContent],
+				content: buildBomCloseReadingParentContent(result),
 				details: {
 					child_run_id: result.runId,
 					status: failed ? "partial" : "completed",

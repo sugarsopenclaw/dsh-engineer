@@ -29,6 +29,7 @@ import { resolveThcadVisionModel } from "./vision-model-routing.ts";
 
 export const THCAD_BOM_VISION_THINKING = process.env.SHENBIAN_THCAD_VISION_THINKING?.trim()
 	|| "high";
+export const THCAD_BOM_VISION_CONCURRENCY = 10;
 const CHILD_TIMEOUT_MS = 15 * 60 * 1000;
 const runtimeDirectory = path.dirname(fileURLToPath(import.meta.url));
 const agentPromptFile = path.resolve(runtimeDirectory, "../../agents/thcad-bom-close-reading.md");
@@ -94,6 +95,68 @@ export interface ThcadBomCloseReadingResult {
 	semanticSync: TopologySemanticSyncResult;
 }
 
+type BomCloseReadingParentGroup = Pick<
+	BomCloseReadingGroupResult,
+	| "group_id"
+	| "item_numbers"
+	| "status"
+	| "error"
+	| "full_image_ref"
+	| "clean_image_ref"
+	| "sidecar_ref"
+	| "child_session_ref"
+>;
+
+export interface BomCloseReadingParentHandoff {
+	runId: string;
+	evidenceRef: string;
+	reviewRef: string;
+	batchResultRef: string;
+	coverageRef: string;
+	reviewStatus: "complete" | "partial";
+	groups: BomCloseReadingParentGroup[];
+}
+
+export function buildBomCloseReadingParentContent(
+	result: BomCloseReadingParentHandoff,
+): Array<{ type: "text"; text: string }> {
+	const allItems = new Set(result.groups.flatMap((group) => group.item_numbers));
+	const completedGroups = result.groups.filter((group) => group.status === "completed");
+	const failedGroups = result.groups.filter((group) => group.status === "failed");
+	const completedItems = new Set(completedGroups.flatMap((group) => group.item_numbers));
+	const failedItems = new Set(failedGroups.flatMap((group) => group.item_numbers));
+	const groupManifest = result.groups.map((group) => {
+		const failure = group.status === "failed" && group.error
+			? ` | error=${JSON.stringify(group.error)}`
+			: "";
+		return [
+			`- ${group.group_id}`,
+			`items=${group.item_numbers.join(",")}`,
+			`status=${group.status}${failure}`,
+			`full_image=${group.full_image_ref}`,
+			`clean_image=${group.clean_image_ref}`,
+			`sidecar=${group.sidecar_ref}`,
+			`child_session=${group.child_session_ref}`,
+		].join(" | ");
+	});
+	return [{
+		type: "text",
+		text: [
+			"THCAD BOM component close-reading evidence pack saved.",
+			`Run: ${result.runId}`,
+			`Items: ${completedItems.size}/${allItems.size} completed${failedItems.size ? `, ${failedItems.size} failed` : ""}.`,
+			`Segments: ${completedGroups.length}/${result.groups.length} completed${failedGroups.length ? `, ${failedGroups.length} failed` : ""}.`,
+			`Evidence: ${result.evidenceRef}`,
+			`Structured results: ${result.batchResultRef}`,
+			`Coverage ledger: ${result.coverageRef}`,
+			`Immutable review bundle: ${result.reviewRef} (${result.reviewStatus})`,
+			"Group manifest:",
+			...groupManifest,
+			"Read the evidence and structured results before answering. Image bytes are not embedded in this result; open a listed full or cleaned image only when that group needs visual reinspection.",
+		].join("\n"),
+	}];
+}
+
 export interface RunThcadBomCloseReadingOptions {
 	cwd: string;
 	itemNumbers?: number[];
@@ -126,6 +189,29 @@ function addUsage(target: ChildUsage, source: ChildUsage): void {
 	target.cost.cacheRead += source.cost.cacheRead;
 	target.cost.cacheWrite += source.cost.cacheWrite;
 	target.cost.total += source.cost.total;
+}
+
+export async function mapWithConcurrency<T, TResult>(
+	items: readonly T[],
+	concurrency: number,
+	worker: (item: T, index: number) => Promise<TResult>,
+): Promise<TResult[]> {
+	if (!Number.isInteger(concurrency) || concurrency < 1) throw new Error("INVALID_CONCURRENCY");
+	const results = new Array<TResult>(items.length);
+	let nextIndex = 0;
+	const runWorker = async (): Promise<void> => {
+		while (true) {
+			const index = nextIndex;
+			nextIndex += 1;
+			if (index >= items.length) return;
+			results[index] = await worker(items[index], index);
+		}
+	};
+	await Promise.all(Array.from(
+		{ length: Math.min(concurrency, items.length) },
+		() => runWorker(),
+	));
+	return results;
 }
 
 function getPiInvocation(args: string[]): { command: string; args: string[] } {
@@ -601,11 +687,12 @@ export async function runThcadBomCloseReadingSubagent(
 	}
 	await store.snapshotChildInputs(runId, snapshotRequests);
 
-	const groupResults: BomCloseReadingGroupResult[] = [];
-	for (let index = 0; index < renderedGroups.length; index += 1) {
+	const groupResults = new Array<BomCloseReadingGroupResult>(renderedGroups.length);
+	const visualConcurrency = Math.min(THCAD_BOM_VISION_CONCURRENCY, renderedGroups.length);
+	options.onProgress?.(`视觉输入已全部冻结，正在以 ${visualConcurrency} 路并发精读 ${renderedGroups.length} 个序号段…`);
+	let settledGroups = 0;
+	const runVisualGroup = async (current: (typeof renderedGroups)[number], index: number): Promise<void> => {
 		if (options.signal?.aborted) throw new Error("SUBAGENT_CANCELLED");
-		const current = renderedGroups[index];
-		options.onProgress?.(`正在精读序号段 ${index + 1}/${renderedGroups.length}：${current.plan.serial_group.item_numbers.join("/")}…`);
 		const groupStarted = Date.now();
 		let childUsage = emptyUsage();
 		let turns = 0;
@@ -652,7 +739,7 @@ export async function runThcadBomCloseReadingSubagent(
 				}, null, 2)}\n`,
 				{ flag: "wx", mode: 0o600 },
 			);
-			groupResults.push({
+			groupResults[index] = {
 				group_id: current.plan.group_id,
 				item_numbers: current.plan.serial_group.item_numbers,
 				status: "completed",
@@ -665,15 +752,17 @@ export async function runThcadBomCloseReadingSubagent(
 				duration_ms: Date.now() - groupStarted,
 				turns,
 				usage: childUsage,
-			});
+			};
 			await store.appendLifecycle(runId, "bom_group_child_completed", {
 				group_id: current.plan.group_id,
 				item_numbers: current.plan.serial_group.item_numbers,
 			});
+			settledGroups += 1;
+			options.onProgress?.(`BOM 视觉精读已完成 ${settledGroups}/${renderedGroups.length} 个序号段…`);
 		} catch (error) {
 			if (options.signal?.aborted) throw error;
 			const diagnostic = safeText(String(error), 3000);
-			groupResults.push({
+			groupResults[index] = {
 				group_id: current.plan.group_id,
 				item_numbers: current.plan.serial_group.item_numbers,
 				status: "failed",
@@ -686,13 +775,16 @@ export async function runThcadBomCloseReadingSubagent(
 				duration_ms: Date.now() - groupStarted,
 				turns,
 				usage: childUsage,
-			});
+			};
 			await store.appendLifecycle(runId, "bom_group_child_failed", {
 				group_id: current.plan.group_id,
 				error: diagnostic,
 			});
+			settledGroups += 1;
+			options.onProgress?.(`BOM 视觉精读已完成 ${settledGroups}/${renderedGroups.length} 个序号段…`);
 		}
-	}
+	};
+	await mapWithConcurrency(renderedGroups, THCAD_BOM_VISION_CONCURRENCY, runVisualGroup);
 
 	const completed = groupResults.filter((group) => group.status === "completed");
 	const failed = groupResults.filter((group) => group.status === "failed");

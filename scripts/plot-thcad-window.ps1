@@ -96,8 +96,7 @@ function Resolve-GeneratedPdf([string]$RequestedPath) {
         [IO.Path]::ChangeExtension($RequestedPath, '.pdf')
     )) {
         if (Test-Path -LiteralPath $candidate -PathType Leaf) {
-            $item = Get-Item -LiteralPath $candidate
-            if ($item.Length -gt 2048) { return $item.FullName }
+            return (Get-Item -LiteralPath $candidate).FullName
         }
     }
     return $null
@@ -228,7 +227,7 @@ try {
     $plotResult = $document.Plot.PlotToFile($requestedPath)
     Wait-ThcadQuiescent $application 60
     $pdfPath = Resolve-GeneratedPdf $requestedPath
-    if ($plotResult -eq $false -or -not $pdfPath) {
+    if (-not $pdfPath) {
         Throw-StableError 'PLOT_EMPTY' 'THCAD window plot did not generate a usable PDF.'
     }
     $file = Get-Item -LiteralPath $pdfPath

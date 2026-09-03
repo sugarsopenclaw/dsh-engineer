@@ -224,6 +224,14 @@ export function assistantText(message: unknown): string {
 		.trim();
 }
 
+export function parentReviewSettlementStatus(message: unknown): "completed" | "interrupted" {
+	if (!message || typeof message !== "object") return "interrupted";
+	const value = message as { role?: unknown; stopReason?: unknown };
+	return value.role === "assistant" && value.stopReason === "stop" && assistantText(message)
+		? "completed"
+		: "interrupted";
+}
+
 export function createReviewRunId(): string {
 	return `thcad-${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID()}`;
 }
@@ -235,6 +243,7 @@ export class ThcadReviewStore {
 	readonly cacheRoot: string;
 	readonly bridgeRoot: string;
 	readonly projectGraphRoot: string;
+	private lifecycleQueue: Promise<void> = Promise.resolve();
 
 	constructor(options: {
 		root?: string;
@@ -386,10 +395,13 @@ export class ThcadReviewStore {
 
 	async appendLifecycle(runId: string, event: string, details: JsonRecord = {}): Promise<void> {
 		const target = path.join(this.runDirectory(runId), "lifecycle.jsonl");
-		await appendFile(target, `${JSON.stringify({ at_utc: utcNow(), event, ...details })}\n`, {
+		const append = () => appendFile(target, `${JSON.stringify({ at_utc: utcNow(), event, ...details })}\n`, {
 			encoding: "utf8",
 			mode: 0o600,
 		});
+		const result = this.lifecycleQueue.then(append, append);
+		this.lifecycleQueue = result.then(() => undefined, () => undefined);
+		await result;
 	}
 
 	async recordChildResult(runId: string, result: ChildReviewResult): Promise<void> {

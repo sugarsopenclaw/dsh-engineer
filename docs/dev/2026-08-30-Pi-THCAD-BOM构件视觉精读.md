@@ -34,7 +34,7 @@
 
 - .NET 直接告诉 child 序号段成员共同指向目标；图中不必包含气泡。
 - child 只提取 BOM、当前图形、数值、对应关系与未观察项，不解释用途、设计意图或其他视图。机械与变压器推理由主 Agent 结合用户问题完成。
-- child 的事实包不能代替主 Agent 看图。工具结果会把完整图和去干扰图直接附给支持视觉的主 Agent；主 Agent 同时读取两图、确定性拓扑、BOM 和 child 事实，再做数形结合推理。
+- child 完成后，工具向主 Agent 返回全部序号段清单、完成情况、证据与结构化结果路径，以及每段完整图、去干扰图和拓扑边车路径，不重复附加批量图片字节。主 Agent 先基于 child 事实做批量汇总，需要视觉复核时再按清单读取对应图片并做数形结合推理。
 - 输出按序号覆盖 `bom_facts`、`visible_geometry`、`bom_geometry_matches`、`not_observed` 和 `evidence_refs`，段级只保存可见关系、图/BOM 冲突和未决观察。
 - 视觉模型跟随父 Agent 提供商：DeepSeek 父链默认 `deepseek/deepseek-v4-flash-vision-exp`，xAI 父链默认 `xai/grok-4.6`。根 `.env` 分别用 `SHENBIAN_THCAD_DEEPSEEK_VISION_MODEL`、`SHENBIAN_THCAD_XAI_VISION_MODEL` 配置；思考级别仍由 `SHENBIAN_THCAD_VISION_THINKING` 配置。
 

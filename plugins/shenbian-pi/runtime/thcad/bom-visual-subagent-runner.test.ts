@@ -5,7 +5,10 @@ import { bomCloseReadingImageDimensions, prepareBomCloseReadingPlan } from "./bo
 import type { ThcadBridgeClient } from "./bridge-client.ts";
 import {
 	assistantResultText,
+	buildBomCloseReadingParentContent,
+	mapWithConcurrency,
 	parseBomGroupVisualUnderstanding,
+	THCAD_BOM_VISION_CONCURRENCY,
 } from "./bom-visual-subagent-runner.ts";
 
 const validResult = {
@@ -102,6 +105,63 @@ test("BOM visual child prefers final text over reasoning", () => {
 test("paired BOM renders use identical bounded dimensions", () => {
 	assert.deepEqual(bomCloseReadingImageDimensions([0, 0, 600, 600]), { width: 2048, height: 2048 });
 	assert.deepEqual(bomCloseReadingImageDimensions([0, 0, 1200, 600]), { width: 2048, height: 1024 });
+});
+
+test("BOM visual scheduler runs at most 10 children and preserves segment order", async () => {
+	assert.equal(THCAD_BOM_VISION_CONCURRENCY, 10);
+	const items = Array.from({ length: 23 }, (_, index) => index);
+	let active = 0;
+	let peak = 0;
+	const results = await mapWithConcurrency(items, THCAD_BOM_VISION_CONCURRENCY, async (item) => {
+		active += 1;
+		peak = Math.max(peak, active);
+		await new Promise((resolve) => setTimeout(resolve, 5 + (item % 3)));
+		active -= 1;
+		return `segment-${item}`;
+	});
+	assert.equal(peak, 10);
+	assert.deepEqual(results, items.map((item) => `segment-${item}`));
+});
+
+test("BOM parent handoff returns a complete text manifest without embedded images", () => {
+	const content = buildBomCloseReadingParentContent({
+		runId: "thcad-test-bom-parent-handoff",
+		evidenceRef: ".pi/runtime/reviews/run/evidence.md",
+		batchResultRef: ".pi/runtime/reviews/run/bom-understanding.jsonl",
+		coverageRef: ".pi/runtime/reviews/run/coverage.json",
+		reviewRef: ".pi/runtime/reviews/run",
+		reviewStatus: "partial",
+		groups: [
+			{
+				group_id: "serial-annotation-group-001",
+				item_numbers: [1, 2],
+				status: "completed",
+				full_image_ref: "groups/001/component-full.png",
+				clean_image_ref: "groups/001/component-clean.png",
+				sidecar_ref: "groups/001/component-clean.sidecar.json",
+				child_session_ref: "groups/001/child-session.jsonl",
+			},
+			{
+				group_id: "serial-annotation-group-002",
+				item_numbers: [3],
+				status: "failed",
+				error: "provider failed",
+				full_image_ref: "groups/002/component-full.png",
+				clean_image_ref: "groups/002/component-clean.png",
+				sidecar_ref: "groups/002/component-clean.sidecar.json",
+				child_session_ref: "groups/002/child-session.jsonl",
+			},
+		],
+	});
+	assert.equal(content.length, 1);
+	assert.equal(content[0]?.type, "text");
+	assert.equal("data" in content[0], false);
+	assert.match(content[0]?.text ?? "", /Items: 2\/3 completed, 1 failed/);
+	assert.match(content[0]?.text ?? "", /serial-annotation-group-001.*component-full\.png/);
+	assert.match(content[0]?.text ?? "", /serial-annotation-group-002.*status=failed.*provider failed/);
+	assert.match(content[0]?.text ?? "", /evidence\.md/);
+	assert.match(content[0]?.text ?? "", /bom-understanding\.jsonl/);
+	assert.match(content[0]?.text ?? "", /coverage\.json/);
 });
 
 test("BOM close reading rejects an active drawing that differs from expected_document", async () => {

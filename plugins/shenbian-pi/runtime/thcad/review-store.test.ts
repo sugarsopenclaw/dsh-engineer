@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { exportReviewCandidates } from "./review-dataset.ts";
-import { ThcadReviewStore } from "./review-store.ts";
+import { parentReviewSettlementStatus, ThcadReviewStore } from "./review-store.ts";
 import { buildEvidenceContent } from "./subagent-runner.ts";
 
 async function startRun(
@@ -37,6 +37,26 @@ async function startRun(
 	});
 	await store.writeEvidence(runId, "# evidence\n");
 }
+
+test("parent review is complete only after a non-empty stopped assistant response", () => {
+	assert.equal(parentReviewSettlementStatus({
+		role: "assistant",
+		stopReason: "stop",
+		content: [{ type: "text", text: "最终汇总" }],
+	}), "completed");
+	for (const stopReason of ["error", "aborted", "length", "toolUse", "deferred"]) {
+		assert.equal(parentReviewSettlementStatus({
+			role: "assistant",
+			stopReason,
+			content: [{ type: "text", text: "未完成" }],
+		}), "interrupted");
+	}
+	assert.equal(parentReviewSettlementStatus({
+		role: "assistant",
+		stopReason: "stop",
+		content: [],
+	}), "interrupted");
+});
 
 test("review CAS preserves overwritten artifacts and deduplicates unchanged generations", async () => {
 	const root = await mkdtemp(path.join(os.tmpdir(), "shenbian-thcad-review-"));
@@ -151,6 +171,25 @@ test("review run ids cannot escape the local runs root", async () => {
 	try {
 		const store = new ThcadReviewStore({ root: path.join(root, "reviews"), bridgeRoot: path.join(root, "bridge") });
 		assert.throws(() => store.runDirectory("../outside"), /INVALID_REVIEW_RUN_ID/);
+	} finally {
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
+test("review lifecycle remains ordered under concurrent BOM child updates", async () => {
+	const root = await mkdtemp(path.join(os.tmpdir(), "shenbian-thcad-review-lifecycle-"));
+	try {
+		const store = new ThcadReviewStore({ root: path.join(root, "reviews"), bridgeRoot: path.join(root, "bridge") });
+		const runId = "thcad-test-concurrent-lifecycle";
+		await mkdir(store.runDirectory(runId), { recursive: true });
+		await Promise.all(Array.from({ length: 20 }, (_, index) => (
+			store.appendLifecycle(runId, "bom_group_child_completed", { index })
+		)));
+		const events = (await readFile(path.join(store.runDirectory(runId), "lifecycle.jsonl"), "utf8"))
+			.trim()
+			.split("\n")
+			.map((line) => JSON.parse(line) as { event: string; index: number });
+		assert.deepEqual(events.map((event) => event.index), Array.from({ length: 20 }, (_, index) => index));
 	} finally {
 		await rm(root, { recursive: true, force: true });
 	}
