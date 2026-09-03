@@ -309,11 +309,10 @@ class ConflictTopologyRepository(RecordingTopologyRepository):
         raise TopologySemanticConflictError("same key, different payload")
 
 
-def topology_client(settings, deepseek_gateway, repository) -> TestClient:
+def topology_client(settings, repository) -> TestClient:
     app = create_app(
         settings=settings,
         probes=[HealthyProbe("postgresql"), HealthyProbe("redis"), HealthyProbe("oss")],
-        deepseek_gateway=deepseek_gateway,
         business_requirements_reader=NoopBusinessRequirementsReader(),
         cad_capabilities_reader=NoopCadCapabilitiesReader(),
         topology_semantics_repository=repository,
@@ -323,10 +322,9 @@ def topology_client(settings, deepseek_gateway, repository) -> TestClient:
 
 def test_records_local_topology_plots_bom_21_and_vision_semantics(
     settings,
-    deepseek_gateway,
 ) -> None:
     repository = RecordingTopologyRepository()
-    with topology_client(settings, deepseek_gateway, repository) as client:
+    with topology_client(settings, repository) as client:
         response = client.post(
             "/api/v1/topology-semantics/observations",
             json=observation_payload(),
@@ -372,10 +370,9 @@ def test_records_local_topology_plots_bom_21_and_vision_semantics(
 
 def test_matches_hashes_and_semantic_text_returns_candidate_topology(
     settings,
-    deepseek_gateway,
 ) -> None:
     repository = RecordingTopologyRepository()
-    with topology_client(settings, deepseek_gateway, repository) as client:
+    with topology_client(settings, repository) as client:
         match = client.post(
             "/api/v1/topology-semantics/match",
             json={
@@ -400,10 +397,9 @@ def test_matches_hashes_and_semantic_text_returns_candidate_topology(
         assert search.json()["items"][0]["patterns"][0]["pattern_id"] == "topo-1"
 
 
-def test_idempotency_conflict_is_public_409(settings, deepseek_gateway) -> None:
+def test_idempotency_conflict_is_public_409(settings) -> None:
     with topology_client(
         settings,
-        deepseek_gateway,
         ConflictTopologyRepository(),
     ) as client:
         response = client.post(
@@ -417,7 +413,6 @@ def test_idempotency_conflict_is_public_409(settings, deepseek_gateway) -> None:
 def test_sqlite_topology_repository_is_clean_persistent_and_idempotent(
     tmp_path: Path,
     settings,
-    deepseek_gateway,
 ) -> None:
     sqlite_path = tmp_path / "topology-semantics.sqlite"
     sqlite_settings = settings.model_copy(
@@ -426,7 +421,6 @@ def test_sqlite_topology_repository_is_clean_persistent_and_idempotent(
     app = create_app(
         settings=sqlite_settings,
         probes=[HealthyProbe("sqlite"), HealthyProbe("redis"), HealthyProbe("oss")],
-        deepseek_gateway=deepseek_gateway,
         business_requirements_reader=NoopBusinessRequirementsReader(),
         cad_capabilities_reader=NoopCadCapabilitiesReader(),
     )

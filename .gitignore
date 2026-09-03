@@ -25,10 +25,12 @@ __pycache__/
 .ruff_cache/
 .mypy_cache/
 
-# Secrets and local harness state — never commit
+# Secrets — never commit
 .env
 .env.*
 !.env.example
+
+# Local leftover from the retired DeepSeek Harness
 .dsh-home/
 
 # Customer source drops — local only

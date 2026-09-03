@@ -53,31 +53,6 @@ class Settings(BaseSettings):
         default=None,
         validation_alias="OSS_PUBLIC_BASE_URL",
     )
-    deepseek_upstream_base_url: str = Field(
-        default="https://api.deepseek.com",
-        validation_alias="DEEPSEEK_UPSTREAM_BASE_URL",
-    )
-    deepseek_search_upstream_base_url: str = Field(
-        default="https://api.deepseek.com/anthropic/v1",
-        validation_alias="DEEPSEEK_SEARCH_UPSTREAM_BASE_URL",
-    )
-    deepseek_api_key: SecretStr | None = Field(
-        default=None,
-        validation_alias="DEEPSEEK_API_KEY",
-    )
-    deepseek_upstream_api_key: SecretStr | None = Field(
-        default=None,
-        validation_alias="DEEPSEEK_UPSTREAM_API_KEY",
-    )
-    shenbian_gateway_api_key: SecretStr | None = Field(
-        default=None,
-        validation_alias="SHENBIAN_GATEWAY_API_KEY",
-    )
-    deepseek_gateway_max_request_bytes: int = Field(
-        default=48 * 1024 * 1024,
-        validation_alias="DEEPSEEK_GATEWAY_MAX_REQUEST_BYTES",
-        ge=1,
-    )
 
     @property
     def ontology_path(self) -> Path:

@@ -2,7 +2,7 @@
 
 本仓库以 Pi Coding Agent 为 Agent 与 TUI 基座，按上游公开扩展方式二次开发：**不改上游源码，沈变能力都放在独立 Pi package**。
 
-`pi/AGENTS.md` 与 `harness/AGENTS.md` 都是上游仓库的贡献说明，不适用于本仓库。改本项目能力时只看本文件。DeepSeek Harness 代码暂留作迁移期兼容，不再承载新功能。
+`pi/AGENTS.md` 是上游仓库的贡献说明，不适用于本仓库。改本项目能力时只看本文件。
 
 ## 目录
 
@@ -16,7 +16,6 @@
 | `.pi/` | 项目级 Pi 设置；`runtime/` 是默认隔离状态目录并忽略，不放密钥或可提交运行缓存 |
 | `plugins/` | 我们的 Pi package；当前入口是 `plugins/shenbian-pi/` |
 | `pi/` | Pi Coding Agent 上游 submodule，只读，固定到已验证 release commit |
-| `harness/` / `patches/` | DeepSeek Harness 迁移期遗留，只维护已有兼容，不新增业务能力 |
 | `specs/` | SDD：先规格后实现 |
 | `docs/` | 本仓库文档（调研、开发笔记等）；规格仍写 `specs/` |
 | `other-projects/` | 对本工程有帮助的参考项目，只参考。晓量冻结快照进本仓 `other-projects/xiaoliang/`（钉 `94720be`），不要 `git pull` 原仓、不要当 submodule；`grok-build` 等其余克隆仍只留本机 |
@@ -48,12 +47,12 @@
 
 ## 硬性约定
 
-- 不要修改或提交 `pi/`、`harness/` 里的任何文件。新的 Agent、TUI 与 THCAD 编排能力只写在 `plugins/shenbian-pi/`，数据和对象实例仍不进插件。
+- 不要修改或提交 `pi/` 里的任何文件。新的 Agent、TUI 与 THCAD 编排能力只写在 `plugins/shenbian-pi/`，数据和对象实例仍不进插件。
 - Pi 扩展只使用文档公开入口、事件和 UI API。禁止 import `pi/packages/**/src` 或其他内部文件；Pi 核心包只声明为 `peerDependencies: "*"`，插件不得再安装或打包一份运行时。
 - 从仓库根运行 `scripts/bootstrap-pi.ps1`、`scripts/start-pi.ps1`、`scripts/verify-pi.ps1`。不要绕过项目 `.pi/settings.json` 另造一套启动配置。
 - Pi 上游只用 release tag 或完整 commit 固定。升级必须走 `scripts/update-pi.ps1 -Ref <tag-or-commit>`，通过官方全量构建、插件类型检查、CLI/TUI 和模型 smoke 后，才提交 `pi` gitlink 与兼容性改动。
 - `.pi/settings.json` 只登记可信的一方或已审计、已固定版本 package。`.pi/git/`、`.pi/npm/`、`.pi/runtime/` 等运行缓存不进 git；未知第三方 extension/package 不得自动批准。产品启动默认隔离用户全局 Pi Home，并关闭用户全局 skill 发现；个人调试只有显式传 `-UseUserPiHome`、`-UseUserSkills` 才分别合并这些资源。
-- 环境变量只认仓库根的 `.env` 和 `.env.example`。不要在 `plugins/`、`data/`、`harness/`、未来的前端/后端目录再放一份。Agent 直接读写 `.env`，不要因为怕泄露而回避或改口只动 example；密钥由维护者轮换。增删或改键名时两份必须同时改，键集合保持一致（`.env` 填真值，`.env.example` 留空或假值）。不要提交 `.env`。前端只暴露 `VITE_*`；密钥不加这个前缀。加载器（Vite `envDir`、dotenv、Compose `env_file`）指向仓库根，不要复制文件。
+- 环境变量只认仓库根的 `.env` 和 `.env.example`。不要在 `plugins/`、`data/`、未来的前端/后端目录再放一份。Agent 直接读写 `.env`，不要因为怕泄露而回避或改口只动 example；密钥由维护者轮换。增删或改键名时两份必须同时改，键集合保持一致（`.env` 填真值，`.env.example` 留空或假值）。不要提交 `.env`。前端只暴露 `VITE_*`；密钥不加这个前缀。加载器（Vite `envDir`、dotenv、Compose `env_file`）指向仓库根，不要复制文件。
 - Pi 启动脚本把根 `.env` 注入当前子进程且不打印值。生产仍用同一套键名，由主机注入；不要把密钥写进 `.pi/settings.json`、主题或 extension 源码。
 - FastAPI 代码只放 `backend/`，使用 uv 和 `src/` 布局。领域模型不得依赖 FastAPI/SQLAlchemy/Redis/OSS SDK；`ontology/` 仍只放类型契约，客户数据导入仍只走 `data/pipelines/`。
 - 产品前端代码只放根目录 `frontend/`。生产运行时不得用 mock、fixture 或随机数据替代真实 API；测试替身只能存在于测试代码中。前端不直连 PostgreSQL/Redis/OSS，不读取 `client-data/`，也不把客户正文持久化到浏览器存储。
@@ -69,6 +68,5 @@
 - 自定义 TUI 使用 `setHeader`、`setFooter`、`setWidget`、`setStatus` 和公开组件，不复制官方 TUI 源码。未来 GUI 通过 SDK/RPC 嵌入，同样复用沈变业务 package，而不是把 GUI 逻辑塞进 Pi core。
 - 每次升级只移动 `pi` submodule 指针并同步 `scripts/pi-baseline.psd1`。审阅 release notes 后执行 build、verify、真实 PTY TUI 和最小模型调用；不通过就修外置 package 或回退 gitlink。
 - 若公开 seam 确实缺失，先写 ADR 说明业务必要性、兼容成本与退出条件，并优先向上游提出通用 seam。只有无法等待时才维护最小、可重放、短生命周期补丁，产品代码仍不得进入 `pi/`。
-- `harness/` 与 `patches/` 仅供既有迁移任务复现；不要再往这条旧路径增加能力。
 
 日常命令见 `README.md`。

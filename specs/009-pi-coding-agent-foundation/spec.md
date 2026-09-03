@@ -13,7 +13,7 @@
 3. 根目录 `.pi/settings.json` 只负责声明项目资源；业务实现不放进 `.pi/`，避免配置与代码耦合。
 4. TUI 二开优先使用公开 API：`setHeader`、`setFooter`、`setWidget`、`setStatus`、`ui.custom`、自定义 tool renderer、commands、themes。
 5. 插件只 import Pi 的公开包入口，不 import `pi/packages/**/src` 内部文件；Pi 核心包只声明为 peer dependency，不在插件中再安装一份。
-6. 暂时保留现有 `harness/` 及相关脚本作为迁移期历史基线，不再把它作为默认新增能力的落点，也不在本规格中删除现有成果。
+6. DeepSeek Harness 已从仓库移除；新增 Agent / TUI / THCAD 能力只落在 `plugins/shenbian-pi/`。
 
 ## 需求
 
@@ -29,7 +29,7 @@
 
 - 不在本规格中接入真实 THCAD 工具或实现沈变审图规则。
 - 不把晓量 Electron GUI 复制到本仓库。
-- 不迁移或删除现有 Harness session、patch、backend、frontend 与数据成果。
+- 不在本规格中改动 backend、frontend 与已有数据成果。
 - 不建立长期修改 Pi 内核的 fork。
 - 不替用户安装不受信任的第三方 Pi package。
 

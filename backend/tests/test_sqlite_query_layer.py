@@ -9,7 +9,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from conftest import FakeDeepSeekGateway, HealthyProbe
+from conftest import HealthyProbe
 from data.pipelines.cad_capabilities.build_curated import curated_atom
 from data.pipelines.local_query_store.load_sqlite import (
     load_business_requirements,
@@ -327,7 +327,6 @@ async def test_sqlite_cad_v1_and_v2_coexist(tmp_path: Path, settings: Settings) 
 def test_missing_sqlite_file_returns_503(
     tmp_path: Path,
     settings: Settings,
-    deepseek_gateway: FakeDeepSeekGateway,
 ) -> None:
     settings = settings.model_copy(
         update={
@@ -338,7 +337,6 @@ def test_missing_sqlite_file_returns_503(
     app = create_app(
         settings=settings,
         probes=[HealthyProbe("postgresql"), HealthyProbe("redis"), HealthyProbe("oss")],
-        deepseek_gateway=deepseek_gateway,
     )
     with TestClient(app) as client:
         business = client.get("/api/v1/business-requirements/graph")

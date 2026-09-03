@@ -6,9 +6,9 @@ Data Layer **不**放进 `client-data/`，也 **不**放进 `plugins/`。
 
 `client-data/` 是 Source：客户交什么就存什么，带客户自己的文件夹名和文件名。一旦在这里做解析或改名，原文和产物混在一起，无法证明「模型看到的」能从客户交付复现。
 
-`plugins/` 是 DSH 运行时。上游没有数据 ABI；把数据集或 ontology 实例塞进插件包，会把数据生命周期绑到 profile 加载上。
+`plugins/` 是 Pi package 运行时。上游没有数据 ABI；把数据集或 ontology 实例塞进插件包，会把数据生命周期绑到加载面上。
 
-所以四层都在仓库根，和现有 `plugins/` / `patches/` / `harness/` 并列：
+所以四层都在仓库根，和现有 `plugins/` 并列：
 
 ```
 client-data/                 Source：客户原文 drop（本地，不进 git）
@@ -78,7 +78,7 @@ plugins/  通过 ctx.* 查询对象，不读 client-data
 | 方案 | 结论 |
 | --- | --- |
 | Data Layer 放在 `client-data/derived/` | 否。原文目录会被写成工作区。 |
-| Data Layer 放在 `plugins/data/` | 否。和 DSH bundle 生命周期绑死。 |
+| Data Layer 放在 `plugins/data/` | 否。和 Pi package 生命周期绑死。 |
 | 目录叫 `data-layer/` | 否。短名 `data/`，文档里称 Data Layer。 |
 | 现在就定 Parquet / SQLite | 否。等第一条管线的产物形态再定（spec 非目标）。 |
 | 现在就建 ontology 对象类型 | 否。另开 spec；本轮只占目录。 |

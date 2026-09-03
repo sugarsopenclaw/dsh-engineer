@@ -1,11 +1,11 @@
-# 沈变 Harness Agent API
+# 沈变共享 API
 
-`shenbian-api`（`backend/`）为本地 DeepSeek Harness Agent 提供共享读取接口与 DeepSeek 模型网关。本文档按当前实现列出全部 HTTP 接口；规格仍以 `specs/` 为准。
+`shenbian-api`（`backend/`）为本地 Pi Agent 提供共享读取接口与拓扑语义存储。本文档按当前实现列出全部 HTTP 接口；规格仍以 `specs/` 为准。
 
 业务需求图谱的完整前端联调契约见 [`business-requirements-graph-api.md`](business-requirements-graph-api.md)，CAD 原子能力目录契约见 [`cad-capabilities-api.md`](cad-capabilities-api.md)。
 
-- 服务标题：沈变 Harness Agent API
-- 版本：`0.3.0`
+- 服务标题：沈变共享 API
+- 版本：`0.4.0`
 - 默认监听：`http://127.0.0.1:8000`
 - 业务前缀：`/api/v1`
 - 交互式文档：启动后访问 [`/docs`](http://127.0.0.1:8000/docs)（OpenAPI）
@@ -25,24 +25,9 @@ uv run shenbian-api
 | --- | --- |
 | 协议 | HTTP/1.1，JSON 默认 `application/json; charset=utf-8` |
 | 路径 | 业务接口一律在 `/api/v1` 下 |
-| 鉴权 | 健康检查、Ontology、数据目录、业务需求图谱和 CAD 原子能力目录在当前本机/受控内网部署中**不鉴权**。模型网关需要 `Authorization: Bearer <token>`，见 [模型网关鉴权](#模型网关鉴权) |
-| 请求体上限 | 仅模型网关限制，默认 48 MiB（`DEEPSEEK_GATEWAY_MAX_REQUEST_BYTES`，`50331648`） |
-| 成功 | `2xx`，响应体为对应模型 JSON；流式接口原样转发上游字节 |
-| 失败 | 见各接口错误表。模型网关自有错误统一为下方结构；上游业务错误（如 429）原样透传 |
-
-模型网关自有错误体：
-
-```json
-{
-  "error": {
-    "message": "人类可读说明",
-    "type": "shenbian_model_gateway_error",
-    "code": "request_too_large"
-  }
-}
-```
-
-`code` 取值：`request_too_large`、`authentication_failed`、`gateway_not_configured`、`upstream_unreachable`。
+| 鉴权 | 当前本机/受控内网部署中**不鉴权** |
+| 成功 | `2xx`，响应体为对应模型 JSON |
+| 失败 | 见各接口错误表 |
 
 ---
 
@@ -61,8 +46,6 @@ uv run shenbian-api
 | `GET` | `/api/v1/cad-capabilities/graph-atoms` | 否 | 本机 SQLite NDJSON 批量返回筛选后的图谱最小投影 |
 | `GET` | `/api/v1/cad-capabilities/atoms/{atom_id}` | 否 | 本机 SQLite 查询单个原子的完整技术事实与分类属性 |
 | `GET` | `/api/v1/cad-capabilities/facets` | 否 | 本机 SQLite 查询技术面、宿主、操作类型等筛选项计数 |
-| `POST` | `/api/v1/llm/deepseek/chat/completions` | Bearer | DeepSeek Chat Completions 透明转发 |
-| `POST` | `/api/v1/llm/deepseek/anthropic/v1/messages` | Bearer | DeepSeek Anthropic Messages 透明转发（Harness Web Search） |
 
 当前业务需求和 CAD 能力对象实例只提供上述只读查询；尚未提供写入 CRUD、图纸上传或图元读写接口。
 
@@ -346,164 +329,11 @@ Host: 127.0.0.1:8000
 
 `source`、`governance`、`observed` 允许 YAML 中的额外字段一并返回（例如 `governance.ontology_ready`、`observed.note`）。
 
----
-
-## 模型网关
-
-两条接口都是**透明代理**：不解析、不改写请求体（含 messages、tools、thinking、reasoning_effort、图像 data URL）。响应按上游 HTTP 状态与允许的响应头原样流式回传，并解码上游 `Content-Encoding`，下游看到的是未压缩字节。
-
-Harness 接入时把 DeepSeek 基址指到本服务（见 `scripts/start-harness-via-backend.ps1`）：
-
-```text
-DEEPSEEK_BASE_URL        = http://127.0.0.1:8000/api/v1/llm/deepseek
-DEEPSEEK_SEARCH_BASE_URL = http://127.0.0.1:8000/api/v1/llm/deepseek/anthropic/v1
-```
-
-官方适配器会请求 `{DEEPSEEK_BASE_URL}/chat/completions` 与 `{DEEPSEEK_SEARCH_BASE_URL}/messages`。
-
-### 模型网关鉴权
-
-`Authorization` 必须是 `Bearer <token>`。解析规则：
-
-| 配置 | 客户端应带的 Key | 转给上游的 Key |
-| --- | --- | --- |
-| `SHENBIAN_GATEWAY_API_KEY` 与 `DEEPSEEK_UPSTREAM_API_KEY` 都为空（默认开发） | DeepSeek 上游 Key（Harness 已有凭据） | 原样转发客户端 Bearer |
-| 两个都已配置（服务端持钥） | 网关 Key（`SHENBIAN_GATEWAY_API_KEY`） | 换成 `DEEPSEEK_UPSTREAM_API_KEY` |
-| 只配了 `DEEPSEEK_UPSTREAM_API_KEY` | 可省略或任意（不校验网关 Key） | 使用服务端上游 Key |
-| 只配了 `SHENBIAN_GATEWAY_API_KEY` | 必须等于网关 Key | 因缺少上游 Key → `503 gateway_not_configured` |
-| 配了网关 Key 但 Bearer 缺失或不匹配 | — | `401 authentication_failed` |
-| 两个都空且未带 Bearer | — | `401 authentication_failed` |
-
-比较网关 Key 时使用恒定时间比较。错误响应不回显任何 Key 或请求正文。
-
-相关环境变量（仓库根 `.env`）：
-
-| 变量 | 默认 | 作用 |
-| --- | --- | --- |
-| `DEEPSEEK_UPSTREAM_BASE_URL` | `https://api.deepseek.com` | Chat Completions 上游，实际请求 `{base}/chat/completions` |
-| `DEEPSEEK_SEARCH_UPSTREAM_BASE_URL` | `https://api.deepseek.com/anthropic/v1` | Messages 上游，实际请求 `{base}/messages` |
-| `DEEPSEEK_UPSTREAM_API_KEY` | 空 | 服务端持有的上游 Key |
-| `SHENBIAN_GATEWAY_API_KEY` | 空 | 客户端访问本网关的 Key |
-| `DEEPSEEK_GATEWAY_MAX_REQUEST_BYTES` | `50331648` | 请求体最大字节数 |
-
----
-
-### `POST /api/v1/llm/deepseek/chat/completions`
-
-转发到 `{DEEPSEEK_UPSTREAM_BASE_URL}/chat/completions`。供 Harness 主对话（含视觉模型 `deepseek-v4-flash-vision-exp`）。
-
-**请求头**
-
-| 头 | 是否转发上游 | 说明 |
-| --- | --- | --- |
-| `Authorization` | 替换为上游 Bearer | 见鉴权表 |
-| `Content-Type` | 是 | 缺省补 `application/json` |
-| `Accept` | 是 | 缺省补 `text/event-stream` |
-| `User-Agent` | 是 | 有则转发 |
-| `x-deepseek-harness-compact` | 是 | Harness compact 标记 |
-| `x-deepseek-harness-session-id` | 是 | 会话 ID |
-| `x-deepseek-harness-user-id` | 是 | 用户 ID |
-
-其他请求头丢弃。不跟随上游重定向。
-
-**请求体**：DeepSeek / OpenAI 兼容 Chat Completions JSON，原字节转发。常见字段（本网关不校验）：
-
-```json
-{
-  "model": "deepseek-v4-flash",
-  "messages": [{ "role": "user", "content": "ping" }],
-  "stream": true
-}
-```
-
-视觉请求同样原样转发，例如 `content` 中的 `image_url.url` 可以是 `data:image/png;base64,...` 或公网 URL。
-
-**成功响应**：上游状态码（通常 `200`）+ 上游体。流式时 `Content-Type` 多为 `text/event-stream`。
-
-本网关额外或透传的响应头：
-
-| 头 | 来源 |
-| --- | --- |
-| `x-shenbian-model-gateway` | 本网关固定为 `deepseek` |
-| `content-type` | 上游 |
-| `cache-control` | 上游 |
-| `retry-after` | 上游（如 429） |
-| `x-deepseek-request-id` | 上游 |
-| `x-request-id` | 上游 |
-
-不向下游暴露上游的 `content-encoding`。
-
-**本网关错误**
-
-| HTTP | `error.code` | 条件 |
-| --- | --- | --- |
-| `413` | `request_too_large` | `Content-Length` 或实际体超过上限 |
-| `401` | `authentication_failed` | Bearer 缺失、格式错误或不匹配网关 Key |
-| `503` | `gateway_not_configured` | 无法构造合法上游请求（含缺上游 Key） |
-| `502` | `upstream_unreachable` | 连不上 DeepSeek |
-
-上游返回的 4xx/5xx（如 `429`）会按上游状态与 body 透传，**不是**上述 `shenbian_model_gateway_error` 结构。
-
-```http
-POST /api/v1/llm/deepseek/chat/completions HTTP/1.1
-Host: 127.0.0.1:8000
-Authorization: Bearer <token>
-Content-Type: application/json
-Accept: text/event-stream
-x-deepseek-harness-session-id: session-1
-
-{"model":"deepseek-v4-flash","messages":[{"role":"user","content":"ping"}],"stream":true}
-```
-
----
-
-### `POST /api/v1/llm/deepseek/anthropic/v1/messages`
-
-转发到 `{DEEPSEEK_SEARCH_UPSTREAM_BASE_URL}/messages`。供 Harness DeepSeek Web Search（Anthropic-compatible Messages）。
-
-**请求头**
-
-| 头 | 是否转发上游 | 说明 |
-| --- | --- | --- |
-| `Authorization` | 替换为上游 Bearer | 同时写入上游 `x-api-key`（同一 token） |
-| `x-api-key` | 否（由网关重写） | 客户端可带，上游使用解析后的 token |
-| `anthropic-version` | 是 | 缺省补 `2023-06-01` |
-| `Content-Type` | 是 | 缺省补 `application/json` |
-| `Accept` | 是 | 缺省补 `application/json` |
-| `User-Agent` | 是 | 有则转发 |
-
-鉴权、请求体上限、错误码与 Chat Completions 相同。
-
-**请求体**：Anthropic Messages JSON，原字节转发。Harness 搜索常见形状：
-
-```json
-{
-  "model": "deepseek-v4-flash",
-  "messages": [{ "role": "user", "content": "search" }],
-  "tools": [{ "type": "web_search_20250305", "name": "web_search" }]
-}
-```
-
-**成功响应**：上游状态与 body。响应头集合与 Chat Completions 相同，但 `x-shenbian-model-gateway` 固定为 `deepseek-search`。
-
-```http
-POST /api/v1/llm/deepseek/anthropic/v1/messages HTTP/1.1
-Host: 127.0.0.1:8000
-Authorization: Bearer <token>
-Content-Type: application/json
-anthropic-version: 2023-06-01
-
-{"model":"deepseek-v4-flash","messages":[{"role":"user","content":"search"}]}
-```
-
----
-
 ## 相关
 
 | 文档 | 内容 |
 | --- | --- |
-| [`backend/README.md`](../../backend/README.md) | 启动、Harness 接入、视觉链路 |
-| [`specs/003-harness-deepseek-gateway/spec.md`](../../specs/003-harness-deepseek-gateway/spec.md) | 模型网关规格 |
+| [`backend/README.md`](../../backend/README.md) | 启动与验证 |
 | [`ontology/shenbian/v1/ontology.yaml`](../../ontology/shenbian/v1/ontology.yaml) | Ontology 源 |
 | [`ontology/cad_capabilities/v1/ontology.yaml`](../../ontology/cad_capabilities/v1/ontology.yaml) | CAD 原子能力对象类型契约 |
 | [`data/catalog/`](../../data/catalog/) | 数据集登记 YAML |

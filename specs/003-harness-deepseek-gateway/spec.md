@@ -1,5 +1,7 @@
 # 003 — Harness 经 FastAPI 访问 DeepSeek
 
+> **已退役（2026-09-03）。** DeepSeek Harness 已从仓库移除。FastAPI 不再提供 `/api/v1/llm/deepseek` 透明代理；Pi 主模型直连 DeepSeek。下文保留为历史切片记录。
+
 ## 背景
 
 沈变产品的核心运行时是本地 DeepSeek Harness Agent。Agent 围绕当前 DWG 调用 THCAD 完成生产用 DXF 图纸净化，并在后续完成铁芯叠片一致性校验。FastAPI 为 Agent 提供可函数调用的共享接口，不替代本地 Agent/CAD 主循环。

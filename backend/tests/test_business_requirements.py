@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from datetime import UTC, datetime
 
-from conftest import FakeDeepSeekGateway, HealthyProbe
+from conftest import HealthyProbe
 from fastapi.testclient import TestClient
 
 from shenbian_api.app_factory import create_app
@@ -290,13 +290,11 @@ def test_stored_coordinates_are_used_only_for_the_requested_layout_version() -> 
 
 def test_business_requirements_http_contract(
     settings: Settings,
-    deepseek_gateway: FakeDeepSeekGateway,
 ) -> None:
     reader = FakeBusinessRequirementsReader()
     app = create_app(
         settings=settings,
         probes=[HealthyProbe("postgresql")],
-        deepseek_gateway=deepseek_gateway,
         business_requirements_reader=reader,
     )
 

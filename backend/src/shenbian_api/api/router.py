@@ -5,7 +5,6 @@ from shenbian_api.api.routes import (
     cad_capabilities,
     catalog,
     health,
-    model_gateway,
     ontology,
     topology_semantics,
 )
@@ -28,9 +27,4 @@ api_router.include_router(
     topology_semantics.router,
     prefix="/topology-semantics",
     tags=["topology-semantics"],
-)
-api_router.include_router(
-    model_gateway.router,
-    prefix="/llm/deepseek",
-    tags=["model-gateway"],
 )

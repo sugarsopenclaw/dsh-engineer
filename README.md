@@ -2,7 +2,7 @@
 
 面向沈变图纸审查的本地 Agent 工程。当前基座已经从 DeepSeek Harness 切换为 [Pi Coding Agent](https://github.com/earendil-works/pi)：保留官方 CLI/TUI，把品牌界面、业务命令、THCAD 工具和审图编排放在仓库自己的 Pi package 中。
 
-核心原则是：**固定上游，不改上游；优先使用公开扩展面，升级靠可重复门禁。** DeepSeek Harness 相关目录暂留作迁移期兼容，不再承载新功能。
+核心原则是：**固定上游，不改上游；优先使用公开扩展面，升级靠可重复门禁。**
 
 ## 架构
 
@@ -17,7 +17,6 @@
 | `ontology/` | 对象、属性、链接、动作的类型契约 |
 | `backend/` | Pi 工具按需调用的 FastAPI 共享 API、知识/数据分发和基础设施适配 |
 | `frontend/` | 产品 Web 前端，只通过 `backend/` 的真实 `/api/v1` 契约访问业务数据 |
-| `harness/` / `patches/` | DeepSeek Harness 迁移期遗留，不新增业务能力 |
 | `specs/` / `docs/` | SDD 规格与调研、开发文档 |
 | `other-projects/xiaoliang/` | 晓量冻结参考快照；只参考，不与原仓同步 |
 | `dev-test/` / `cloud-dev/` | 本机 PoC 与云开发工作区，不是产品层 |
@@ -172,7 +171,3 @@ pnpm build
 ```
 
 后端也可从 `backend/` 用 `uv sync`、`uv run shenbian-api` 启动。拓扑与语义只写本机 SQLite；Redis 与 OSS 适配继续保留。前端不得直连 SQLite、Redis、OSS 或 `client-data/`；FastAPI 也不代替本地 Pi Agent 与 THCAD 操作主循环。
-
-## Harness 遗留路径
-
-`harness/`、`patches/`、`start-dev.cmd`、`start-harness-via-backend.ps1` 和规格 003 暂时保留，用于复现与迁移现有 DeepSeek Harness 网关切片。新功能不要继续落到这条路径；待依赖清点完毕后再用独立规格移除，避免把迁移和 Pi 基座引入混成一次不可审阅的大改。
