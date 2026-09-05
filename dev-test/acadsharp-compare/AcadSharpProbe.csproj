@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <ACadSharpVersion Condition="'$(ACadSharpVersion)' == ''">3.7.1</ACadSharpVersion>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(ReadCadACadSharpPath)' == ''">
+    <PackageReference Include="ACadSharp" Version="$(ACadSharpVersion)" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(ReadCadACadSharpPath)' != ''">
+    <Reference Include="ACadSharp">
+      <HintPath>$(ReadCadACadSharpPath)</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+</Project>
